@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
@@ -86,18 +87,19 @@ export default function PortalLayout({
             {NAV.map(({ href, label, icon: Icon }) => {
               const active = pathname === href;
               return (
+                <Link
+  key={href}
+  href={href}
+  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+    active
+      ? "bg-[#0f2044] text-white"
+      : "text-gray-500 hover:bg-gray-50 hover:text-gray-800"
+  }`}
+>
+  <Icon size={16} />
+  {label}
+</Link>
                 
-                  key={href}
-                  href={href}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                    active
-                      ? "bg-[#0f2044] text-white"
-                      : "text-gray-500 hover:bg-gray-50 hover:text-gray-800"
-                  }`}
-                >
-                  <Icon size={16} />
-                  {label}
-                </a>
               );
             })}
           </nav>

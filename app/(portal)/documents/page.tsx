@@ -262,13 +262,12 @@ export default function DocumentsPage() {
               <div className="flex items-center gap-1">
                 
                   href={`${process.env.NEXT_PUBLIC_API_URL}${doc.file_url}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="p-2 text-gray-400 hover:text-[#0f2044] rounded-lg hover:bg-blue-50 transition"
-                  title="View"
-                >
-                  <ExternalLink size={15} />
-                </a>
+  target="_blank"
+  rel="noopener noreferrer"
+  className="p-2 text-gray-400 hover:text-[#0f2044] rounded-lg hover:bg-blue-50 transition"
+  title="View">
+  <ExternalLink size={15} />
+</a>
                 <button
                   onClick={() => handleDelete(doc.id)}
                   className="p-2 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition"
