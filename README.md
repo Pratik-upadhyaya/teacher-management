@@ -1,36 +1,133 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Teacher Portal — Frontend
+
+Teacher self-service portal for the Gandaki Pradesh Education Office teacher management system. Built with Next.js 14.
+
+## Stack
+
+- **Next.js 14** (App Router)
+- **Tailwind CSS**
+- **TypeScript**
+- **JWT** authentication (djangorestframework-simplejwt)
+
+## Project Structure
+src/app/
+├── login/              # Login page
+├── register/           # 4-step teacher registration wizard
+└── (portal)/           # Protected pages (requires login)
+├── layout.tsx      # Shared navbar + sidebar
+├── dashboard/      # Teacher dashboard
+├── profile/        # View + edit profile, change password
+└── documents/      # Upload and view documents
 
 ## Getting Started
 
-First, run the development server:
+### 1. Clone the repo and switch to the frontend branch
+
+```bash
+git clone https://github.com/Pratik-upadhyaya/teacher-management.git
+cd teacher-management
+git checkout frontend/teacher-portal
+```
+
+### 2. Install dependencies
+
+```bash
+npm install
+```
+
+### 3. Set up environment
+
+Create a `.env.local` file in the root:
+NEXT_PUBLIC_API_URL=http://localhost:8000
+
+Change the URL to wherever the Django backend is running.
+
+### 4. Run the dev server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Visit `http://localhost:3000` — redirects to `/login`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Pages
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Route | Description |
+|-------|-------------|
+| `/login` | Login with email + password |
+| `/register` | 4-step teacher registration wizard |
+| `/dashboard` | Overview — teacher info + stats |
+| `/profile` | Edit profile + change password |
+| `/documents` | Upload and manage documents |
 
-## Learn More
+## Expected API Endpoints
 
-To learn more about Next.js, take a look at the following resources:
+These are the Django endpoints this frontend expects:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/token/` | Login — returns `access`, `refresh`, `role` |
+| POST | `/api/token/refresh/` | Refresh access token |
+| POST | `/api/register/` | Teacher registration |
+| GET | `/api/teachers/me/` | Logged-in teacher profile |
+| PATCH | `/api/teachers/me/` | Update profile |
+| POST | `/api/change-password/` | Change password |
+| GET | `/api/documents/` | List teacher's documents |
+| POST | `/api/documents/` | Upload a document |
+| DELETE | `/api/documents/:id/` | Delete a document |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Expected API Response Shape
 
-## Deploy on Vercel
+### `/api/teachers/me/`
+```json
+{
+  "name": "Ram Shrestha",
+  "email": "ram@school.edu.np",
+  "phone": "98XXXXXXXX",
+  "position": "Science Teacher",
+  "subject": "Science",
+  "classes": "8, 9, 10",
+  "tsc_no": "TSC-2080-04521",
+  "join_date": "2080/03/15",
+  "member_since": "2080 BS",
+  "address": "Pokhara-10, Kaski",
+  "status": "ACTIVE",
+  "document_count": 4,
+  "school": {
+    "name": "Shree Bal Kalyan Ma. Vi.",
+    "district": "Kaski",
+    "province": "Gandaki"
+  }
+}
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### `/api/documents/`
+```json
+[
+  {
+    "id": 1,
+    "type": "CITIZENSHIP",
+    "label": "Citizenship Certificate",
+    "file_url": "/media/documents/citizenship.jpg",
+    "uploaded_at": "2024-01-15"
+  }
+]
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Auth Flow
+
+1. POST `/api/token/` with email + password
+2. Store `access` and `refresh` in localStorage
+3. Send `Authorization: Bearer <access>` on every request
+4. On 401, call `/api/token/refresh/` to get a new access token
+5. If refresh fails → redirect to `/login`
+
+## Notes for Backend Team
+
+- `/api/token/` response must include `role` field (`"admin"` or `"teacher"`) so the frontend can redirect correctly after login
+- Document `file_url` should be a path that can be appended to `NEXT_PUBLIC_API_URL` to view the file
+- CORS must allow `http://localhost:3000` during development
+Then push it:
+bashgit add README.md
+git commit -m "update README with project info and API docs"
+git push
