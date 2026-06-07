@@ -138,9 +138,7 @@ export default function ProfilePage() {
           <p className="text-xs text-gray-400">
             {teacher?.subject} · {teacher?.position}
           </p>
-          <a>
-          href="#"
-          className="text-xs text-blue-500 block">
+          <a href="#" className="text-xs text-blue-500 block">
           {teacher?.school?.name}
           </a>
           <span className="inline-block bg-green-100 text-green-700 text-xs px-3 py-1 rounded-full">
