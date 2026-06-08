@@ -158,7 +158,110 @@ function Step1({
     </form>
   );
 }
-
+const DISTRICTS: Record<string, string[]> = {
+  Kaski: [
+    "Pokhara Metropolitan City",
+    "Annapurna Rural Municipality",
+    "Madi Rural Municipality",
+    "Machhapuchchhre Rural Municipality",
+    "Rupa Rural Municipality",
+  ],
+  Syangja: [
+    "Putalibazar Municipality",
+    "Galyang Municipality",
+    "Chapakot Municipality",
+    "Biruwa Municipality",
+    "Arjunchaupari Rural Municipality",
+    "Harinas Rural Municipality",
+    "Kaligandaki Rural Municipality",
+    "Phedikhola Rural Municipality",
+    "Waling Municipality",
+  ],
+  Tanahun: [
+    "Byas Municipality",
+    "Bhimad Municipality",
+    "Shuklagandaki Municipality",
+    "Bandipur Rural Municipality",
+    "Devghat Rural Municipality",
+    "Ghiring Rural Municipality",
+    "Myagde Rural Municipality",
+    "Rhishing Rural Municipality",
+    "Anbukhaireni Rural Municipality",
+  ],
+  Baglung: [
+    "Baglung Municipality",
+    "Galkot Municipality",
+    "Dhorpatan Municipality",
+    "Bareng Rural Municipality",
+    "Badigad Rural Municipality",
+    "Taman Rural Municipality",
+    "Nisikhola Rural Municipality",
+    "Jaimini Municipality",
+    "Kanthekhola Rural Municipality",
+  ],
+  Parbat: [
+    "Kushma Municipality",
+    "Phalebas Municipality",
+    "Modi Rural Municipality",
+    "Mahashila Rural Municipality",
+    "Painyu Rural Municipality",
+    "Bihadi Rural Municipality",
+    "Jaljala Rural Municipality",
+  ],
+  Myagdi: [
+    "Beni Municipality",
+    "Mangala Rural Municipality",
+    "Malika Rural Municipality",
+    "Annapurna Rural Municipality",
+    "Dhaulagiri Rural Municipality",
+    "Raghuganga Rural Municipality",
+  ],
+  Mustang: [
+    "Mustang Rural Municipality",
+    "Gharapjhong Rural Municipality",
+    "Lomanthang Rural Municipality",
+    "Thasang Rural Municipality",
+    "Waragung Muktikhsetra Rural Municipality",
+  ],
+  Manang: [
+    "Chame Rural Municipality",
+    "Narpa Bhumi Rural Municipality",
+    "Narphu Rural Municipality",
+    "Manang Disyang Rural Municipality",
+  ],
+  Nawalpur: [
+    "Kawasoti Municipality",
+    "Gaindakot Municipality",
+    "Madhyabindu Municipality",
+    "Bulingtar Rural Municipality",
+    "Devchuli Municipality",
+    "Hupsekot Municipality",
+    "Binayi Tribeni Rural Municipality",
+    "Baudimai Rural Municipality",
+  ],
+  Gorkha: [
+    "Gorkha Municipality",
+    "Palungtar Municipality",
+    "Sulikot Rural Municipality",
+    "Siranchok Rural Municipality",
+    "Arpak Dudhapokhara Rural Municipality",
+    "Bhimsenthapa Rural Municipality",
+    "Tsum Nubri Rural Municipality",
+    "Dharche Rural Municipality",
+    "Gandaki Rural Municipality",
+    "Ajirkot Rural Municipality",
+  ],
+  Lamjung: [
+    "Besisahar Municipality",
+    "Madhya Nepal Municipality",
+    "Rainas Municipality",
+    "Sundarbazar Municipality",
+    "Dordi Rural Municipality",
+    "Dudhpokhari Rural Municipality",
+    "Kwholasothar Rural Municipality",
+    "Marsyangdi Rural Municipality",
+  ],
+};
 // ── Step 2: School Info ───────────────────────────────────────────
 function Step2({
   data,
@@ -186,44 +289,46 @@ function Step2({
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            District <span className="text-gray-400 font-normal">/ जिल्ला</span>
-          </label>
-          <select
-            required
-            value={data.district}
-            onChange={(e) => onChange("district", e.target.value)}
-            className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-[#0f2044] focus:ring-1 focus:ring-[#0f2044] bg-white"
-          >
-            <option value="">Select district</option>
-            <option>Kaski</option>
-            <option>Syangja</option>
-            <option>Tanahun</option>
-            <option>Baglung</option>
-            <option>Parbat</option>
-            <option>Myagdi</option>
-            <option>Mustang</option>
-            <option>Manang</option>
-            <option>Nawalpur</option>
-            <option>Gorkha</option>
-            <option>Lamjung</option>
-          </select>
-        </div>
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-1">
+      District <span className="text-gray-400 font-normal">/ जिल्ला</span>
+    </label>
+    <select
+      required
+      value={data.district}
+      onChange={(e) => {
+        onChange("district", e.target.value);
+        onChange("municipality", "");
+      }}
+      className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-[#0f2044] focus:ring-1 focus:ring-[#0f2044] bg-white"
+    >
+      <option value="">Select district</option>
+      {Object.keys(DISTRICTS).map((d) => (
+        <option key={d}>{d}</option>
+      ))}
+    </select>
+  </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Municipality <span className="text-gray-400 font-normal">/ नगरपालिका</span>
-          </label>
-          <input
-            required
-            value={data.municipality}
-            onChange={(e) => onChange("municipality", e.target.value)}
-            placeholder="Pokhara Metropolitan"
-            className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-[#0f2044] focus:ring-1 focus:ring-[#0f2044]"
-          />
-        </div>
-      </div>
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-1">
+      Municipality <span className="text-gray-400 font-normal">/ नगरपालिका</span>
+    </label>
+    <select
+      required
+      value={data.municipality}
+      onChange={(e) => onChange("municipality", e.target.value)}
+      disabled={!data.district}
+      className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-[#0f2044] focus:ring-1 focus:ring-[#0f2044] bg-white disabled:bg-gray-50 disabled:text-gray-400"
+    >
+      <option value="">
+        {data.district ? "Select municipality" : "Select district first"}
+      </option>
+      {(DISTRICTS[data.district] || []).map((m) => (
+        <option key={m}>{m}</option>
+      ))}
+    </select>
+  </div>
+</div>
 
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
