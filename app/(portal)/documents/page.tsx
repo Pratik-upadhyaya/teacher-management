@@ -62,7 +62,6 @@ export default function DocumentsPage() {
       fd.append("file", selectedFile);
       fd.append("type", docType);
       if (label) fd.append("label", label);
-
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/documents/`,
         {
@@ -142,7 +141,6 @@ export default function DocumentsPage() {
             </button>
           </div>
 
-          {/* File drop zone */}
           <div
             onClick={() => fileRef.current?.click()}
             className="border-2 border-dashed border-gray-200 hover:border-[#0f2044] rounded-xl p-8 text-center cursor-pointer transition"
@@ -164,12 +162,8 @@ export default function DocumentsPage() {
             ) : (
               <div>
                 <Upload size={24} className="text-gray-300 mx-auto mb-2" />
-                <p className="text-sm text-gray-400">
-                  Click to select a file
-                </p>
-                <p className="text-xs text-gray-300 mt-1">
-                  Image or PDF · Max 5MB
-                </p>
+                <p className="text-sm text-gray-400">Click to select a file</p>
+                <p className="text-xs text-gray-300 mt-1">Image or PDF · Max 5MB</p>
               </div>
             )}
           </div>
@@ -193,8 +187,7 @@ export default function DocumentsPage() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Label{" "}
-                <span className="text-gray-400 font-normal">(optional)</span>
+                Label <span className="text-gray-400 font-normal">(optional)</span>
               </label>
               <input
                 value={label}
@@ -227,10 +220,7 @@ export default function DocumentsPage() {
       {loading ? (
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className="h-16 bg-white rounded-xl border border-gray-100 animate-pulse"
-            />
+            <div key={i} className="h-16 bg-white rounded-xl border border-gray-100 animate-pulse" />
           ))}
         </div>
       ) : documents.length === 0 ? (
@@ -258,16 +248,16 @@ export default function DocumentsPage() {
                   </p>
                 </div>
               </div>
-
               <div className="flex items-center gap-1">
-                
+                <a
                   href={`${process.env.NEXT_PUBLIC_API_URL}${doc.file_url}`}
-  target="_blank"
-  rel="noopener noreferrer"
-  className="p-2 text-gray-400 hover:text-[#0f2044] rounded-lg hover:bg-blue-50 transition"
-  title="View">
-  <ExternalLink size={15} />
-</a>
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-2 text-gray-400 hover:text-[#0f2044] rounded-lg hover:bg-blue-50 transition"
+                  title="View"
+                >
+                  <ExternalLink size={15} />
+                </a>
                 <button
                   onClick={() => handleDelete(doc.id)}
                   className="p-2 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition"
