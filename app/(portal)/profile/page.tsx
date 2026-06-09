@@ -126,10 +126,10 @@ export default function ProfilePage() {
     .join("") ?? "T";
 
   return (
-    <div className="flex gap-6">
+    <div className="flex flex-col lg:flex-row gap-6">
 
       {/* Left sidebar card */}
-      <div className="w-56 shrink-0">
+      <div className="w-full lg:w-56 shrink-0">
         <div className="bg-white rounded-xl border border-gray-100 p-5 text-center space-y-2">
           <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center text-[#0f2044] font-bold text-xl mx-auto">
             {initials.toUpperCase()}

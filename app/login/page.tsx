@@ -75,7 +75,7 @@ if (data.role === "admin") {
 
       {/* Centered card */}
       <div className="flex-1 flex items-center justify-center p-6">
-        <div className="bg-white rounded-2xl shadow-sm w-full max-w-md p-8">
+        <div className="bg-white rounded-2xl shadow-sm w-full max-w-md p-6 sm:p-8">
 
           {/* Lock icon */}
           <div className="flex justify-center mb-6">
@@ -173,7 +173,12 @@ if (data.role === "admin") {
               {loading ? "Signing in…" : "Sign In / प्रवेश गर्नुहोस्"}
             </button>
 
-            
+            <p className="text-center text-sm text-gray-400">
+            Are you a principal?{" "}
+            <a href="/principal" className="text-[#2563eb] hover:underline font-medium">
+            Fill School Information →
+            </a>
+            </p>
             {/* Register link */}
             <p className="text-center text-sm text-gray-400 mt-2">
               No account?{" "}

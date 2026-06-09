@@ -81,7 +81,7 @@ These are the Django endpoints this frontend expects:
 ### `/api/teachers/me/`
 ```json
 {
-  "name": "Ram Shrestha",
+  "name": "placeholder="राम श्रेष्ठ"",
   "email": "ram@school.edu.np",
   "phone": "98XXXXXXXX",
   "position": "Science Teacher",

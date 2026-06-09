@@ -352,6 +352,7 @@ function Step4({
               <th className="px-3 py-2.5 text-center">Contract<br/><span className="text-white/60 text-xs">करार</span></th>
               <th className="px-3 py-2.5 text-center">Grant<br/><span className="text-white/60 text-xs">अनुदान</span></th>
               <th className="px-3 py-2.5 text-center">Shi Anudan<br/><span className="text-white/60 text-xs">शि अनुदान</span></th>
+              <th className="px-3 py-2.5 text-center">Private<br/><span className="text-white/60 text-xs">निजी</span></th>
               <th className="px-3 py-2.5 text-center rounded-tr-lg">Total<br/><span className="text-white/60 text-xs">जम्मा</span></th>
             </tr>
           </thead>
@@ -361,7 +362,8 @@ function Step4({
               const c = Number(data[`${level.key}_contract`] || 0);
               const g = Number(data[`${level.key}_grant`] || 0);
               const s = Number(data[`${level.key}_shi_anudan`] || 0);
-              const total = p + c + g + (level.hasShiAnudan ? s : 0);
+              const pr = Number(data[`${level.key}_private`] || 0);
+              const total = p + c + g + pr + s;
 
               return (
                 <tr key={level.key} className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}>
@@ -388,14 +390,16 @@ function Step4({
                       className={smallInput} placeholder="0" />
                   </td>
                   <td className="px-2 py-2">
-                    {level.hasShiAnudan ? (
-                      <input type="number" min="0"
-                        value={data[`${level.key}_shi_anudan`] || ""}
-                        onChange={(e) => onChange(`${level.key}_shi_anudan`, e.target.value)}
-                        className={smallInput} placeholder="0" />
-                    ) : (
-                      <p className="text-center text-gray-300">—</p>
-                    )}
+                    <input type="number" min="0"
+                      value={data[`${level.key}_private`] || ""}
+                      onChange={(e) => onChange(`${level.key}_private`, e.target.value)}
+                      className={smallInput} placeholder="0" />
+                  </td>
+                  <td className="px-2 py-2">
+                    <input type="number" min="0"
+                    value={data[`${level.key}_shi_anudan`] || ""}
+                    onChange={(e) => onChange(`${level.key}_shi_anudan`, e.target.value)}
+                    className={smallInput} placeholder="0" />
                   </td>
                   <td className="px-3 py-2.5 text-center font-semibold text-[#0f2044]">
                     {total}
@@ -447,7 +451,7 @@ function Step5({
 
   const facilityRows = FACILITIES.map((f) => [
     f.label,
-    data[f.key] === "true" ? "✓ Yes" : "✗ No",
+    data[f.key] === "true" ? "✓ छ" : "✗ छैन",
   ]);
 
   const infraRows = [
@@ -483,6 +487,7 @@ function Step5({
 
       <div className="bg-yellow-50 border border-yellow-200 rounded-lg px-4 py-3 text-sm text-yellow-700">
         ⚠️ After submitting, changes will require admin verification before taking effect.
+           पेश गरेपछि, परिवर्तनहरूलाई प्रभाव लिनु अघि प्रशासक प्रमाणिकरण आवश्यक पर्दछ।
       </div>
 
       <ReviewTable title="Basic Information" rows={basicRows} />
