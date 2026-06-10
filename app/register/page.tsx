@@ -231,10 +231,27 @@ function Step1({
     if (!data.permanentAddress.trim())
       errs.permanentAddress = "स्थायी ठेगाना आवश्यक छ";
 
-    if (!data.dob.trim())
+    const match = data.dob.trim().match(/^(\d{4})[\/\-](\d{2})[\/\-](\d{2})$/);
+
+    if (!data.dob.trim()) {
       errs.dob = "जन्म मिति आवश्यक छ";
-    else if (!/^\d{4}[\/\-]\d{2}[\/\-]\d{2}$/.test(data.dob))
+    } else if (!match) {
       errs.dob = "ढाँचा: २०४०/०५/१५";
+    } else {
+      const year = Number(match[1]);
+      const month = Number(match[2]);
+      const day = Number(match[3]);
+
+    if (month < 1 || month > 12) {
+      errs.dob = "महिना 1 देखि 12 भित्र हुनुपर्छ";
+    } else {
+      const daysInMonth = new Date(year, month, 0).getDate();
+
+    if (day < 1 || day > 32) {
+      errs.dob = `दिन 1 देखि ${daysInMonth} भित्र हुनुपर्छ`;
+      }
+  }
+}
 
     if (!data.phone.trim())
       errs.phone = "फोन नम्बर आवश्यक छ";
@@ -623,10 +640,22 @@ function Step3({
     e.preventDefault();
     const errs: Record<string, string> = {};
 
-    if (!data.appointmentDate.trim())
+    const match = data.appointmentDate.trim().match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
+
+    if (!data.appointmentDate.trim()) {
       errs.appointmentDate = "नियुक्ती मिति आवश्यक छ";
-    else if (!/^\d{4}[\/\-]\d{2}[\/\-]\d{2}$/.test(data.appointmentDate))
+    } else if (!match) {
       errs.appointmentDate = "ढाँचा: २०८०/०३/१५";
+    } else {
+       const month = Number(match[2]);
+      const day = Number(match[3]);
+
+    if (month < 1 || month > 12) {
+      errs.appointmentDate = "महिना 1 देखि 12 भित्र हुनुपर्छ";
+    } else if (day < 1 || day > 32) {
+      errs.appointmentDate = "दिन 1 देखि 32 भित्र हुनुपर्छ";
+  }
+}
 
     if (!data.qualification)
       errs.qualification = "शैक्षिक योग्यता छान्नुहोस्";
