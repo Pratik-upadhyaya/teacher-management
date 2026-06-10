@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import NepaliInput from "@/components/NepaliInput";
 
 // ── Step indicator ────────────────────────────────────────────────
 function StepBar({ current }: { current: number }) {
@@ -88,16 +89,23 @@ function Step1({
             placeholder="e.g. 27401001" className={inputClass} />
         </Field>
         <Field label="School Name" sub="विद्यालयको नाम">
-          <input required value={data.school_name} onChange={e => onChange("school_name", e.target.value)}
-            placeholder="Shree..." className={inputClass} />
-        </Field>
+          <NepaliInput
+          value={data.school_name}
+          onChange={(val: string) => onChange("school_name", val)}
+          placeholder="श्री..."
+          className={inputClass}
+  />
+</Field>
       </div>
 
       <Field label="Address" sub="ठेगाना">
-        <input required value={data.address} onChange={e => onChange("address", e.target.value)}
-          placeholder="Ward No., Municipality, District" className={inputClass} />
-      </Field>
-
+        <NepaliInput
+        value={data.address}
+        onChange={(val: string) => onChange("address", val)}
+        placeholder="वडा नं., नगरपालिका, जिल्ला"
+        className={inputClass}
+  />
+</Field>
       <div className="grid grid-cols-2 gap-4">
         <Field label="Contact No." sub="सम्पर्क नं">
           <input value={data.contact} onChange={e => onChange("contact", e.target.value)}
@@ -353,8 +361,9 @@ function Step4({
               <th className="px-3 py-2.5 text-center">Grant<br/><span className="text-white/60 text-xs">अनुदान</span></th>
               <th className="px-3 py-2.5 text-center">Shi Anudan<br/><span className="text-white/60 text-xs">शि अनुदान</span></th>
               <th className="px-3 py-2.5 text-center">Private<br/><span className="text-white/60 text-xs">निजी</span></th>
+              <th className="px-3 py-2.5 text-center">Relief<br/><span className="text-white/60 text-xs">राहत</span></th>
               <th className="px-3 py-2.5 text-center rounded-tr-lg">Total<br/><span className="text-white/60 text-xs">जम्मा</span></th>
-            </tr>
+              </tr>
           </thead>
           <tbody>
             {TEACHER_LEVELS.map((level, i) => {
@@ -363,7 +372,8 @@ function Step4({
               const g = Number(data[`${level.key}_grant`] || 0);
               const s = Number(data[`${level.key}_shi_anudan`] || 0);
               const pr = Number(data[`${level.key}_private`] || 0);
-              const total = p + c + g + pr + s;
+              const r = Number(data[`${level.key}_relief`] || 0);
+              const total = p + c + g + pr + s + r;
 
               return (
                 <tr key={level.key} className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}>
@@ -400,6 +410,12 @@ function Step4({
                     value={data[`${level.key}_shi_anudan`] || ""}
                     onChange={(e) => onChange(`${level.key}_shi_anudan`, e.target.value)}
                     className={smallInput} placeholder="0" />
+                  </td>
+                  <td className="px-2 py-2">
+                    <input type="number" min="0"
+                      value={data[`${level.key}_relief`] || ""}
+                      onChange={(e) => onChange(`${level.key}_relief`, e.target.value)}
+                      className={smallInput} placeholder="0" />
                   </td>
                   <td className="px-3 py-2.5 text-center font-semibold text-[#0f2044]">
                     {total}
