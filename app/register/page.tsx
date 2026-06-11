@@ -1,7 +1,7 @@
 "use client";
 import NepaliInput from "@/components/NepaliInput";
+import NepaliNumberInput, { nepaliToAscii, toNepaliDigits } from "@/components/NepaliNumberInput";
 import { useState } from "react";
-
 
 // ── Districts & Municipalities ────────────────────────────────────
 const DISTRICTS: Record<string, { en: string; np: string; municipalities: { en: string; np: string }[] }> = {
@@ -206,6 +206,34 @@ function StepBar({ current }: { current: number }) {
   );
 }
 
+// ── Shared date validator ─────────────────────────────────────────
+function validateNepaliDate(
+  value: string,
+  errs: Record<string, string>,
+  field: string,
+  label: string
+) {
+  const ascii = nepaliToAscii(value.trim());
+  const match = ascii.match(/^(\d{4})[\/\-](\d{2})[\/\-](\d{2})$/);
+
+  if (!value.trim()) {
+    errs[field] = `${label} आवश्यक छ`;
+  } else if (!match) {
+    errs[field] = "ढाँचा: YYYY/MM/DD (जस्तै २०८०/०३/१५)";
+  } else {
+    const month = Number(match[2]);
+    const day = Number(match[3]);
+    if (month < 1 || month > 12) {
+      errs[field] = "महिना १ देखि १२ भित्र हुनुपर्छ";
+    } else {
+      // BS months can have up to 32 days; use 32 as ceiling
+      if (day < 1 || day > 32) {
+        errs[field] = `दिन १ देखि ${toNepaliDigits("32")} भित्र हुनुपर्छ`;
+      }
+    }
+  }
+}
+
 // ── Step 1: Personal Info ─────────────────────────────────────────
 function Step1({
   data,
@@ -231,32 +259,13 @@ function Step1({
     if (!data.permanentAddress.trim())
       errs.permanentAddress = "स्थायी ठेगाना आवश्यक छ";
 
-    const match = data.dob.trim().match(/^(\d{4})[\/\-](\d{2})[\/\-](\d{2})$/);
+    validateNepaliDate(data.dob, errs, "dob", "जन्म मिति");
 
-    if (!data.dob.trim()) {
-      errs.dob = "जन्म मिति आवश्यक छ";
-    } else if (!match) {
-      errs.dob = "ढाँचा: २०४०/०५/१५";
-    } else {
-      const year = Number(match[1]);
-      const month = Number(match[2]);
-      const day = Number(match[3]);
-
-    if (month < 1 || month > 12) {
-      errs.dob = "महिना 1 देखि 12 भित्र हुनुपर्छ";
-    } else {
-      const daysInMonth = new Date(year, month, 0).getDate();
-
-    if (day < 1 || day > 32) {
-      errs.dob = `दिन 1 देखि ${daysInMonth} भित्र हुनुपर्छ`;
-      }
-  }
-}
-
+    const asciiPhone = nepaliToAscii(data.phone.trim());
     if (!data.phone.trim())
       errs.phone = "फोन नम्बर आवश्यक छ";
-    else if (!/^(98|97)\d{8}$/.test(data.phone))
-      errs.phone = "मान्य नेपाली नम्बर (98/97XXXXXXXX)";
+    else if (!/^(98|97)\d{8}$/.test(asciiPhone))
+      errs.phone = "मान्य नेपाली नम्बर (९८/९७XXXXXXXX)";
 
     if (!data.email.trim())
       errs.email = "इमेल आवश्यक छ";
@@ -289,12 +298,12 @@ function Step1({
             Teacher's Name <span className="text-gray-400 font-normal">/ शिक्षकको नाम</span>
           </label>
           <NepaliInput
-          value={data.name}
-          onChange={(val) => onChange("name", val)}
-          placeholder="राम श्रेष्ठ"
-         className={ic(errors, "name")}
-         error={errors.name}
-         />
+            value={data.name}
+            onChange={(val) => onChange("name", val)}
+            placeholder="राम श्रेष्ठ"
+            className={ic(errors, "name")}
+            error={errors.name}
+          />
           <FieldError msg={errors.name} />
         </div>
 
@@ -330,11 +339,13 @@ function Step1({
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Date of Birth (BS) <span className="text-gray-400 font-normal">/ जन्म मिति</span>
           </label>
-          <NepaliInput
+          {/* NepaliNumberInput: digits auto-convert, slash allowed for date format */}
+          <NepaliNumberInput
             value={data.dob}
-            onChange={(val: string) => onChange("dob", val)}
+            onChange={(val) => onChange("dob", val)}
             placeholder="२०४०/०५/१५"
             className={ic(errors, "dob")}
+            allowSlash
           />
           <FieldError msg={errors.dob} />
         </div>
@@ -343,10 +354,11 @@ function Step1({
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Phone <span className="text-gray-400 font-normal">/ फोन नम्बर</span>
           </label>
-          <NepaliInput
+          {/* NepaliNumberInput: digits auto-convert, no slash/dash needed */}
+          <NepaliNumberInput
             value={data.phone}
-            onChange={(val: string) => onChange("phone", val)}
-            placeholder="98XXXXXXXX"
+            onChange={(val) => onChange("phone", val)}
+            placeholder="९८XXXXXXXX"
             className={ic(errors, "phone")}
           />
           <FieldError msg={errors.phone} />
@@ -511,13 +523,14 @@ function Step2({
           placeholder="श्री बाल कल्याण माध्यमिक विद्यालय"
           className={ic(errors, "schoolName")}
         />
-                <FieldError msg={errors.schoolName} />
+        <FieldError msg={errors.schoolName} />
       </div>
 
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
           Code / Token No. <span className="text-gray-400 font-normal">/ संकेत नं</span>
         </label>
+        {/* Plain input: alphanumeric + dash, not purely numeric */}
         <input
           value={data.tokenNo}
           onChange={(e) => onChange("tokenNo", e.target.value)}
@@ -640,22 +653,17 @@ function Step3({
     e.preventDefault();
     const errs: Record<string, string> = {};
 
-    const match = data.appointmentDate.trim().match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
+    validateNepaliDate(data.appointmentDate, errs, "appointmentDate", "नियुक्ती मिति");
 
-    if (!data.appointmentDate.trim()) {
-      errs.appointmentDate = "नियुक्ती मिति आवश्यक छ";
-    } else if (!match) {
-      errs.appointmentDate = "ढाँचा: २०८०/०३/१५";
-    } else {
-       const month = Number(match[2]);
-      const day = Number(match[3]);
+    // promotionDate is optional — only validate format if filled
+    if (data.promotionDate.trim()) {
+      validateNepaliDate(data.promotionDate, errs, "promotionDate", "बढुवा मिति");
+    }
 
-    if (month < 1 || month > 12) {
-      errs.appointmentDate = "महिना 1 देखि 12 भित्र हुनुपर्छ";
-    } else if (day < 1 || day > 32) {
-      errs.appointmentDate = "दिन 1 देखि 32 भित्र हुनुपर्छ";
-  }
-}
+    // ageSixtyYear is optional — only validate format if filled
+    if (data.ageSixtyYear.trim()) {
+      validateNepaliDate(data.ageSixtyYear, errs, "ageSixtyYear", "६० वर्ष पुग्ने मिति");
+    }
 
     if (!data.qualification)
       errs.qualification = "शैक्षिक योग्यता छान्नुहोस्";
@@ -677,11 +685,12 @@ function Step3({
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Appointment Date <span className="text-gray-400 font-normal">/ नियुक्ती मिति</span>
           </label>
-          <input
+          <NepaliNumberInput
             value={data.appointmentDate}
-            onChange={(e) => onChange("appointmentDate", e.target.value)}
+            onChange={(val) => onChange("appointmentDate", val)}
             placeholder="२०८०/०३/१५"
             className={ic(errors, "appointmentDate")}
+            allowSlash
           />
           <FieldError msg={errors.appointmentDate} />
         </div>
@@ -691,12 +700,14 @@ function Step3({
             Promotion Date <span className="text-gray-400 font-normal">/ बढुवा मिति</span>
             <span className="text-gray-400 font-normal text-xs ml-1">(optional)</span>
           </label>
-          <input
+          <NepaliNumberInput
             value={data.promotionDate}
-            onChange={(e) => onChange("promotionDate", e.target.value)}
+            onChange={(val) => onChange("promotionDate", val)}
             placeholder="२०८२/०१/०१"
             className={ic(errors, "promotionDate")}
+            allowSlash
           />
+          <FieldError msg={errors.promotionDate} />
         </div>
       </div>
 
@@ -726,12 +737,11 @@ function Step3({
             Extraordinary Leave <span className="text-gray-400 font-normal">/ असाधारण बिदा</span>
             <span className="text-gray-400 font-normal text-xs ml-1">(days / optional)</span>
           </label>
-          <input
-            type="number"
-            min="0"
+          {/* NepaliNumberInput: day counts as Nepali digits */}
+          <NepaliNumberInput
             value={data.extraordinaryLeave}
-            onChange={(e) => onChange("extraordinaryLeave", e.target.value)}
-            placeholder="0"
+            onChange={(val) => onChange("extraordinaryLeave", val)}
+            placeholder="०"
             className={ic(errors, "extraordinaryLeave")}
           />
         </div>
@@ -740,12 +750,10 @@ function Step3({
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Accumulated Leave till Chaitra <span className="text-gray-400 font-normal">/ चैतसम्मको संचित बि.बि.</span>
           </label>
-          <input
-            type="number"
-            min="0"
+          <NepaliNumberInput
             value={data.accumulatedLeave}
-            onChange={(e) => onChange("accumulatedLeave", e.target.value)}
-            placeholder="0"
+            onChange={(val) => onChange("accumulatedLeave", val)}
+            placeholder="०"
             className={ic(errors, "accumulatedLeave")}
           />
         </div>
@@ -756,12 +764,14 @@ function Step3({
           Year Turning 60 (BS) <span className="text-gray-400 font-normal">/ ६० वर्ष पुग्ने उमेर</span>
           <span className="text-gray-400 font-normal text-xs ml-1">(optional)</span>
         </label>
-        <input
+        <NepaliNumberInput
           value={data.ageSixtyYear}
-          onChange={(e) => onChange("ageSixtyYear", e.target.value)}
+          onChange={(val) => onChange("ageSixtyYear", val)}
           placeholder="२१००/०५/१५"
           className={ic(errors, "ageSixtyYear")}
+          allowSlash
         />
+        <FieldError msg={errors.ageSixtyYear} />
       </div>
 
       <div>
@@ -775,7 +785,7 @@ function Step3({
           placeholder="थप विवरण..."
           className={ic(errors, "remarks")}
         />
-        </div>
+      </div>
 
       <div className="flex justify-between pt-2">
         <button type="button" onClick={onBack} className="border border-gray-200 text-gray-600 px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-50 transition">
@@ -929,8 +939,8 @@ function Step5({
         ["Appointment Date / नियुक्ती मिति", data.appointmentDate],
         ["Promotion Date / बढुवा मिति", data.promotionDate || "—"],
         ["Qualification / योग्यता", qualLabels[data.qualification] || data.qualification],
-        ["Extraordinary Leave / असाधारण बिदा", data.extraordinaryLeave || "0"],
-        ["Accumulated Leave / संचित बि.बि.", data.accumulatedLeave || "0"],
+        ["Extraordinary Leave / असाधारण बिदा", data.extraordinaryLeave || "०"],
+        ["Accumulated Leave / संचित बि.बि.", data.accumulatedLeave || "०"],
         ["Age 60 Year / ६० वर्ष", data.ageSixtyYear || "—"],
         ["Remarks / कैफियत", data.remarks || "—"],
       ],
@@ -1065,4 +1075,4 @@ export default function RegisterPage() {
       </div>
     </div>
   );
-} 
+}
