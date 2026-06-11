@@ -2,55 +2,109 @@
 import { useState } from "react";
 import { Lock, Mail } from "lucide-react";
 
+// ── Validation ─────────────────────────────────────────────────────────────
+
+interface LoginErrors {
+  email?: string;
+  password?: string;
+}
+
+function validateLogin(email: string, password: string): LoginErrors {
+  const errs: LoginErrors = {};
+
+  if (!email.trim()) {
+    errs.email = "इमेल ठेगाना आवश्यक छ। (Email is required)";
+  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+    errs.email = "मान्य इमेल ठेगाना प्रविष्ट गर्नुहोस्। (Enter a valid email)";
+  }
+
+  if (!password) {
+    errs.password = "पासवर्ड आवश्यक छ। (Password is required)";
+  } else if (password.length < 6) {
+    errs.password = "पासवर्ड कम्तिमा ६ अक्षरको हुनुपर्छ। (Min 6 characters)";
+  }
+
+  return errs;
+}
+
+// ── Component ───────────────────────────────────────────────────────────────
+
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(false);
-  const [error, setError] = useState("");
+  const [errors, setErrors] = useState<LoginErrors>({});
+  const [apiError, setApiError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function handleSubmit(e: React.FormEvent) {
-  e.preventDefault();
-  setError("");
-  setLoading(true);
-
-  try {
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/api/token/`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      }
-    );
-
-    if (!res.ok) throw new Error("Invalid email or password.");
-
-    const data = await res.json();
-localStorage.setItem("access", data.access);
-localStorage.setItem("refresh", data.refresh);
-
-// Fetch teacher profile to save name for navbar
-const meRes = await fetch(
-  `${process.env.NEXT_PUBLIC_API_URL}/api/teachers/me/`,
-  { headers: { Authorization: `Bearer ${data.access}` } }
-);
-if (meRes.ok) {
-  const me = await meRes.json();
-  localStorage.setItem("teacher_name", me.name);
-}
-
-if (data.role === "admin") {
-  window.location.href = "/admin";
-} else {
-  window.location.href = "/dashboard";
-}
-  } catch (err: any) {
-    setError(err.message);
-  } finally {
-    setLoading(false);
+  // Clear field error as user types
+  function handleEmailChange(e: React.ChangeEvent<HTMLInputElement>) {
+    setEmail(e.target.value);
+    if (errors.email) setErrors((prev) => ({ ...prev, email: undefined }));
   }
-}
+
+  function handlePasswordChange(e: React.ChangeEvent<HTMLInputElement>) {
+    setPassword(e.target.value);
+    if (errors.password) setErrors((prev) => ({ ...prev, password: undefined }));
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setApiError("");
+
+    const errs = validateLogin(email, password);
+    if (Object.keys(errs).length > 0) {
+      setErrors(errs);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/token/`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
+        }
+      );
+
+      if (!res.ok) throw new Error("इमेल वा पासवर्ड गलत छ। (Invalid email or password)");
+
+      const data = await res.json();
+      localStorage.setItem("access", data.access);
+      localStorage.setItem("refresh", data.refresh);
+
+      const meRes = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/teachers/me/`,
+        { headers: { Authorization: `Bearer ${data.access}` } }
+      );
+      if (meRes.ok) {
+        const me = await meRes.json();
+        localStorage.setItem("teacher_name", me.name);
+      }
+
+      if (data.role === "admin") {
+        window.location.href = "/admin";
+      } else {
+        window.location.href = "/dashboard";
+      }
+    } catch (err: any) {
+      setApiError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // Shared input class — red border when field has error
+  const inputBase =
+    "w-full border rounded-lg pr-4 py-2.5 text-sm focus:outline-none transition";
+  const fieldClass = (hasError: boolean) =>
+    `${inputBase} ${
+      hasError
+        ? "border-red-400 focus:border-red-500 focus:ring-1 focus:ring-red-400"
+        : "border-gray-200 focus:border-[#0f2044] focus:ring-1 focus:ring-[#0f2044]"
+    }`;
 
   return (
     <div className="min-h-screen bg-[#eaf0fb] flex flex-col">
@@ -94,15 +148,15 @@ if (data.role === "admin") {
             </p>
           </div>
 
-          {/* Error */}
-          {error && (
+          {/* API error banner */}
+          {apiError && (
             <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-lg px-4 py-3 mb-4">
-              {error}
+              {apiError}
             </div>
           )}
 
           {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} noValidate className="space-y-4">
 
             {/* Email */}
             <div>
@@ -117,13 +171,15 @@ if (data.role === "admin") {
                 />
                 <input
                   type="email"
-                  required
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={handleEmailChange}
                   placeholder="teacher@shree.edu.np"
-                  className="w-full border border-gray-200 rounded-lg pl-9 pr-4 py-2.5 text-sm focus:outline-none focus:border-[#0f2044] focus:ring-1 focus:ring-[#0f2044] transition"
+                  className={`${fieldClass(!!errors.email)} pl-9`}
                 />
               </div>
+              {errors.email && (
+                <p className="text-red-500 text-xs mt-1">{errors.email}</p>
+              )}
             </div>
 
             {/* Password */}
@@ -139,13 +195,15 @@ if (data.role === "admin") {
                 />
                 <input
                   type="password"
-                  required
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={handlePasswordChange}
                   placeholder="••••••••••"
-                  className="w-full border border-gray-200 rounded-lg pl-9 pr-4 py-2.5 text-sm focus:outline-none focus:border-[#0f2044] focus:ring-1 focus:ring-[#0f2044] transition"
+                  className={`${fieldClass(!!errors.password)} pl-9`}
                 />
               </div>
+              {errors.password && (
+                <p className="text-red-500 text-xs mt-1">{errors.password}</p>
+              )}
             </div>
 
             {/* Remember me + Forgot */}
@@ -174,12 +232,11 @@ if (data.role === "admin") {
             </button>
 
             <p className="text-center text-sm text-gray-400">
-            Are you a principal?{" "}
-            <a href="/principal" className="text-[#2563eb] hover:underline font-medium">
-            Fill School Information →
-            </a>
+              Are you a principal?{" "}
+              <a href="/principal" className="text-[#2563eb] hover:underline font-medium">
+                Fill School Information →
+              </a>
             </p>
-            {/* Register link */}
             <p className="text-center text-sm text-gray-400 mt-2">
               No account?{" "}
               <a href="/register" className="text-[#2563eb] hover:underline font-medium">
