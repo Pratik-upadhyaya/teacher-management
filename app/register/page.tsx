@@ -342,7 +342,7 @@ function Step1({
           {/* NepaliNumberInput: digits auto-convert, slash allowed for date format */}
           <NepaliNumberInput
             value={data.dob}
-            onChange={(val) => onChange("dob", val)}
+            onChange={(val: string) => onChange("dob", val)}
             placeholder="२०४०/०५/१५"
             className={ic(errors, "dob")}
             allowSlash
@@ -357,7 +357,7 @@ function Step1({
           {/* NepaliNumberInput: digits auto-convert, no slash/dash needed */}
           <NepaliNumberInput
             value={data.phone}
-            onChange={(val) => onChange("phone", val)}
+            onChange={(val: string  ) => onChange("phone", val)}
             placeholder="९८XXXXXXXX"
             className={ic(errors, "phone")}
           />
@@ -687,7 +687,7 @@ function Step3({
           </label>
           <NepaliNumberInput
             value={data.appointmentDate}
-            onChange={(val) => onChange("appointmentDate", val)}
+            onChange={(val: string) => onChange("appointmentDate", val)}
             placeholder="२०८०/०३/१५"
             className={ic(errors, "appointmentDate")}
             allowSlash
@@ -702,7 +702,7 @@ function Step3({
           </label>
           <NepaliNumberInput
             value={data.promotionDate}
-            onChange={(val) => onChange("promotionDate", val)}
+            onChange={(val: string  ) => onChange("promotionDate", val)}
             placeholder="२०८२/०१/०१"
             className={ic(errors, "promotionDate")}
             allowSlash
@@ -740,7 +740,7 @@ function Step3({
           {/* NepaliNumberInput: day counts as Nepali digits */}
           <NepaliNumberInput
             value={data.extraordinaryLeave}
-            onChange={(val) => onChange("extraordinaryLeave", val)}
+            onChange={(val: string) => onChange("extraordinaryLeave", val)}
             placeholder="०"
             className={ic(errors, "extraordinaryLeave")}
           />
@@ -752,7 +752,7 @@ function Step3({
           </label>
           <NepaliNumberInput
             value={data.accumulatedLeave}
-            onChange={(val) => onChange("accumulatedLeave", val)}
+            onChange={(val: string) => onChange("accumulatedLeave", val)}
             placeholder="०"
             className={ic(errors, "accumulatedLeave")}
           />
@@ -766,7 +766,7 @@ function Step3({
         </label>
         <NepaliNumberInput
           value={data.ageSixtyYear}
-          onChange={(val) => onChange("ageSixtyYear", val)}
+          onChange={(val: string) => onChange("ageSixtyYear", val)}
           placeholder="२१००/०५/१५"
           className={ic(errors, "ageSixtyYear")}
           allowSlash

@@ -259,7 +259,7 @@ function Step3({
             placeholder="e.g. 25"
             className={`${inputClass} flex-1`}
           />
-          <select
+          <select aria-label="Land unit"
             value={data.land_unit}
             onChange={(e) => onChange("land_unit", e.target.value)}
             className="border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-[#0f2044] bg-white"

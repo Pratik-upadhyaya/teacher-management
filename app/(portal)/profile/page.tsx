@@ -1,6 +1,75 @@
 "use client";
 import { useEffect, useState } from "react";
 
+// ── Validation ──────────────────────────────────────────────────────────────
+
+interface ProfileErrors {
+  name?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+}
+
+interface PasswordErrors {
+  current?: string;
+  newPass?: string;
+  confirm?: string;
+}
+
+function validateProfile(form: { name: string; phone: string; email: string; address: string }): ProfileErrors {
+  const errs: ProfileErrors = {};
+
+  if (!form.name.trim()) {
+    errs.name = "पूरा नाम आवश्यक छ। (Full name is required)";
+  } else if (form.name.trim().length < 2) {
+    errs.name = "नाम कम्तिमा २ अक्षरको हुनुपर्छ। (Min 2 characters)";
+  }
+
+  if (!form.phone.trim()) {
+    errs.phone = "फोन नम्बर आवश्यक छ। (Phone is required)";
+  } else if (!/^[0-9+\-\s]{7,15}$/.test(form.phone.trim())) {
+    errs.phone = "मान्य फोन नम्बर प्रविष्ट गर्नुहोस्। (Enter a valid phone number)";
+  }
+
+  if (!form.email.trim()) {
+    errs.email = "इमेल ठेगाना आवश्यक छ। (Email is required)";
+  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+    errs.email = "मान्य इमेल ठेगाना प्रविष्ट गर्नुहोस्। (Enter a valid email)";
+  }
+
+  if (!form.address.trim()) {
+    errs.address = "स्थायी ठेगाना आवश्यक छ। (Address is required)";
+  }
+
+  return errs;
+}
+
+function validatePasswords(passwords: { current: string; newPass: string; confirm: string }): PasswordErrors {
+  const errs: PasswordErrors = {};
+
+  if (!passwords.current) {
+    errs.current = "हालको पासवर्ड आवश्यक छ। (Current password is required)";
+  }
+
+  if (!passwords.newPass) {
+    errs.newPass = "नयाँ पासवर्ड आवश्यक छ। (New password is required)";
+  } else if (passwords.newPass.length < 6) {
+    errs.newPass = "पासवर्ड कम्तिमा ६ अक्षरको हुनुपर्छ। (Min 6 characters)";
+  } else if (passwords.newPass === passwords.current) {
+    errs.newPass = "नयाँ पासवर्ड हालकोभन्दा फरक हुनुपर्छ। (Must differ from current)";
+  }
+
+  if (!passwords.confirm) {
+    errs.confirm = "पासवर्ड पुष्टि गर्नुहोस्। (Please confirm password)";
+  } else if (passwords.confirm !== passwords.newPass) {
+    errs.confirm = "पासवर्ड मेल खाएन। (Passwords do not match)";
+  }
+
+  return errs;
+}
+
+// ── Component ───────────────────────────────────────────────────────────────
+
 export default function ProfilePage() {
   const [teacher, setTeacher] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -15,6 +84,9 @@ export default function ProfilePage() {
     email: "",
     address: "",
   });
+
+  const [profileErrors, setProfileErrors] = useState<ProfileErrors>({});
+  const [passwordErrors, setPasswordErrors] = useState<PasswordErrors>({});
 
   const [passwords, setPasswords] = useState({
     current: "",
@@ -39,7 +111,7 @@ export default function ProfilePage() {
           address: data.address ?? "",
         });
       } catch {
-        setErrorMsg("Failed to load profile.");
+        setErrorMsg("प्रोफाइल लोड गर्न सकिएन। (Failed to load profile)");
       } finally {
         setLoading(false);
       }
@@ -47,11 +119,33 @@ export default function ProfilePage() {
     fetchMe();
   }, []);
 
+  // Clear individual field errors on change
+  function updateForm(field: keyof typeof form, value: string) {
+    setForm((prev) => ({ ...prev, [field]: value }));
+    if (profileErrors[field]) {
+      setProfileErrors((prev) => ({ ...prev, [field]: undefined }));
+    }
+  }
+
+  function updatePasswords(field: keyof typeof passwords, value: string) {
+    setPasswords((prev) => ({ ...prev, [field]: value }));
+    if (passwordErrors[field]) {
+      setPasswordErrors((prev) => ({ ...prev, [field]: undefined }));
+    }
+  }
+
   async function handleSaveProfile(e: React.FormEvent) {
     e.preventDefault();
-    setSaving(true);
     setSuccessMsg("");
     setErrorMsg("");
+
+    const errs = validateProfile(form);
+    if (Object.keys(errs).length > 0) {
+      setProfileErrors(errs);
+      return;
+    }
+
+    setSaving(true);
     try {
       const token = localStorage.getItem("access");
       const res = await fetch(
@@ -65,11 +159,11 @@ export default function ProfilePage() {
           body: JSON.stringify(form),
         }
       );
-      if (!res.ok) throw new Error("Failed to save.");
-      setSuccessMsg("Profile updated successfully.");
+      if (!res.ok) throw new Error("परिवर्तन सुरक्षित गर्न सकिएन। (Failed to save)");
+      setSuccessMsg("प्रोफाइल सफलतापूर्वक अपडेट भयो। (Profile updated successfully)");
       localStorage.setItem("teacher_name", form.name);
     } catch {
-      setErrorMsg("Could not save changes.");
+      setErrorMsg("परिवर्तन सुरक्षित गर्न सकिएन। (Could not save changes)");
     } finally {
       setSaving(false);
     }
@@ -77,13 +171,16 @@ export default function ProfilePage() {
 
   async function handleChangePassword(e: React.FormEvent) {
     e.preventDefault();
-    if (passwords.newPass !== passwords.confirm) {
-      setErrorMsg("New passwords do not match.");
-      return;
-    }
-    setChangingPassword(true);
     setSuccessMsg("");
     setErrorMsg("");
+
+    const errs = validatePasswords(passwords);
+    if (Object.keys(errs).length > 0) {
+      setPasswordErrors(errs);
+      return;
+    }
+
+    setChangingPassword(true);
     try {
       const token = localStorage.getItem("access");
       const res = await fetch(
@@ -100,8 +197,8 @@ export default function ProfilePage() {
           }),
         }
       );
-      if (!res.ok) throw new Error("Incorrect current password.");
-      setSuccessMsg("Password changed successfully.");
+      if (!res.ok) throw new Error("हालको पासवर्ड गलत छ। (Incorrect current password)");
+      setSuccessMsg("पासवर्ड सफलतापूर्वक परिवर्तन भयो। (Password changed successfully)");
       setPasswords({ current: "", newPass: "", confirm: "" });
     } catch (err: any) {
       setErrorMsg(err.message);
@@ -118,12 +215,21 @@ export default function ProfilePage() {
     );
   }
 
-  const initials = teacher?.name
-    ?.trim()
-    .split(" ")
-    .map((n: string) => n[0])
-    .slice(0, 2)
-    .join("") ?? "T";
+  const initials =
+    teacher?.name
+      ?.trim()
+      .split(" ")
+      .map((n: string) => n[0])
+      .slice(0, 2)
+      .join("") ?? "T";
+
+  // Shared input class helper
+  const fieldClass = (hasError: boolean) =>
+    `w-full border rounded-lg px-3 py-2.5 text-sm focus:outline-none transition ${
+      hasError
+        ? "border-red-400 focus:border-red-500 focus:ring-1 focus:ring-red-400"
+        : "border-gray-200 focus:border-[#0f2044] focus:ring-1 focus:ring-[#0f2044]"
+    }`;
 
   return (
     <div className="flex flex-col lg:flex-row gap-6">
@@ -139,12 +245,11 @@ export default function ProfilePage() {
             {teacher?.subject} · {teacher?.position}
           </p>
           <a href="#" className="text-xs text-blue-500 block">
-          {teacher?.school?.name}
+            {teacher?.school?.name}
           </a>
           <span className="inline-block bg-green-100 text-green-700 text-xs px-3 py-1 rounded-full">
             ● Approved by Admin
           </span>
-
           <div className="text-left pt-3 space-y-2 text-xs text-gray-500 divide-y divide-gray-50">
             {[
               ["TSC No.", teacher?.tsc_no],
@@ -166,7 +271,7 @@ export default function ProfilePage() {
       {/* Right forms */}
       <div className="flex-1 space-y-5">
 
-        {/* Feedback messages */}
+        {/* Feedback banners */}
         {successMsg && (
           <div className="bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg px-4 py-3">
             {successMsg}
@@ -183,54 +288,64 @@ export default function ProfilePage() {
           <h2 className="font-semibold text-[#0f2044] mb-4">
             ✏️ Edit Profile · प्रोफाइल सम्पादन
           </h2>
-          <form onSubmit={handleSaveProfile} className="space-y-4">
+          <form onSubmit={handleSaveProfile} noValidate className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Full name{" "}
-                  <span className="text-gray-400 font-normal">/ पूरा नाम</span>
-                </label>
-                <input
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-[#0f2044] focus:ring-1 focus:ring-[#0f2044]"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Phone{" "}
-                  <span className="text-gray-400 font-normal">/ फोन नम्बर</span>
-                </label>
-                <input
-                  value={form.phone}
-                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-[#0f2044] focus:ring-1 focus:ring-[#0f2044]"
-                />
-              </div>
+              {/* Full name */}
+<label htmlFor="profile-name" className="block text-sm font-medium text-gray-700 mb-1">
+  Full name <span className="text-gray-400 font-normal">/ पूरा नाम</span>
+</label>
+<input
+  id="profile-name"
+  value={form.name}
+  onChange={(e) => updateForm("name", e.target.value)}
+  placeholder="पूरा नाम"
+  className={fieldClass(!!profileErrors.name)}
+/>
+
+{/* Phone */}
+<label htmlFor="profile-phone" className="block text-sm font-medium text-gray-700 mb-1">
+  Phone <span className="text-gray-400 font-normal">/ फोन नम्बर</span>
+</label>
+<input
+  id="profile-phone"
+  value={form.phone}
+  onChange={(e) => updateForm("phone", e.target.value)}
+  placeholder="९८XXXXXXXX"
+  className={fieldClass(!!profileErrors.phone)}
+/>
+
+{/* Email */}
+<label htmlFor="profile-email" className="block text-sm font-medium text-gray-700 mb-1">
+  Email address <span className="text-gray-400 font-normal">/ इमेल</span>
+</label>
+<input
+  id="profile-email"
+  type="email"
+  value={form.email}
+  onChange={(e) => updateForm("email", e.target.value)}
+  placeholder="teacher@shree.edu.np"
+  className={fieldClass(!!profileErrors.email)}
+/>
+              {profileErrors.email && (
+                <p className="text-red-500 text-xs mt-1">{profileErrors.email}</p>
+              )}
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Email address{" "}
-                <span className="text-gray-400 font-normal">/ इमेल</span>
-              </label>
-              <input
-                type="email"
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-[#0f2044] focus:ring-1 focus:ring-[#0f2044]"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="profile-address" className="block text-sm font-medium text-gray-700 mb-1">
                 Permanent address{" "}
                 <span className="text-gray-400 font-normal">/ स्थायी ठेगाना</span>
               </label>
               <input
+                id="profile-address"
+                type="text"
                 value={form.address}
-                onChange={(e) => setForm({ ...form, address: e.target.value })}
+                onChange={(e) => updateForm("address", e.target.value)}
                 placeholder="Ward No., Municipality, District"
-                className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-[#0f2044] focus:ring-1 focus:ring-[#0f2044]"
+                className={fieldClass(!!profileErrors.address)}
               />
+              {profileErrors.address && (
+                <p className="text-red-500 text-xs mt-1">{profileErrors.address}</p>
+              )}
             </div>
             <div className="flex gap-3">
               <button
@@ -242,14 +357,15 @@ export default function ProfilePage() {
               </button>
               <button
                 type="button"
-                onClick={() =>
+                onClick={() => {
                   setForm({
                     name: teacher?.name ?? "",
                     phone: teacher?.phone ?? "",
                     email: teacher?.email ?? "",
                     address: teacher?.address ?? "",
-                  })
-                }
+                  });
+                  setProfileErrors({});
+                }}
                 className="border border-gray-200 text-gray-600 px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-50 transition"
               >
                 Cancel
@@ -263,49 +379,55 @@ export default function ProfilePage() {
           <h2 className="font-semibold text-[#0f2044] mb-4">
             🔒 Change Password · पासवर्ड परिवर्तन
           </h2>
-          <form onSubmit={handleChangePassword} className="space-y-4">
+          <form onSubmit={handleChangePassword} noValidate className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="profile-current-password" className="block text-sm font-medium text-gray-700 mb-1">
                 Current password
               </label>
               <input
+                id="profile-current-password"
                 type="password"
                 value={passwords.current}
-                onChange={(e) =>
-                  setPasswords({ ...passwords, current: e.target.value })
-                }
+                onChange={(e) => updatePasswords("current", e.target.value)}
                 placeholder="••••••••"
-                className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-[#0f2044] focus:ring-1 focus:ring-[#0f2044]"
+                className={fieldClass(!!passwordErrors.current)}
               />
+              {passwordErrors.current && (
+                <p className="text-red-500 text-xs mt-1">{passwordErrors.current}</p>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="profile-new-password" className="block text-sm font-medium text-gray-700 mb-1">
                   New password
                 </label>
                 <input
+                  id="profile-new-password"
                   type="password"
                   value={passwords.newPass}
-                  onChange={(e) =>
-                    setPasswords({ ...passwords, newPass: e.target.value })
-                  }
+                  onChange={(e) => updatePasswords("newPass", e.target.value)}
                   placeholder="New password"
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-[#0f2044] focus:ring-1 focus:ring-[#0f2044]"
+                  className={fieldClass(!!passwordErrors.newPass)}
                 />
+                {passwordErrors.newPass && (
+                  <p className="text-red-500 text-xs mt-1">{passwordErrors.newPass}</p>
+                )}
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="profile-confirm-password" className="block text-sm font-medium text-gray-700 mb-1">
                   Confirm password
                 </label>
                 <input
+                  id="profile-confirm-password"
                   type="password"
                   value={passwords.confirm}
-                  onChange={(e) =>
-                    setPasswords({ ...passwords, confirm: e.target.value })
-                  }
+                  onChange={(e) => updatePasswords("confirm", e.target.value)}
                   placeholder="Confirm"
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-[#0f2044] focus:ring-1 focus:ring-[#0f2044]"
+                  className={fieldClass(!!passwordErrors.confirm)}
                 />
+                {passwordErrors.confirm && (
+                  <p className="text-red-500 text-xs mt-1">{passwordErrors.confirm}</p>
+                )}
               </div>
             </div>
             <button
@@ -317,25 +439,28 @@ export default function ProfilePage() {
             </button>
           </form>
         </div>
+
         {/* Principal Section */}
-<div className="bg-white rounded-xl border border-gray-100 p-6">
-  <div className="flex items-center justify-between">
-    <div>
-      <h2 className="font-semibold text-[#0f2044]">
-        🏫 School Principal
-      </h2>
-      <p className="text-sm text-gray-400 mt-0.5">
-        Are you also the principal of your school?
-      </p>
-    </div>
-    
-      href="/principal"
-      className="bg-[#0f2044] text-white px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-[#1a3260] transition"
-    
-      Fill School Information →
-    </div>
-  </div>
-</div>
+        <div className="bg-white rounded-xl border border-gray-100 p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="font-semibold text-[#0f2044]">
+                🏫 School Principal
+              </h2>
+              <p className="text-sm text-gray-400 mt-0.5">
+                Are you also the principal of your school?
+              </p>
+            </div>
+            <a
+              href="/principal"
+              className="bg-[#0f2044] text-white px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-[#1a3260] transition"
+            >
+              Fill School Information →
+            </a>
+          </div>
+        </div>
+
       </div>
+    </div>
   );
 }
