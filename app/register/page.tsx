@@ -947,14 +947,28 @@ function Step5({
     },
   ];
 
-  return (
-    <div className="space-y-4">
-      <div>
-        <h2 className="text-lg font-bold text-[#0f2044]">Step 5: Review & Submit</h2>
-        <p className="text-sm text-gray-400">जानकारी जाँच गर्नुहोस् र पेश गर्नुहोस्</p>
-      </div>
+ return (
+  <div className="space-y-4">
+    <div>
+      <h2 className="text-lg font-bold text-[#0f2044]">Step 5: Review & Submit</h2>
+      <p className="text-sm text-gray-400">जानकारी जाँच गर्नुहोस् र पेश गर्नुहोस्</p>
+    </div>
 
-      {sections.map((section) => (
+    {/* ADD THIS */}
+    {[
+      data.name, data.fatherName, data.permanentAddress,
+      data.dob, data.phone, data.email,
+      data.district, data.municipality, data.schoolName,
+      data.tokenNo, data.subject, data.level, data.grade,
+      data.teacherType, data.appointmentDate, data.qualification,
+    ].some((v) => !v) && (
+      <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 text-sm rounded-lg px-4 py-3">
+        ⚠️ केही आवश्यक जानकारी भरिएको छैन। कृपया पछाडि फर्केर जाँच गर्नुहोस्।
+        (Some required fields are missing. Please go back and review.)
+      </div>
+    )}
+
+       {sections.map((section) => (
         <div key={section.title}>
           <p className="text-xs font-semibold text-[#0f2044] uppercase tracking-wide mb-1 px-1">
             {section.title}

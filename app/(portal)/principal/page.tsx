@@ -172,6 +172,7 @@ function Step2({
       </div>
 
       <div className="grid grid-cols-2 gap-4">
+        
         {SECTIONS.map((s) => (
           <Field key={s.key} label={s.label} sub={s.sub}>
             <input
@@ -224,7 +225,6 @@ function Step3({
         <h2 className="text-lg font-bold text-[#0f2044]">Step 3: Physical Infrastructure</h2>
         <p className="text-sm text-gray-400">भौतिक विवरण</p>
       </div>
-
       {/* Facilities checkboxes */}
       <div>
         <p className="text-sm font-medium text-gray-700 mb-3">Available Facilities</p>
@@ -373,7 +373,7 @@ function Step4({
               const s = Number(data[`${level.key}_shi_anudan`] || 0);
               const pr = Number(data[`${level.key}_private`] || 0);
               const r = Number(data[`${level.key}_relief`] || 0);
-              const total = p + c + g + pr + s + r;
+              const total = p + c + g + s + pr + r;
 
               return (
                 <tr key={level.key} className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}>
@@ -401,15 +401,15 @@ function Step4({
                   </td>
                   <td className="px-2 py-2">
                     <input type="number" min="0"
-                      value={data[`${level.key}_private`] || ""}
-                      onChange={(e) => onChange(`${level.key}_private`, e.target.value)}
-                      className={smallInput} placeholder="0" />
-                  </td>
-                  <td className="px-2 py-2">
-                    <input type="number" min="0"
                     value={data[`${level.key}_shi_anudan`] || ""}
                     onChange={(e) => onChange(`${level.key}_shi_anudan`, e.target.value)}
                     className={smallInput} placeholder="0" />
+                  </td>
+                  <td className="px-2 py-2">
+                    <input type="number" min="0"
+                      value={data[`${level.key}_private`] || ""}
+                      onChange={(e) => onChange(`${level.key}_private`, e.target.value)}
+                      className={smallInput} placeholder="0" />
                   </td>
                   <td className="px-2 py-2">
                     <input type="number" min="0"
@@ -500,7 +500,12 @@ function Step5({
         <h2 className="text-lg font-bold text-[#0f2044]">Step 5: Review & Submit</h2>
         <p className="text-sm text-gray-400">जानकारी जाँच गरी पेश गर्नुहोस्</p>
       </div>
-
+       {(!data.emis_code || !data.school_name || !data.established_date) && (
+      <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 text-sm rounded-lg px-4 py-3">
+        ⚠️ केही आवश्यक जानकारी भरिएको छैन। कृपया पछाडि फर्केर जाँच गर्नुहोस्।
+        (Some required fields are missing. Please go back and review.)
+      </div>
+    )}
       <div className="bg-yellow-50 border border-yellow-200 rounded-lg px-4 py-3 text-sm text-yellow-700">
         ⚠️ After submitting, changes will require admin verification before taking effect.
            पेश गरेपछि, परिवर्तनहरूलाई प्रभाव लिनु अघि प्रशासक प्रमाणिकरण आवश्यक पर्दछ।
@@ -564,7 +569,10 @@ export default function PrincipalPage() {
     primary_permanent: "", primary_contract: "", primary_grant: "",
     lower_sec_permanent: "", lower_sec_contract: "", lower_sec_grant: "", lower_sec_shi_anudan: "",
     secondary_9_10_permanent: "", secondary_9_10_contract: "", secondary_9_10_grant: "", secondary_9_10_shi_anudan: "",
-    secondary_11_12_permanent: "", secondary_11_12_contract: "", secondary_11_12_grant: "",
+    secondary_11_12_permanent: "", secondary_11_12_contract: "", secondary_11_12_grant: "",pre_primary_private: "",
+    pre_primary_relief: "",pre_primary_shi_anudan: "", primary_private: "", primary_relief: "",
+    primary_shi_anudan: "",secondary_11_12_private: "", secondary_11_12_relief: "",
+    secondary_11_12_shi_anudan: "",
   });
 
   function handleChange(field: string, value: string) {

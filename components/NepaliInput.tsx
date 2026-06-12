@@ -79,6 +79,9 @@ export default function NepaliInput({
       <p className="text-gray-400 text-xs mt-0.5">
         Type in English — converts to Nepali
       </p>
+    {error && (
+      <p className="text-red-500 text-xs mt-1">{error}</p>
+    )}
       {showSuggestions && suggestions.length > 0 && (
         <ul className="absolute z-10 left-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-md w-full flex flex-wrap gap-1 p-2">
           {suggestions.map((s) => (
