@@ -131,6 +131,6 @@ Then push it:
 bashgit add README.md
 git commit -m "update README with project info and API docs"
 git push
-#Aayam ghimire
-#Alina subedi
-#pratik dhakal
+#Aayam ghimire = front end developer 
+#Alina subedi = back end developer 
+#pratik dhakal = over view and front end 
