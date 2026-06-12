@@ -4,6 +4,7 @@ import NepaliNumberInput, { nepaliToAscii, toNepaliDigits } from "@/components/N
 import { useState } from "react";
 
 // ── Districts & Municipalities ────────────────────────────────────
+//All district and their details added, and remaining work is adding ward no, and area
 const DISTRICTS: Record<string, { en: string; np: string; municipalities: { en: string; np: string }[] }> = {
   Kaski: {
     en: "Kaski",

@@ -8,6 +8,7 @@ interface LoginErrors {
   email?: string;
   password?: string;
 }
+//validaiton updates w.r.t, user profile.
 
 function validateLogin(email: string, password: string): LoginErrors {
   const errs: LoginErrors = {};
