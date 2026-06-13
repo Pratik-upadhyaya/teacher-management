@@ -12,7 +12,7 @@ function StepBar({ current }: { current: number }) {
     { n: 5, label: "Review", sub: "समीक्षा" },
   ];
 
-  return (
+  return ( 
     <div className="flex items-center justify-center gap-0 mb-8 flex-wrap">
       {steps.map((step, i) => (
         <div key={step.n} className="flex items-center">
