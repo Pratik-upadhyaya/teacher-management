@@ -362,7 +362,7 @@ function Step1({
           <NepaliInput
             value={data.permanentAddress}
             onChange={(val: string) => { onChange("permanentAddress", val); setErrors((p) => ({ ...p, permanentAddress: "" })); }}
-            placeholder="पोखरानगरपालिका, जिल्ला"
+            placeholder="पोखरा, कास्की"
             className={ic(errors, "permanentAddress")}
           />
           <FieldError msg={errors.permanentAddress} />
