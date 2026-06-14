@@ -77,8 +77,7 @@ export default function NepaliInput({
         className={className}
       />
       <p className="text-gray-400 text-xs mt-0.5">
-        Type in English — converts to Nepali
-      </p>
+        Type in English — choose among the suggestions in Nepali      </p>
     {error && (
       <p className="text-red-500 text-xs mt-1">{error}</p>
     )}

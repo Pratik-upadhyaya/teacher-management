@@ -4,7 +4,6 @@ import NepaliNumberInput, { nepaliToAscii, toNepaliDigits } from "@/components/N
 import { useState } from "react";
 
 // ── Districts & Municipalities ────────────────────────────────────
-//All district and their details added, and remaining work is adding ward no, and area
 const DISTRICTS: Record<string, { en: string; np: string; municipalities: { en: string; np: string }[] }> = {
   Kaski: {
     en: "Kaski",
@@ -168,6 +167,26 @@ function FieldError({ msg }: { msg?: string }) {
   return <p className="text-red-500 text-xs mt-1">{msg}</p>;
 }
 
+// ── Nepali-only validator ─────────────────────────────────────────
+// Accepts Nepali Unicode (Devanagari block) + spaces + common punctuation
+function isNepaliOnly(value: string): boolean {
+  // Allow: Devanagari chars (U+0900–U+097F), spaces, hyphens, commas, periods
+  return /^[\u0900-\u097F\s\-,\.]+$/.test(value.trim());
+}
+
+function validateNepaliOnly(
+  value: string,
+  errs: Record<string, string>,
+  field: string,
+  label: string
+) {
+  if (!value.trim()) {
+    errs[field] = `${label} आवश्यक छ`;
+  } else if (!isNepaliOnly(value)) {
+    errs[field] = `${label} नेपालीमा मात्र भर्नुहोस्`;
+  }
+}
+
 // ── Step indicator ────────────────────────────────────────────────
 function StepBar({ current }: { current: number }) {
   const steps = [
@@ -227,11 +246,26 @@ function validateNepaliDate(
     if (month < 1 || month > 12) {
       errs[field] = "महिना १ देखि १२ भित्र हुनुपर्छ";
     } else {
-      // BS months can have up to 32 days; use 32 as ceiling
       if (day < 1 || day > 32) {
         errs[field] = `दिन १ देखि ${toNepaliDigits("32")} भित्र हुनुपर्छ`;
       }
     }
+  }
+}
+
+// ── Ward No. validator ────────────────────────────────────────────
+function validateWardNo(
+  value: string,
+  errs: Record<string, string>,
+  field: string
+) {
+  const ascii = nepaliToAscii(value.trim());
+  if (!value.trim()) {
+    errs[field] = "वडा नं आवश्यक छ";
+  } else if (!/^\d+$/.test(ascii)) {
+    errs[field] = "वडा नं अंकमा मात्र";
+  } else if (Number(ascii) < 1 || Number(ascii) > 33) {
+    errs[field] = "वडा नं १ देखि ३३ भित्र हुनुपर्छ";
   }
 }
 
@@ -251,14 +285,11 @@ function Step1({
     e.preventDefault();
     const errs: Record<string, string> = {};
 
-    if (!data.name.trim())
-      errs.name = "शिक्षकको नाम आवश्यक छ";
-
-    if (!data.fatherName.trim())
-      errs.fatherName = "बाबुको नाम आवश्यक छ";
-
-    if (!data.permanentAddress.trim())
-      errs.permanentAddress = "स्थायी ठेगाना आवश्यक छ";
+    // Nepali-only fields
+    validateNepaliOnly(data.name, errs, "name", "शिक्षकको नाम");
+    validateNepaliOnly(data.fatherName, errs, "fatherName", "बाबुको नाम");
+    validateNepaliOnly(data.permanentAddress, errs, "permanentAddress", "स्थायी ठेगाना");
+    validateWardNo(data.permanentWardNo, errs, "permanentWardNo");
 
     validateNepaliDate(data.dob, errs, "dob", "जन्म मिति");
 
@@ -287,7 +318,7 @@ function Step1({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} noValidate className="space-y-4">
       <div>
         <h2 className="text-lg font-bold text-[#0f2044]">Step 1: Personal Information</h2>
         <p className="text-sm text-gray-400">व्यक्तिगत विवरण भर्नुहोस्</p>
@@ -300,7 +331,7 @@ function Step1({
           </label>
           <NepaliInput
             value={data.name}
-            onChange={(val) => onChange("name", val)}
+            onChange={(val: string) => { onChange("name", val); setErrors((p) => ({ ...p, name: "" })); }}
             placeholder="राम श्रेष्ठ"
             className={ic(errors, "name")}
             error={errors.name}
@@ -314,7 +345,7 @@ function Step1({
           </label>
           <NepaliInput
             value={data.fatherName}
-            onChange={(val) => onChange("fatherName", val)}
+            onChange={(val: string) => { onChange("fatherName", val); setErrors((p) => ({ ...p, fatherName: "" })); }}
             placeholder="हरि श्रेष्ठ"
             className={ic(errors, "fatherName")}
           />
@@ -322,17 +353,32 @@ function Step1({
         </div>
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Permanent Address <span className="text-gray-400 font-normal">/ स्थायी ठेगाना</span>
-        </label>
-        <NepaliInput
-          value={data.permanentAddress}
-          onChange={(val: string) => onChange("permanentAddress", val)}
-          placeholder="पोखरा-१०, कास्की"
-          className={ic(errors, "permanentAddress")}
-        />
-        <FieldError msg={errors.permanentAddress} />
+      {/* Permanent Address + Ward No. */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="sm:col-span-2">
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Permanent Address <span className="text-gray-400 font-normal">/ स्थायी ठेगाना</span>
+          </label>
+          <NepaliInput
+            value={data.permanentAddress}
+            onChange={(val: string) => { onChange("permanentAddress", val); setErrors((p) => ({ ...p, permanentAddress: "" })); }}
+            placeholder="पोखरानगरपालिका, जिल्ला"
+            className={ic(errors, "permanentAddress")}
+          />
+          <FieldError msg={errors.permanentAddress} />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Ward No. <span className="text-gray-400 font-normal">/ वडा नं</span>
+          </label>
+          <NepaliNumberInput
+            value={data.permanentWardNo}
+            onChange={(val: string) => { onChange("permanentWardNo", val); setErrors((p) => ({ ...p, permanentWardNo: "" })); }}
+            placeholder="१"
+            className={ic(errors, "permanentWardNo")}
+          />
+          <FieldError msg={errors.permanentWardNo} />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -340,10 +386,9 @@ function Step1({
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Date of Birth (BS) <span className="text-gray-400 font-normal">/ जन्म मिति</span>
           </label>
-          {/* NepaliNumberInput: digits auto-convert, slash allowed for date format */}
           <NepaliNumberInput
             value={data.dob}
-            onChange={(val: string) => onChange("dob", val)}
+            onChange={(val: string) => { onChange("dob", val); setErrors((p) => ({ ...p, dob: "" })); }}
             placeholder="२०४०/०५/१५"
             className={ic(errors, "dob")}
             allowSlash
@@ -355,10 +400,9 @@ function Step1({
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Phone <span className="text-gray-400 font-normal">/ फोन नम्बर</span>
           </label>
-          {/* NepaliNumberInput: digits auto-convert, no slash/dash needed */}
           <NepaliNumberInput
             value={data.phone}
-            onChange={(val: string  ) => onChange("phone", val)}
+            onChange={(val: string) => { onChange("phone", val); setErrors((p) => ({ ...p, phone: "" })); }}
             placeholder="९८XXXXXXXX"
             className={ic(errors, "phone")}
           />
@@ -373,7 +417,7 @@ function Step1({
         <input
           type="email"
           value={data.email}
-          onChange={(e) => onChange("email", e.target.value)}
+          onChange={(e) => { onChange("email", e.target.value); setErrors((p) => ({ ...p, email: "" })); }}
           placeholder="ram@school.edu.np"
           className={ic(errors, "email")}
         />
@@ -388,7 +432,7 @@ function Step1({
           <input
             type="password"
             value={data.password}
-            onChange={(e) => onChange("password", e.target.value)}
+            onChange={(e) => { onChange("password", e.target.value); setErrors((p) => ({ ...p, password: "" })); }}
             placeholder="••••••••"
             className={ic(errors, "password")}
           />
@@ -402,7 +446,7 @@ function Step1({
           <input
             type="password"
             value={data.confirmPassword}
-            onChange={(e) => onChange("confirmPassword", e.target.value)}
+            onChange={(e) => { onChange("confirmPassword", e.target.value); setErrors((p) => ({ ...p, confirmPassword: "" })); }}
             placeholder="••••••••"
             className={ic(errors, "confirmPassword")}
           />
@@ -439,6 +483,12 @@ function Step2({
   function handleDistrictChange(value: string) {
     onChange("district", value);
     onChange("municipality", "");
+    onChange("wardNo", "");
+  }
+
+  function handleMunicipalityChange(value: string) {
+    onChange("municipality", value);
+    onChange("wardNo", "");
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -447,7 +497,9 @@ function Step2({
 
     if (!data.district) errs.district = "जिल्ला छान्नुहोस्";
     if (!data.municipality) errs.municipality = "नगरपालिका छान्नुहोस्";
-    if (!data.schoolName.trim()) errs.schoolName = "विद्यालयको नाम आवश्यक छ";
+    if (data.municipality) validateWardNo(data.wardNo, errs, "wardNo");
+
+    validateNepaliOnly(data.schoolName, errs, "schoolName", "विद्यालयको नाम");
 
     if (!data.tokenNo.trim())
       errs.tokenNo = "संकेत नं आवश्यक छ";
@@ -465,12 +517,13 @@ function Step2({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} noValidate className="space-y-4">
       <div>
         <h2 className="text-lg font-bold text-[#0f2044]">Step 2: School & Position</h2>
         <p className="text-sm text-gray-400">विद्यालय तथा पद सम्बन्धी विवरण</p>
       </div>
 
+      {/* District + Municipality + Ward No. in one row group */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -479,7 +532,7 @@ function Step2({
           <select
             title="District"
             value={data.district}
-            onChange={(e) => handleDistrictChange(e.target.value)}
+            onChange={(e) => { handleDistrictChange(e.target.value); setErrors((p) => ({ ...p, district: "" })); }}
             className={ic(errors, "district")}
           >
             <option value="">जिल्ला छान्नुहोस्</option>
@@ -499,7 +552,7 @@ function Step2({
           <select
             title="Municipality"
             value={data.municipality}
-            onChange={(e) => onChange("municipality", e.target.value)}
+            onChange={(e) => { handleMunicipalityChange(e.target.value); setErrors((p) => ({ ...p, municipality: "", wardNo: "" })); }}
             disabled={!data.district}
             className={ic(errors, "municipality") + (!data.district ? " opacity-50 cursor-not-allowed" : "")}
           >
@@ -514,13 +567,29 @@ function Step2({
         </div>
       </div>
 
+      {/* Ward No. below municipality, spans half width aligned right */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="sm:col-start-2">
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Ward No. <span className="text-gray-400 font-normal">/ वडा नं</span>
+          </label>
+          <NepaliNumberInput
+            value={data.wardNo}
+            onChange={(val: string) => { onChange("wardNo", val); setErrors((p) => ({ ...p, wardNo: "" })); }}
+            placeholder="१"
+            className={ic(errors, "wardNo") + (!data.municipality ? " opacity-50 cursor-not-allowed" : "")}
+          />
+          <FieldError msg={errors.wardNo} />
+        </div>
+      </div>
+
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
           School Name <span className="text-gray-400 font-normal">/ विद्यालयको नाम</span>
         </label>
         <NepaliInput
           value={data.schoolName}
-          onChange={(val: string) => onChange("schoolName", val)}
+          onChange={(val: string) => { onChange("schoolName", val); setErrors((p) => ({ ...p, schoolName: "" })); }}
           placeholder="श्री बाल कल्याण माध्यमिक विद्यालय"
           className={ic(errors, "schoolName")}
         />
@@ -531,10 +600,9 @@ function Step2({
         <label className="block text-sm font-medium text-gray-700 mb-1">
           Code / Token No. <span className="text-gray-400 font-normal">/ संकेत नं</span>
         </label>
-        {/* Plain input: alphanumeric + dash, not purely numeric */}
         <input
           value={data.tokenNo}
-          onChange={(e) => onChange("tokenNo", e.target.value)}
+          onChange={(e) => { onChange("tokenNo", e.target.value); setErrors((p) => ({ ...p, tokenNo: "" })); }}
           placeholder="TSC-2080-04521"
           className={ic(errors, "tokenNo")}
         />
@@ -549,7 +617,7 @@ function Step2({
           <select
             title="Subject"
             value={data.subject}
-            onChange={(e) => onChange("subject", e.target.value)}
+            onChange={(e) => { onChange("subject", e.target.value); setErrors((p) => ({ ...p, subject: "" })); }}
             className={ic(errors, "subject")}
           >
             <option value="">विषय छान्नुहोस्</option>
@@ -570,7 +638,7 @@ function Step2({
           <select
             title="Level"
             value={data.level}
-            onChange={(e) => onChange("level", e.target.value)}
+            onChange={(e) => { onChange("level", e.target.value); setErrors((p) => ({ ...p, level: "" })); }}
             className={ic(errors, "level")}
           >
             <option value="">तह छान्नुहोस्</option>
@@ -591,7 +659,7 @@ function Step2({
           <select
             title="Grade"
             value={data.grade}
-            onChange={(e) => onChange("grade", e.target.value)}
+            onChange={(e) => { onChange("grade", e.target.value); setErrors((p) => ({ ...p, grade: "" })); }}
             className={ic(errors, "grade")}
           >
             <option value="">श्रेणी छान्नुहोस्</option>
@@ -609,7 +677,7 @@ function Step2({
           <select
             title="Teacher Type"
             value={data.teacherType}
-            onChange={(e) => onChange("teacherType", e.target.value)}
+            onChange={(e) => { onChange("teacherType", e.target.value); setErrors((p) => ({ ...p, teacherType: "" })); }}
             className={ic(errors, "teacherType")}
           >
             <option value="">प्रकार छान्नुहोस्</option>
@@ -656,12 +724,10 @@ function Step3({
 
     validateNepaliDate(data.appointmentDate, errs, "appointmentDate", "नियुक्ती मिति");
 
-    // promotionDate is optional — only validate format if filled
     if (data.promotionDate.trim()) {
       validateNepaliDate(data.promotionDate, errs, "promotionDate", "बढुवा मिति");
     }
 
-    // ageSixtyYear is optional — only validate format if filled
     if (data.ageSixtyYear.trim()) {
       validateNepaliDate(data.ageSixtyYear, errs, "ageSixtyYear", "६० वर्ष पुग्ने मिति");
     }
@@ -675,7 +741,7 @@ function Step3({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} noValidate className="space-y-4">
       <div>
         <h2 className="text-lg font-bold text-[#0f2044]">Step 3: Service Details</h2>
         <p className="text-sm text-gray-400">सेवा सम्बन्धी विवरण</p>
@@ -688,7 +754,7 @@ function Step3({
           </label>
           <NepaliNumberInput
             value={data.appointmentDate}
-            onChange={(val: string) => onChange("appointmentDate", val)}
+            onChange={(val: string) => { onChange("appointmentDate", val); setErrors((p) => ({ ...p, appointmentDate: "" })); }}
             placeholder="२०८०/०३/१५"
             className={ic(errors, "appointmentDate")}
             allowSlash
@@ -703,7 +769,7 @@ function Step3({
           </label>
           <NepaliNumberInput
             value={data.promotionDate}
-            onChange={(val: string  ) => onChange("promotionDate", val)}
+            onChange={(val: string) => { onChange("promotionDate", val); setErrors((p) => ({ ...p, promotionDate: "" })); }}
             placeholder="२०८२/०१/०१"
             className={ic(errors, "promotionDate")}
             allowSlash
@@ -719,7 +785,7 @@ function Step3({
         <select
           title="Educational Qualification"
           value={data.qualification}
-          onChange={(e) => onChange("qualification", e.target.value)}
+          onChange={(e) => { onChange("qualification", e.target.value); setErrors((p) => ({ ...p, qualification: "" })); }}
           className={ic(errors, "qualification")}
         >
           <option value="">योग्यता छान्नुहोस्</option>
@@ -738,7 +804,6 @@ function Step3({
             Extraordinary Leave <span className="text-gray-400 font-normal">/ असाधारण बिदा</span>
             <span className="text-gray-400 font-normal text-xs ml-1">(days / optional)</span>
           </label>
-          {/* NepaliNumberInput: day counts as Nepali digits */}
           <NepaliNumberInput
             value={data.extraordinaryLeave}
             onChange={(val: string) => onChange("extraordinaryLeave", val)}
@@ -767,7 +832,7 @@ function Step3({
         </label>
         <NepaliNumberInput
           value={data.ageSixtyYear}
-          onChange={(val: string) => onChange("ageSixtyYear", val)}
+          onChange={(val: string) => { onChange("ageSixtyYear", val); setErrors((p) => ({ ...p, ageSixtyYear: "" })); }}
           placeholder="२१००/०५/१५"
           className={ic(errors, "ageSixtyYear")}
           allowSlash
@@ -916,6 +981,7 @@ function Step5({
         ["Teacher's Name / शिक्षकको नाम", data.name],
         ["Father's Name / बाबुको नाम", data.fatherName],
         ["Permanent Address / स्थायी ठेगाना", data.permanentAddress],
+        ["Ward No. / वडा नं (स्थायी)", data.permanentWardNo],
         ["Date of Birth / जन्म मिति", data.dob],
         ["Phone / फोन", data.phone],
         ["Email / इमेल", data.email],
@@ -926,6 +992,7 @@ function Step5({
       rows: [
         ["District / जिल्ला", districtLabel],
         ["Municipality / नगरपालिका", municipalityLabel],
+        ["Ward No. / वडा नं (विद्यालय)", data.wardNo],
         ["School / विद्यालय", data.schoolName],
         ["Code No. / संकेत नं", data.tokenNo],
         ["Subject / विषय", data.subject],
@@ -948,28 +1015,27 @@ function Step5({
     },
   ];
 
- return (
-  <div className="space-y-4">
-    <div>
-      <h2 className="text-lg font-bold text-[#0f2044]">Step 5: Review & Submit</h2>
-      <p className="text-sm text-gray-400">जानकारी जाँच गर्नुहोस् र पेश गर्नुहोस्</p>
-    </div>
-
-    {/* ADD THIS */}
-    {[
-      data.name, data.fatherName, data.permanentAddress,
-      data.dob, data.phone, data.email,
-      data.district, data.municipality, data.schoolName,
-      data.tokenNo, data.subject, data.level, data.grade,
-      data.teacherType, data.appointmentDate, data.qualification,
-    ].some((v) => !v) && (
-      <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 text-sm rounded-lg px-4 py-3">
-        ⚠️ केही आवश्यक जानकारी भरिएको छैन। कृपया पछाडि फर्केर जाँच गर्नुहोस्।
-        (Some required fields are missing. Please go back and review.)
+  return (
+    <div className="space-y-4">
+      <div>
+        <h2 className="text-lg font-bold text-[#0f2044]">Step 5: Review & Submit</h2>
+        <p className="text-sm text-gray-400">जानकारी जाँच गर्नुहोस् र पेश गर्नुहोस्</p>
       </div>
-    )}
 
-       {sections.map((section) => (
+      {[
+        data.name, data.fatherName, data.permanentAddress, data.permanentWardNo,
+        data.dob, data.phone, data.email,
+        data.district, data.municipality, data.wardNo, data.schoolName,
+        data.tokenNo, data.subject, data.level, data.grade,
+        data.teacherType, data.appointmentDate, data.qualification,
+      ].some((v) => !v) && (
+        <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 text-sm rounded-lg px-4 py-3">
+          ⚠️ केही आवश्यक जानकारी भरिएको छैन। कृपया पछाडि फर्केर जाँच गर्नुहोस्।
+          (Some required fields are missing. Please go back and review.)
+        </div>
+      )}
+
+      {sections.map((section) => (
         <div key={section.title}>
           <p className="text-xs font-semibold text-[#0f2044] uppercase tracking-wide mb-1 px-1">
             {section.title}
@@ -1010,10 +1076,10 @@ export default function RegisterPage() {
 
   const [formData, setFormData] = useState({
     // Step 1
-    name: "", fatherName: "", permanentAddress: "",
+    name: "", fatherName: "", permanentAddress: "", permanentWardNo: "",
     dob: "", phone: "", email: "", password: "", confirmPassword: "",
     // Step 2
-    district: "", municipality: "", schoolName: "", tokenNo: "",
+    district: "", municipality: "", wardNo: "", schoolName: "", tokenNo: "",
     subject: "", level: "", grade: "", teacherType: "",
     // Step 3
     appointmentDate: "", promotionDate: "", qualification: "",

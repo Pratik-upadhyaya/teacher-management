@@ -1,6 +1,7 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import NepaliInput from "@/components/NepaliInput";
+import NepaliNumberInput, { nepaliToAscii } from "@/components/NepaliNumberInput";
 
 // ── Step indicator ────────────────────────────────────────────────
 function StepBar({ current }: { current: number }) {
@@ -12,7 +13,7 @@ function StepBar({ current }: { current: number }) {
     { n: 5, label: "Review", sub: "समीक्षा" },
   ];
 
-  return ( 
+  return (
     <div className="flex items-center justify-center gap-0 mb-8 flex-wrap">
       {steps.map((step, i) => (
         <div key={step.n} className="flex items-center">
@@ -42,7 +43,7 @@ function StepBar({ current }: { current: number }) {
   );
 }
 
-// ── Reusable input ────────────────────────────────────────────────
+// ── Reusable field wrapper ────────────────────────────────────────
 function Field({
   label,
   sub,
@@ -63,8 +64,55 @@ function Field({
   );
 }
 
+function FieldError({ msg }: { msg?: string }) {
+  if (!msg) return null;
+  return <p className="text-red-500 text-xs mt-1">{msg}</p>;
+}
+
 const inputClass =
   "w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-[#0f2044] focus:ring-1 focus:ring-[#0f2044]";
+
+function icErr(errors: Record<string, string>, field: string) {
+  return `w-full border rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-1 bg-white ${
+    errors[field]
+      ? "border-red-400 focus:border-red-400 focus:ring-red-400"
+      : "border-gray-200 focus:border-[#0f2044] focus:ring-[#0f2044]"
+  }`;
+}
+
+// ── Nepali-only validator ─────────────────────────────────────────
+function isNepaliOnly(value: string): boolean {
+  return /^[\u0900-\u097F\s\-,\.]+$/.test(value.trim());
+}
+
+function validateNepaliOnly(
+  value: string,
+  errs: Record<string, string>,
+  field: string,
+  label: string
+) {
+  if (!value.trim()) {
+    errs[field] = `${label} आवश्यक छ`;
+  } else if (!isNepaliOnly(value)) {
+    errs[field] = `${label} नेपालीमा मात्र भर्नुहोस्`;
+  }
+}
+
+// ── Ward No. validator ────────────────────────────────────────────
+function validateWardNo(
+  value: string,
+  errs: Record<string, string>,
+  field: string
+) {
+  const ascii = nepaliToAscii(value.trim());
+  if (!value.trim()) {
+    errs[field] = "वडा नं आवश्यक छ";
+  } else if (!/^\d+$/.test(ascii)) {
+    errs[field] = "वडा नं अंकमा मात्र";
+  } else if (Number(ascii) < 1 || Number(ascii) > 33) {
+    errs[field] = "वडा नं १ देखि ३३ भित्र हुनुपर्छ";
+  }
+}
 
 // ── Step 1: Basic Info ────────────────────────────────────────────
 function Step1({
@@ -76,56 +124,127 @@ function Step1({
   onChange: (f: string, v: string) => void;
   onNext: () => void;
 }) {
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const errs: Record<string, string> = {};
+
+    if (!data.emis_code.trim()) errs.emis_code = "EMIS कोड आवश्यक छ";
+    validateNepaliOnly(data.school_name, errs, "school_name", "विद्यालयको नाम");
+    validateNepaliOnly(data.address, errs, "address", "ठेगाना");
+    validateWardNo(data.ward_no, errs, "ward_no");
+    if (!data.established_date.trim()) errs.established_date = "स्थापना मिति आवश्यक छ";
+
+    if (Object.keys(errs).length > 0) { setErrors(errs); return; }
+    setErrors({});
+    onNext();
+  }
+
   return (
-    <form onSubmit={(e) => { e.preventDefault(); onNext(); }} className="space-y-4">
+    <form onSubmit={handleSubmit} noValidate className="space-y-4">
       <div>
         <h2 className="text-lg font-bold text-[#0f2044]">Step 1: Basic School Information</h2>
         <p className="text-sm text-gray-400">विद्यालयको आधारभूत विवरण</p>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <Field label="EMIS Code" sub="ईमिस कोड">
-          <input required value={data.emis_code} onChange={e => onChange("emis_code", e.target.value)}
-            placeholder="e.g. 27401001" className={inputClass} />
-        </Field>
-        <Field label="School Name" sub="विद्यालयको नाम">
-          <NepaliInput
-          value={data.school_name}
-          onChange={(val: string) => onChange("school_name", val)}
-          placeholder="श्री..."
-          className={inputClass}
-  />
-</Field>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <Field label="EMIS Code" sub="ईमिस कोड">
+            <input
+              value={data.emis_code}
+              onChange={(e) => { onChange("emis_code", e.target.value); setErrors((p) => ({ ...p, emis_code: "" })); }}
+              placeholder="e.g. 27401001"
+              className={icErr(errors, "emis_code")}
+            />
+          </Field>
+          <FieldError msg={errors.emis_code} />
+        </div>
+        <div>
+          <Field label="School Name" sub="विद्यालयको नाम">
+            <NepaliInput
+              value={data.school_name}
+              onChange={(val: string) => { onChange("school_name", val); setErrors((p) => ({ ...p, school_name: "" })); }}
+              placeholder="श्री बाल कल्याण माध्यमिक विद्यालय"
+              className={icErr(errors, "school_name")}
+            />
+          </Field>
+          <FieldError msg={errors.school_name} />
+        </div>
       </div>
 
-      <Field label="Address" sub="ठेगाना">
-        <NepaliInput
-        value={data.address}
-        onChange={(val: string) => onChange("address", val)}
-        placeholder="वडा नं., नगरपालिका, जिल्ला"
-        className={inputClass}
-  />
-</Field>
-      <div className="grid grid-cols-2 gap-4">
-        <Field label="Contact No." sub="सम्पर्क नं">
-          <input value={data.contact} onChange={e => onChange("contact", e.target.value)}
-            placeholder="056-XXXXXX" className={inputClass} />
-        </Field>
-        <Field label="Email" sub="इमेल">
-          <input type="email" value={data.email} onChange={e => onChange("email", e.target.value)}
-            placeholder="school@edu.np" className={inputClass} />
-        </Field>
+      {/* Address + Ward No. */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="sm:col-span-2">
+          <Field label="Address" sub="ठेगाना">
+            <NepaliInput
+              value={data.address}
+              onChange={(val: string) => { onChange("address", val); setErrors((p) => ({ ...p, address: "" })); }}
+              placeholder="नगरपालिका, जिल्ला"
+              className={icErr(errors, "address")}
+            />
+          </Field>
+          <FieldError msg={errors.address} />
+        </div>
+        <div>
+          <Field label="Ward No." sub="वडा नं">
+            <NepaliNumberInput
+              value={data.ward_no}
+              onChange={(val: string) => { onChange("ward_no", val); setErrors((p) => ({ ...p, ward_no: "" })); }}
+              placeholder="१"
+              className={icErr(errors, "ward_no")}
+            />
+          </Field>
+          <FieldError msg={errors.ward_no} />
+        </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <Field label="Establishment Date (BS)" sub="स्थापना मिति">
-          <input required value={data.established_date} onChange={e => onChange("established_date", e.target.value)}
-            placeholder="2016/01/01" className={inputClass} />
-        </Field>
-        <Field label="Permission Date (BS)" sub="अनुमति मिति">
-          <input value={data.permission_date} onChange={e => onChange("permission_date", e.target.value)}
-            placeholder="2017/01/01" className={inputClass} />
-        </Field>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <Field label="Contact No." sub="सम्पर्क नं">
+            <input
+              value={data.contact}
+              onChange={(e) => onChange("contact", e.target.value)}
+              placeholder="061-XXXXXX"
+              className={inputClass}
+            />
+          </Field>
+        </div>
+        <div>
+          <Field label="Email" sub="इमेल">
+            <input
+              type="email"
+              value={data.email}
+              onChange={(e) => onChange("email", e.target.value)}
+              placeholder="school@edu.np"
+              className={inputClass}
+            />
+          </Field>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <Field label="Establishment Date (BS)" sub="स्थापना मिति">
+            <input
+              value={data.established_date}
+              onChange={(e) => { onChange("established_date", e.target.value); setErrors((p) => ({ ...p, established_date: "" })); }}
+              placeholder="२०१६/०१/०१"
+              className={icErr(errors, "established_date")}
+            />
+          </Field>
+          <FieldError msg={errors.established_date} />
+        </div>
+        <div>
+          <Field label="Permission Date (BS)" sub="अनुमति मिति">
+            <input
+              value={data.permission_date}
+              onChange={(e) => onChange("permission_date", e.target.value)}
+              placeholder="२०१७/०१/०१"
+              className={inputClass}
+            />
+          </Field>
+        </div>
       </div>
 
       <div className="flex justify-end pt-2">
@@ -171,8 +290,7 @@ function Step2({
         Leave blank if the section does not exist in your school.
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {SECTIONS.map((s) => (
           <Field key={s.key} label={s.label} sub={s.sub}>
             <input
@@ -225,10 +343,10 @@ function Step3({
         <h2 className="text-lg font-bold text-[#0f2044]">Step 3: Physical Infrastructure</h2>
         <p className="text-sm text-gray-400">भौतिक विवरण</p>
       </div>
-      {/* Facilities checkboxes */}
+
       <div>
         <p className="text-sm font-medium text-gray-700 mb-3">Available Facilities</p>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {FACILITIES.map((f) => (
             <label key={f.key}
               className="flex items-center gap-3 border border-gray-200 rounded-lg px-4 py-3 cursor-pointer hover:border-[#0f2044] transition">
@@ -247,7 +365,6 @@ function Step3({
         </div>
       </div>
 
-      {/* Land area */}
       <div>
         <p className="text-sm font-medium text-gray-700 mb-2">
           Land Area <span className="text-gray-400 font-normal">/ जग्गाको क्षेत्रफल</span>
@@ -259,7 +376,8 @@ function Step3({
             placeholder="e.g. 25"
             className={`${inputClass} flex-1`}
           />
-          <select aria-label="Land unit"
+          <select
+            aria-label="Land unit"
             value={data.land_unit}
             onChange={(e) => onChange("land_unit", e.target.value)}
             className="border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-[#0f2044] bg-white"
@@ -274,8 +392,7 @@ function Step3({
         </div>
       </div>
 
-      {/* Buildings and classrooms */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Field label="Number of Buildings" sub="भवन संख्या">
           <input type="number" min="0" value={data.num_buildings}
             onChange={(e) => onChange("num_buildings", e.target.value)}
@@ -288,12 +405,11 @@ function Step3({
         </Field>
       </div>
 
-      {/* Toilets */}
       <div>
         <p className="text-sm font-medium text-gray-700 mb-2">
           Toilets <span className="text-gray-400 font-normal">/ शौचालय संख्या</span>
         </p>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Field label="Female" sub="महिला">
             <input type="number" min="0" value={data.toilet_female}
               onChange={(e) => onChange("toilet_female", e.target.value)}
@@ -323,11 +439,11 @@ function Step3({
 
 // ── Step 4: Teacher Count ─────────────────────────────────────────
 const TEACHER_LEVELS = [
-  { key: "pre_primary", label: "Pre-Primary", sub: "पूर्व प्राथमिक", hasShiAnudan: false },
-  { key: "primary", label: "Primary", sub: "प्राथमिक", hasShiAnudan: false },
-  { key: "lower_sec", label: "Lower Secondary", sub: "निम्न माध्यमिक", hasShiAnudan: true },
-  { key: "secondary_9_10", label: "Secondary 9–10", sub: "माध्यमिक ९-१०", hasShiAnudan: true },
-  { key: "secondary_11_12", label: "Secondary 11–12", sub: "माध्यमिक ११-१२", hasShiAnudan: false },
+  { key: "pre_primary", label: "Pre-Primary", sub: "पूर्व प्राथमिक" },
+  { key: "primary", label: "Primary", sub: "प्राथमिक" },
+  { key: "lower_sec", label: "Lower Secondary", sub: "निम्न माध्यमिक" },
+  { key: "secondary_9_10", label: "Secondary 9–10", sub: "माध्यमिक ९-१०" },
+  { key: "secondary_11_12", label: "Secondary 11–12", sub: "माध्यमिक ११-१२" },
 ];
 
 function Step4({
@@ -363,16 +479,16 @@ function Step4({
               <th className="px-3 py-2.5 text-center">Private<br/><span className="text-white/60 text-xs">निजी</span></th>
               <th className="px-3 py-2.5 text-center">Relief<br/><span className="text-white/60 text-xs">राहत</span></th>
               <th className="px-3 py-2.5 text-center rounded-tr-lg">Total<br/><span className="text-white/60 text-xs">जम्मा</span></th>
-              </tr>
+            </tr>
           </thead>
           <tbody>
             {TEACHER_LEVELS.map((level, i) => {
-              const p = Number(data[`${level.key}_permanent`] || 0);
-              const c = Number(data[`${level.key}_contract`] || 0);
-              const g = Number(data[`${level.key}_grant`] || 0);
-              const s = Number(data[`${level.key}_shi_anudan`] || 0);
-              const pr = Number(data[`${level.key}_private`] || 0);
-              const r = Number(data[`${level.key}_relief`] || 0);
+              const p  = Number(data[`${level.key}_permanent`]  || 0);
+              const c  = Number(data[`${level.key}_contract`]   || 0);
+              const g  = Number(data[`${level.key}_grant`]      || 0);
+              const s  = Number(data[`${level.key}_shi_anudan`] || 0);
+              const pr = Number(data[`${level.key}_private`]    || 0);
+              const r  = Number(data[`${level.key}_relief`]     || 0);
               const total = p + c + g + s + pr + r;
 
               return (
@@ -381,42 +497,17 @@ function Step4({
                     {level.label}
                     <p className="text-xs text-gray-400">{level.sub}</p>
                   </td>
-                  <td className="px-2 py-2">
-                    <input type="number" min="0"
-                      value={data[`${level.key}_permanent`] || ""}
-                      onChange={(e) => onChange(`${level.key}_permanent`, e.target.value)}
-                      className={smallInput} placeholder="0" />
-                  </td>
-                  <td className="px-2 py-2">
-                    <input type="number" min="0"
-                      value={data[`${level.key}_contract`] || ""}
-                      onChange={(e) => onChange(`${level.key}_contract`, e.target.value)}
-                      className={smallInput} placeholder="0" />
-                  </td>
-                  <td className="px-2 py-2">
-                    <input type="number" min="0"
-                      value={data[`${level.key}_grant`] || ""}
-                      onChange={(e) => onChange(`${level.key}_grant`, e.target.value)}
-                      className={smallInput} placeholder="0" />
-                  </td>
-                  <td className="px-2 py-2">
-                    <input type="number" min="0"
-                    value={data[`${level.key}_shi_anudan`] || ""}
-                    onChange={(e) => onChange(`${level.key}_shi_anudan`, e.target.value)}
-                    className={smallInput} placeholder="0" />
-                  </td>
-                  <td className="px-2 py-2">
-                    <input type="number" min="0"
-                      value={data[`${level.key}_private`] || ""}
-                      onChange={(e) => onChange(`${level.key}_private`, e.target.value)}
-                      className={smallInput} placeholder="0" />
-                  </td>
-                  <td className="px-2 py-2">
-                    <input type="number" min="0"
-                      value={data[`${level.key}_relief`] || ""}
-                      onChange={(e) => onChange(`${level.key}_relief`, e.target.value)}
-                      className={smallInput} placeholder="0" />
-                  </td>
+                  {["permanent", "contract", "grant", "shi_anudan", "private", "relief"].map((type) => (
+                    <td key={type} className="px-2 py-2">
+                      <input
+                        type="number" min="0"
+                        value={data[`${level.key}_${type}`] || ""}
+                        onChange={(e) => onChange(`${level.key}_${type}`, e.target.value)}
+                        className={smallInput}
+                        placeholder="0"
+                      />
+                    </td>
+                  ))}
                   <td className="px-3 py-2.5 text-center font-semibold text-[#0f2044]">
                     {total}
                   </td>
@@ -455,8 +546,9 @@ function Step5({
 }) {
   const basicRows = [
     ["EMIS Code", data.emis_code],
-    ["School Name", data.school_name],
-    ["Address", data.address],
+    ["School Name / विद्यालयको नाम", data.school_name],
+    ["Address / ठेगाना", data.address],
+    ["Ward No. / वडा नं", data.ward_no],
     ["Contact", data.contact],
     ["Email", data.email],
     ["Established (BS)", data.established_date],
@@ -500,12 +592,14 @@ function Step5({
         <h2 className="text-lg font-bold text-[#0f2044]">Step 5: Review & Submit</h2>
         <p className="text-sm text-gray-400">जानकारी जाँच गरी पेश गर्नुहोस्</p>
       </div>
-       {(!data.emis_code || !data.school_name || !data.established_date) && (
-      <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 text-sm rounded-lg px-4 py-3">
-        ⚠️ केही आवश्यक जानकारी भरिएको छैन। कृपया पछाडि फर्केर जाँच गर्नुहोस्।
-        (Some required fields are missing. Please go back and review.)
-      </div>
-    )}
+
+      {(!data.emis_code || !data.school_name || !data.address || !data.ward_no || !data.established_date) && (
+        <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 text-sm rounded-lg px-4 py-3">
+          ⚠️ केही आवश्यक जानकारी भरिएको छैन। कृपया पछाडि फर्केर जाँच गर्नुहोस्।
+          (Some required fields are missing. Please go back and review.)
+        </div>
+      )}
+
       <div className="bg-yellow-50 border border-yellow-200 rounded-lg px-4 py-3 text-sm text-yellow-700">
         ⚠️ After submitting, changes will require admin verification before taking effect.
            पेश गरेपछि, परिवर्तनहरूलाई प्रभाव लिनु अघि प्रशासक प्रमाणिकरण आवश्यक पर्दछ।
@@ -542,6 +636,7 @@ export default function PrincipalPage() {
     emis_code: "",
     school_name: "",
     address: "",
+    ward_no: "",
     contact: "",
     email: "",
     established_date: "",
@@ -564,15 +659,17 @@ export default function PrincipalPage() {
     num_classrooms: "",
     toilet_female: "",
     toilet_male: "",
-    // Step 4
-    pre_primary_permanent: "", pre_primary_contract: "", pre_primary_grant: "",
-    primary_permanent: "", primary_contract: "", primary_grant: "",
-    lower_sec_permanent: "", lower_sec_contract: "", lower_sec_grant: "", lower_sec_shi_anudan: "",
-    secondary_9_10_permanent: "", secondary_9_10_contract: "", secondary_9_10_grant: "", secondary_9_10_shi_anudan: "",
-    secondary_11_12_permanent: "", secondary_11_12_contract: "", secondary_11_12_grant: "",pre_primary_private: "",
-    pre_primary_relief: "",pre_primary_shi_anudan: "", primary_private: "", primary_relief: "",
-    primary_shi_anudan: "",secondary_11_12_private: "", secondary_11_12_relief: "",
-    secondary_11_12_shi_anudan: "",
+    // Step 4 — all 5 levels × 6 types
+    pre_primary_permanent: "",   pre_primary_contract: "",   pre_primary_grant: "",
+    pre_primary_shi_anudan: "",  pre_primary_private: "",    pre_primary_relief: "",
+    primary_permanent: "",       primary_contract: "",       primary_grant: "",
+    primary_shi_anudan: "",      primary_private: "",        primary_relief: "",
+    lower_sec_permanent: "",     lower_sec_contract: "",     lower_sec_grant: "",
+    lower_sec_shi_anudan: "",    lower_sec_private: "",      lower_sec_relief: "",
+    secondary_9_10_permanent: "", secondary_9_10_contract: "", secondary_9_10_grant: "",
+    secondary_9_10_shi_anudan: "", secondary_9_10_private: "", secondary_9_10_relief: "",
+    secondary_11_12_permanent: "", secondary_11_12_contract: "", secondary_11_12_grant: "",
+    secondary_11_12_shi_anudan: "", secondary_11_12_private: "", secondary_11_12_relief: "",
   });
 
   function handleChange(field: string, value: string) {
