@@ -168,9 +168,7 @@ function FieldError({ msg }: { msg?: string }) {
 }
 
 // ── Nepali-only validator ─────────────────────────────────────────
-// Accepts Nepali Unicode (Devanagari block) + spaces + common punctuation
 function isNepaliOnly(value: string): boolean {
-  // Allow: Devanagari chars (U+0900–U+097F), spaces, hyphens, commas, periods
   return /^[\u0900-\u097F\s\-,\.]+$/.test(value.trim());
 }
 
@@ -245,10 +243,8 @@ function validateNepaliDate(
     const day = Number(match[3]);
     if (month < 1 || month > 12) {
       errs[field] = "महिना १ देखि १२ भित्र हुनुपर्छ";
-    } else {
-      if (day < 1 || day > 32) {
-        errs[field] = `दिन १ देखि ${toNepaliDigits("32")} भित्र हुनुपर्छ`;
-      }
+    } else if (day < 1 || day > 32) {
+      errs[field] = `दिन १ देखि ${toNepaliDigits("32")} भित्र हुनुपर्छ`;
     }
   }
 }
@@ -285,12 +281,10 @@ function Step1({
     e.preventDefault();
     const errs: Record<string, string> = {};
 
-    // Nepali-only fields
     validateNepaliOnly(data.name, errs, "name", "शिक्षकको नाम");
     validateNepaliOnly(data.fatherName, errs, "fatherName", "बाबुको नाम");
     validateNepaliOnly(data.permanentAddress, errs, "permanentAddress", "स्थायी ठेगाना");
     validateWardNo(data.permanentWardNo, errs, "permanentWardNo");
-
     validateNepaliDate(data.dob, errs, "dob", "जन्म मिति");
 
     const asciiPhone = nepaliToAscii(data.phone.trim());
@@ -353,7 +347,6 @@ function Step1({
         </div>
       </div>
 
-      {/* Permanent Address + Ward No. */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="sm:col-span-2">
           <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -523,7 +516,6 @@ function Step2({
         <p className="text-sm text-gray-400">विद्यालय तथा पद सम्बन्धी विवरण</p>
       </div>
 
-      {/* District + Municipality + Ward No. in one row group */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -567,7 +559,6 @@ function Step2({
         </div>
       </div>
 
-      {/* Ward No. below municipality, spans half width aligned right */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="sm:col-start-2">
           <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -967,12 +958,13 @@ function Step5({
   const districtLabel = data.district
     ? `${DISTRICTS[data.district]?.en} / ${DISTRICTS[data.district]?.np}`
     : "—";
-  const municipalityLabel = data.district && data.municipality
-    ? (() => {
-        const m = DISTRICTS[data.district]?.municipalities.find((m) => m.en === data.municipality);
-        return m ? `${m.en} / ${m.np}` : data.municipality;
-      })()
-    : "—";
+  const municipalityLabel =
+    data.district && data.municipality
+      ? (() => {
+          const m = DISTRICTS[data.district]?.municipalities.find((m) => m.en === data.municipality);
+          return m ? `${m.en} / ${m.np}` : data.municipality;
+        })()
+      : "—";
 
   const sections = [
     {
@@ -1092,57 +1084,43 @@ export default function RegisterPage() {
     setFormData((prev) => ({ ...prev, [field]: value }));
   }
 
-  //async function handleSubmit() {
-    //setSubmitting(true);
-    //setError("");
-    //try {
-      //const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/register/`, {
-        //method: "POST",
-        //headers: { "Content-Type": "application/json" },
-        //body: JSON.stringify(formData),
-      //});
-      //if (!res.ok) throw new Error("Registration failed. Please try again.");
-      //window.location.href = "/login";
-    //} catch (err: any) {
-      //setError(err.message);
-      //setStep(5);
-    //} finally {
-      //setSubmitting(false);
-    //}
-  //}
-//new onw
-async function handleSubmit() {
-  setSubmitting(true);
-  setError("");
+  // ── Single handleSubmit: posts to accounts/register/ ─────────────
+  // Sends only what the User model needs for account creation.
+  // The full teacher profile (name, school, etc.) will be linked
+  // after login once the Teacher model wiring is complete.
+  async function handleSubmit() {
+    setSubmitting(true);
+    setError("");
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/accounts/register/`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            username: formData.email,         // use email as username
+            email: formData.email,
+            password: formData.password,
+            role: "teacher",
+            phone: nepaliToAscii(formData.phone),
+          }),
+        }
+      );
 
-  try {
-    const url = "http://127.0.0.1:8000/api/register/";
-    console.log("POSTING TO:", url);
-    console.log("DATA:", formData);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        const msg = Object.values(data).flat().join(" ") || "दर्ता गर्न सकिएन।";
+        throw new Error(msg);
+      }
 
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(formData),
-    });
-
-    const text = await res.text();
-    console.log("RAW RESPONSE:", text);
-
-    if (!res.ok) {
-      throw new Error(text || "Registration failed");
+      window.location.href = "/login";
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setSubmitting(false);
     }
-
-    window.location.href = "/login";
-  } catch (err: any) {
-    console.error(err);
-    setError(err.message);
-  } finally {
-    setSubmitting(false);
   }
-}
+
   return (
     <div className="min-h-screen bg-[#eaf0fb] flex flex-col">
       <nav className="bg-[#0f2044] px-6 py-3 flex items-center justify-between">
