@@ -1092,25 +1092,57 @@ export default function RegisterPage() {
     setFormData((prev) => ({ ...prev, [field]: value }));
   }
 
-  async function handleSubmit() {
-    setSubmitting(true);
-    setError("");
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/register/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      });
-      if (!res.ok) throw new Error("Registration failed. Please try again.");
-      window.location.href = "/login";
-    } catch (err: any) {
-      setError(err.message);
-      setStep(5);
-    } finally {
-      setSubmitting(false);
-    }
-  }
+  //async function handleSubmit() {
+    //setSubmitting(true);
+    //setError("");
+    //try {
+      //const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/register/`, {
+        //method: "POST",
+        //headers: { "Content-Type": "application/json" },
+        //body: JSON.stringify(formData),
+      //});
+      //if (!res.ok) throw new Error("Registration failed. Please try again.");
+      //window.location.href = "/login";
+    //} catch (err: any) {
+      //setError(err.message);
+      //setStep(5);
+    //} finally {
+      //setSubmitting(false);
+    //}
+  //}
+//new onw
+async function handleSubmit() {
+  setSubmitting(true);
+  setError("");
 
+  try {
+    const url = "http://127.0.0.1:8000/api/register/";
+    console.log("POSTING TO:", url);
+    console.log("DATA:", formData);
+
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(formData),
+    });
+
+    const text = await res.text();
+    console.log("RAW RESPONSE:", text);
+
+    if (!res.ok) {
+      throw new Error(text || "Registration failed");
+    }
+
+    window.location.href = "/login";
+  } catch (err: any) {
+    console.error(err);
+    setError(err.message);
+  } finally {
+    setSubmitting(false);
+  }
+}
   return (
     <div className="min-h-screen bg-[#eaf0fb] flex flex-col">
       <nav className="bg-[#0f2044] px-6 py-3 flex items-center justify-between">
