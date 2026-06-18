@@ -224,28 +224,104 @@ function Step1({
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+        {/* Established Date */}
         <div>
-          <Field label="Establishment Date (BS)" sub="स्थापना मिति">
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Establishment Date (BS){" "}
+            <span className="text-gray-400 font-normal">/ स्थापना मिति</span>
+          </label>
+          <div className="flex gap-2">
             <input
-              value={data.established_date}
-              onChange={(e) => { onChange("established_date", e.target.value); setErrors((p) => ({ ...p, established_date: "" })); }}
-              placeholder="२०१६/०१/०१"
-              className={icErr(errors, "established_date")}
+              type="number"
+              min="1900" max="2090"
+              value={data.established_year ?? ""}
+              onChange={(e) => {
+                onChange("established_year", e.target.value);
+                onChange("established_date", `${e.target.value}/${data.established_month ?? ""}/${data.established_day ?? ""}`);
+                setErrors((p) => ({ ...p, established_date: "" }));
+              }}
+              placeholder="YYYY"
+              className={`${icErr(errors, "established_date")} flex-[2]`}
             />
-          </Field>
+            <input
+              type="number"
+              min="1" max="12"
+              value={data.established_month ?? ""}
+              onChange={(e) => {
+                const val = Math.min(12, Math.max(1, Number(e.target.value)));
+                onChange("established_month", String(val));
+                onChange("established_date", `${data.established_year ?? ""}/${val}/${data.established_day ?? ""}`);
+                setErrors((p) => ({ ...p, established_date: "" }));
+              }}
+              placeholder="MM"
+              className={`${icErr(errors, "established_date")} flex-1`}
+            />
+            <input
+              type="number"
+              min="1" max="32"
+              value={data.established_day ?? ""}
+              onChange={(e) => {
+                const val = Math.min(32, Math.max(1, Number(e.target.value)));
+                onChange("established_day", String(val));
+                onChange("established_date", `${data.established_year ?? ""}/${data.established_month ?? ""}/${val}`);
+                setErrors((p) => ({ ...p, established_date: "" }));
+              }}
+              placeholder="DD"
+              className={`${icErr(errors, "established_date")} flex-1`}
+            />
+          </div>
+          <p className="text-xs text-gray-400 mt-1">Year / Month (1–12) / Day (1–32)</p>
           <FieldError msg={errors.established_date} />
         </div>
+
+        {/* Permission Date */}
         <div>
-          <Field label="Permission Date (BS)" sub="अनुमति मिति">
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Permission Date (BS){" "}
+            <span className="text-gray-400 font-normal">/ अनुमति मिति</span>
+          </label>
+          <div className="flex gap-2">
             <input
-              value={data.permission_date}
-              onChange={(e) => onChange("permission_date", e.target.value)}
-              placeholder="२०१७/०१/०१"
-              className={inputClass}
+              type="number"
+              min="1900" max="2090"
+              value={data.permission_year ?? ""}
+              onChange={(e) => {
+                onChange("permission_year", e.target.value);
+                onChange("permission_date", `${e.target.value}/${data.permission_month ?? ""}/${data.permission_day ?? ""}`);
+              }}
+              placeholder="YYYY"
+              className={`${inputClass} flex-[2]`}
             />
-          </Field>
+            <input
+              type="number"
+              min="1" max="12"
+              value={data.permission_month ?? ""}
+              onChange={(e) => {
+                const val = Math.min(12, Math.max(1, Number(e.target.value)));
+                onChange("permission_month", String(val));
+                onChange("permission_date", `${data.permission_year ?? ""}/${val}/${data.permission_day ?? ""}`);
+              }}
+              placeholder="MM"
+              className={`${inputClass} flex-1`}
+            />
+            <input
+              type="number"
+              min="1" max="32"
+              value={data.permission_day ?? ""}
+              onChange={(e) => {
+                const val = Math.min(32, Math.max(1, Number(e.target.value)));
+                onChange("permission_day", String(val));
+                onChange("permission_date", `${data.permission_year ?? ""}/${data.permission_month ?? ""}/${val}`);
+              }}
+              placeholder="DD"
+              className={`${inputClass} flex-1`}
+            />
+          </div>
+          <p className="text-xs text-gray-400 mt-1">Year / Month (1–12) / Day (1–32) — optional</p>
         </div>
-      </div>
+
+        </div>
 
       <div className="flex justify-end pt-2">
         <button type="submit"
