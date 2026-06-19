@@ -1084,26 +1084,33 @@ export default function RegisterPage() {
     setFormData((prev) => ({ ...prev, [field]: value }));
   }
 
-  // ── Single handleSubmit: posts to accounts/register/ ─────────────
-  // Sends only what the User model needs for account creation.
-  // The full teacher profile (name, school, etc.) will be linked
-  // after login once the Teacher model wiring is complete.
+  // ── Single handleSubmit: POSTs full wizard data to /api/ ────────────
+  // Teacher model stores everything (name, school, service, docs, email,
+  // password) in one record. No separate User creation needed for teachers.
   async function handleSubmit() {
     setSubmitting(true);
     setError("");
     try {
+      const payload = {
+        ...formData,
+        // Convert Nepali digits to ASCII for backend storage
+        phone: nepaliToAscii(formData.phone),
+        permanentWardNo: nepaliToAscii(formData.permanentWardNo),
+        wardNo: nepaliToAscii(formData.wardNo),
+        dob: nepaliToAscii(formData.dob),
+        appointmentDate: nepaliToAscii(formData.appointmentDate),
+        promotionDate: nepaliToAscii(formData.promotionDate),
+        ageSixtyYear: nepaliToAscii(formData.ageSixtyYear),
+        extraordinaryLeave: nepaliToAscii(formData.extraordinaryLeave),
+        accumulatedLeave: nepaliToAscii(formData.accumulatedLeave),
+      };
+
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/accounts/register/`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            username: formData.email,         // use email as username
-            email: formData.email,
-            password: formData.password,
-            role: "teacher",
-            phone: nepaliToAscii(formData.phone),
-          }),
+          body: JSON.stringify(payload),
         }
       );
 

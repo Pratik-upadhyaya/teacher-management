@@ -110,20 +110,31 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-[#eaf0fb] flex flex-col">
 
-      {/* Top navbar */}
-      <nav className="bg-[#0f2044] px-6 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="bg-white/10 p-2 rounded-lg">
-            <div className="w-5 h-5 bg-white rounded-sm" />
-          </div>
-          <div>
-            <p className="text-white font-semibold text-sm">Education Office</p>
-            <p className="text-white/60 text-xs">
-              Gandaki Pradesh · गण्डकी प्रदेश
+      {/* Top navbar — official gov branding (full letterhead) */}
+      <nav className="bg-[#0f2044] px-6 py-4 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="https://giwmscdnone.gov.np/static/assets/image/Emblem_of_Nepal.png"
+            alt="Government of Nepal"
+            className="h-16 w-16 object-contain flex-shrink-0"
+          />
+          <div className="leading-snug">
+            <p className="text-white font-semibold text-sm sm:text-base">
+              नेपाल सरकार
+            </p>
+            <p className="text-white/90 font-medium text-sm sm:text-base">
+              शिक्षा, विज्ञान तथा प्रविधि मन्त्रालय
+            </p>
+            <p className="text-white font-bold text-lg sm:text-xl">
+              शिक्षा विकास तथा समन्वय इकाइ
+            </p>
+            <p className="text-white/60 text-xs sm:text-sm">
+              पोखरा-०१, भिमकाली पाटन, कास्की, नेपाल
             </p>
           </div>
         </div>
-        <button className="text-white/80 text-sm border border-white/20 px-3 py-1 rounded-lg hover:bg-white/10 transition">
+        <button className="text-white/80 text-sm border border-white/20 px-3 py-1 rounded-lg hover:bg-white/10 transition self-start">
           NP / EN
         </button>
       </nav>
