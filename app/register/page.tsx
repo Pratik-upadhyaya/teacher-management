@@ -676,7 +676,7 @@ function Step2({
             <option value="temporary">Temporary / अस्थायी</option>
             <option value="grant">Grant / अनुदान</option>
             <option value="shi_anudan">Shi Anudan / शि अनुदान</option>
-            <option value="relief">Relief / राहत</option>
+            <option value="relief">Rahat / राहत</option>
             <option value="private">Private / निजी</option>
           </select>
           <FieldError msg={errors.teacherType} />

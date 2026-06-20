@@ -553,7 +553,7 @@ function Step4({
               <th className="px-3 py-2.5 text-center">Grant<br/><span className="text-white/60 text-xs">अनुदान</span></th>
               <th className="px-3 py-2.5 text-center">Shi Anudan<br/><span className="text-white/60 text-xs">शि अनुदान</span></th>
               <th className="px-3 py-2.5 text-center">Private<br/><span className="text-white/60 text-xs">निजी</span></th>
-              <th className="px-3 py-2.5 text-center">Relief<br/><span className="text-white/60 text-xs">राहत</span></th>
+              <th className="px-3 py-2.5 text-center">Rahat<br/><span className="text-white/60 text-xs">राहत</span></th>
               <th className="px-3 py-2.5 text-center rounded-tr-lg">Total<br/><span className="text-white/60 text-xs">जम्मा</span></th>
             </tr>
           </thead>
