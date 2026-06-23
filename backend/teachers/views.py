@@ -23,7 +23,7 @@ def teacher_list_create(request):
         return Response(serializer.data)
 
     # =========================
-    # CREATE TEACHER + DEBUG FILES
+    # CREATE TEACHER
     # =========================
     if request.method == 'POST':
         print("========== NEW REGISTRATION ==========")
@@ -64,7 +64,7 @@ def reject_teacher(request, teacher_id):
 
 
 # =========================
-# REQUEST CHANGES FROM TEACHER
+# REQUEST CHANGES
 # =========================
 @api_view(['PATCH'])
 def request_changes(request, teacher_id):
@@ -86,9 +86,7 @@ def teacher_detail(request, id):
     data = {
         "id": teacher.id,
 
-        # =========================
         # PERSONAL
-        # =========================
         "name": teacher.name,
         "fatherName": teacher.fatherName,
         "dob": teacher.dob,
@@ -97,9 +95,7 @@ def teacher_detail(request, id):
         "permanentAddress": teacher.permanentAddress,
         "permanentWardNo": teacher.permanentWardNo,
 
-        # =========================
         # SCHOOL
-        # =========================
         "district": teacher.district,
         "municipality": teacher.municipality,
         "wardNo": teacher.wardNo,
@@ -110,9 +106,7 @@ def teacher_detail(request, id):
         "grade": teacher.grade,
         "teacherType": teacher.teacherType,
 
-        # =========================
         # JOB
-        # =========================
         "appointmentDate": teacher.appointmentDate,
         "promotionDate": teacher.promotionDate,
         "qualification": teacher.qualification,
@@ -120,18 +114,14 @@ def teacher_detail(request, id):
         "accumulatedLeave": teacher.accumulatedLeave,
         "ageSixtyYear": teacher.ageSixtyYear,
 
-        # =========================
-        # DOCUMENTS
-        # =========================
-        "citizenship": teacher.citizenship,
-        "degree": teacher.degree,
-        "transcript": teacher.transcript,
-        "teachingLicense": teacher.teachingLicense,
-        "appointmentLetter": teacher.appointmentLetter,
+        # DOCUMENTS (IMPORTANT: use .name)
+        "citizenship": teacher.citizenship.name if teacher.citizenship else None,
+        "degree": teacher.degree.name if teacher.degree else None,
+        "transcript": teacher.transcript.name if teacher.transcript else None,
+        "teachingLicense": teacher.teachingLicense.name if teacher.teachingLicense else None,
+        "appointmentLetter": teacher.appointmentLetter.name if teacher.appointmentLetter else None,
 
-        # =========================
         # ADMIN
-        # =========================
         "status": teacher.status,
         "remarks": teacher.remarks,
         "created_at": teacher.created_at,
