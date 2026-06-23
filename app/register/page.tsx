@@ -894,7 +894,8 @@ function Step4({
                 type="file"
                 accept="image/*,.pdf"
                 className="hidden"
-                onChange={(e) => onChange(doc.key, e.target.files?.[0]?.name ?? "")}
+                onChange={(e) => onChange(doc.key, e.target.files?.[0] as any)}
+                //onChange={(e) => onChange(doc.key, e.target.files?.[0]?.name ?? "")}
               />
               {data[doc.key] ? (
                 <p className="text-sm text-[#0f2044] font-medium text-center">✓ {data[doc.key]}</p>
@@ -1077,17 +1078,31 @@ export default function RegisterPage() {
     appointmentDate: "", promotionDate: "", qualification: "",
     extraordinaryLeave: "", accumulatedLeave: "", ageSixtyYear: "", remarks: "",
     // Step 4
-    citizenship: "", degree: "", transcript: "", teachingLicense: "", appointmentLetter: "",
+    //citizenship: "", degree: "", transcript: "", teachingLicense: "", appointmentLetter: "",
+    citizenship: null,
+degree: null,
+transcript: null,
+teachingLicense: null,
+appointmentLetter: null
   });
 
-  function handleChange(field: string, value: string) {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-  }
+  //function handleChange(field: string, value: string) {
+    //setFormData((prev) => ({ ...prev, [field]: value }));
+    // =========================
+// HANDLE TEXT + FILE INPUT
+// =========================
+function handleChange(field: string, value: any) {
+  setFormData((prev) => ({
+    ...prev,
+    [field]: value,
+  }));
+}
+
 
   // ── Single handleSubmit: POSTs full wizard data to /api/ ────────────
   // Teacher model stores everything (name, school, service, docs, email,
   // password) in one record. No separate User creation needed for teachers.
-  async function handleSubmit() {
+ /*  async function handleSubmit() {
     setSubmitting(true);
     setError("");
     try {
@@ -1106,7 +1121,8 @@ export default function RegisterPage() {
       };
 
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/`,
+        //`${process.env.NEXT_PUBLIC_API_URL}/api/`,
+        "http://127.0.0.1:8000/api/", //backend connection link
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -1126,7 +1142,94 @@ export default function RegisterPage() {
     } finally {
       setSubmitting(false);
     }
+  } */
+ // =========================
+// FINAL SUBMIT WITH REAL FILE UPLOAD
+// =========================
+async function handleSubmit() {
+  setSubmitting(true);
+  setError("");
+
+  try {
+    // =========================
+    // CREATE FORMDATA
+    // =========================
+    const payload = new FormData();
+
+    // =========================
+    // APPEND ALL TEXT FIELDS
+    // =========================
+    payload.append("name", formData.name || "");
+    payload.append("fatherName", formData.fatherName || "");
+    payload.append("permanentAddress", formData.permanentAddress || "");
+    payload.append("permanentWardNo", nepaliToAscii(formData.permanentWardNo || ""));
+    payload.append("dob", nepaliToAscii(formData.dob || ""));
+    payload.append("phone", nepaliToAscii(formData.phone || ""));
+    payload.append("email", formData.email || "");
+    payload.append("password", formData.password || "");
+
+    payload.append("district", formData.district || "");
+    payload.append("municipality", formData.municipality || "");
+    payload.append("wardNo", nepaliToAscii(formData.wardNo || ""));
+    payload.append("schoolName", formData.schoolName || "");
+    payload.append("tokenNo", formData.tokenNo || "");
+    payload.append("subject", formData.subject || "");
+    payload.append("level", formData.level || "");
+    payload.append("grade", formData.grade || "");
+    payload.append("teacherType", formData.teacherType || "");
+
+    payload.append("appointmentDate", nepaliToAscii(formData.appointmentDate || ""));
+    payload.append("promotionDate", nepaliToAscii(formData.promotionDate || ""));
+    payload.append("qualification", formData.qualification || "");
+    payload.append("extraordinaryLeave", nepaliToAscii(formData.extraordinaryLeave || ""));
+    payload.append("accumulatedLeave", nepaliToAscii(formData.accumulatedLeave || ""));
+    payload.append("ageSixtyYear", nepaliToAscii(formData.ageSixtyYear || ""));
+    payload.append("remarks", formData.remarks || "");
+
+    // =========================
+    // APPEND DOCUMENT FILES
+    // =========================
+    if (formData.citizenship)
+      payload.append("citizenship", formData.citizenship);
+
+    if (formData.degree)
+      payload.append("degree", formData.degree);
+
+    if (formData.transcript)
+      payload.append("transcript", formData.transcript);
+
+    if (formData.teachingLicense)
+      payload.append("teachingLicense", formData.teachingLicense);
+
+    if (formData.appointmentLetter)
+      payload.append("appointmentLetter", formData.appointmentLetter);
+
+    // =========================
+    // SEND TO DJANGO
+    // DO NOT ADD CONTENT-TYPE
+    // =========================
+    const res = await fetch(
+      "http://127.0.0.1:8000/api/",
+      {
+        method: "POST",
+        body: payload,
+      }
+    );
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      const msg =
+        Object.values(data).flat().join(" ") || "दर्ता गर्न सकिएन।";
+      throw new Error(msg);
+    }
+
+    window.location.href = "/login";
+  } catch (err: any) {
+    setError(err.message);
+  } finally {
+    setSubmitting(false);
   }
+}
 
   return (
     <div className="min-h-screen bg-[#eaf0fb] flex flex-col">
