@@ -252,7 +252,7 @@ export default function LoginPage() {
             <p className="text-center text-sm text-gray-400 mt-2">
               No account?{" "}
               <a href="/register" className="text-[#2563eb] hover:underline font-medium">
-                Register as Teacher →
+                Register as a Teacher →
               </a>
             </p>
           </form>
