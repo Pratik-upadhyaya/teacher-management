@@ -202,10 +202,10 @@ function Step1({
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <Field label="Contact No." sub="सम्पर्क नं">
-            <input
+            <NepaliNumberInput
               value={data.contact}
-              onChange={(e) => onChange("contact", e.target.value)}
-              placeholder="061-XXXXXX"
+              onChange={(val: string) => onChange("contact", val)}
+              placeholder="०६१-XXXXXX"
               className={inputClass}
             />
           </Field>
@@ -232,44 +232,46 @@ function Step1({
             <span className="text-gray-400 font-normal">/ स्थापना मिति</span>
           </label>
           <div className="flex gap-2">
-            <input
-              type="number"
-              min="1900" max="2090"
-              value={data.established_year ?? ""}
-              onChange={(e) => {
-                onChange("established_year", e.target.value);
-                onChange("established_date", `${e.target.value}/${data.established_month ?? ""}/${data.established_day ?? ""}`);
-                setErrors((p) => ({ ...p, established_date: "" }));
-              }}
-              placeholder="YYYY"
-              className={`${icErr(errors, "established_date")} flex-[2]`}
-            />
-            <input
-              type="number"
-              min="1" max="12"
-              value={data.established_month ?? ""}
-              onChange={(e) => {
-                const val = Math.min(12, Math.max(1, Number(e.target.value)));
-                onChange("established_month", String(val));
-                onChange("established_date", `${data.established_year ?? ""}/${val}/${data.established_day ?? ""}`);
-                setErrors((p) => ({ ...p, established_date: "" }));
-              }}
-              placeholder="MM"
-              className={`${icErr(errors, "established_date")} flex-1`}
-            />
-            <input
-              type="number"
-              min="1" max="32"
-              value={data.established_day ?? ""}
-              onChange={(e) => {
-                const val = Math.min(32, Math.max(1, Number(e.target.value)));
-                onChange("established_day", String(val));
-                onChange("established_date", `${data.established_year ?? ""}/${data.established_month ?? ""}/${val}`);
-                setErrors((p) => ({ ...p, established_date: "" }));
-              }}
-              placeholder="DD"
-              className={`${icErr(errors, "established_date")} flex-1`}
-            />
+            <div className="flex-[2]">
+              <NepaliNumberInput
+                value={data.established_year ?? ""}
+                onChange={(val: string) => {
+                  onChange("established_year", val);
+                  onChange("established_date", `${val}/${data.established_month ?? ""}/${data.established_day ?? ""}`);
+                  setErrors((p) => ({ ...p, established_date: "" }));
+                }}
+                placeholder="YYYY"
+                className={icErr(errors, "established_date")}
+              />
+            </div>
+            <div className="flex-1">
+              <NepaliNumberInput
+                value={data.established_month ?? ""}
+                onChange={(val: string) => {
+                  const ascii = nepaliToAscii(val);
+                  const clamped = ascii === "" ? "" : String(Math.min(12, Math.max(1, Number(ascii))));
+                  onChange("established_month", clamped);
+                  onChange("established_date", `${data.established_year ?? ""}/${clamped}/${data.established_day ?? ""}`);
+                  setErrors((p) => ({ ...p, established_date: "" }));
+                }}
+                placeholder="MM"
+                className={icErr(errors, "established_date")}
+              />
+            </div>
+            <div className="flex-1">
+              <NepaliNumberInput
+                value={data.established_day ?? ""}
+                onChange={(val: string) => {
+                  const ascii = nepaliToAscii(val);
+                  const clamped = ascii === "" ? "" : String(Math.min(32, Math.max(1, Number(ascii))));
+                  onChange("established_day", clamped);
+                  onChange("established_date", `${data.established_year ?? ""}/${data.established_month ?? ""}/${clamped}`);
+                  setErrors((p) => ({ ...p, established_date: "" }));
+                }}
+                placeholder="DD"
+                className={icErr(errors, "established_date")}
+              />
+            </div>
           </div>
           <p className="text-xs text-gray-400 mt-1">Year / Month (1–12) / Day (1–32)</p>
           <FieldError msg={errors.established_date} />
@@ -282,41 +284,43 @@ function Step1({
             <span className="text-gray-400 font-normal">/ अनुमति मिति</span>
           </label>
           <div className="flex gap-2">
-            <input
-              type="number"
-              min="1900" max="2090"
-              value={data.permission_year ?? ""}
-              onChange={(e) => {
-                onChange("permission_year", e.target.value);
-                onChange("permission_date", `${e.target.value}/${data.permission_month ?? ""}/${data.permission_day ?? ""}`);
-              }}
-              placeholder="YYYY"
-              className={`${inputClass} flex-[2]`}
-            />
-            <input
-              type="number"
-              min="1" max="12"
-              value={data.permission_month ?? ""}
-              onChange={(e) => {
-                const val = Math.min(12, Math.max(1, Number(e.target.value)));
-                onChange("permission_month", String(val));
-                onChange("permission_date", `${data.permission_year ?? ""}/${val}/${data.permission_day ?? ""}`);
-              }}
-              placeholder="MM"
-              className={`${inputClass} flex-1`}
-            />
-            <input
-              type="number"
-              min="1" max="32"
-              value={data.permission_day ?? ""}
-              onChange={(e) => {
-                const val = Math.min(32, Math.max(1, Number(e.target.value)));
-                onChange("permission_day", String(val));
-                onChange("permission_date", `${data.permission_year ?? ""}/${data.permission_month ?? ""}/${val}`);
-              }}
-              placeholder="DD"
-              className={`${inputClass} flex-1`}
-            />
+            <div className="flex-[2]">
+              <NepaliNumberInput
+                value={data.permission_year ?? ""}
+                onChange={(val: string) => {
+                  onChange("permission_year", val);
+                  onChange("permission_date", `${val}/${data.permission_month ?? ""}/${data.permission_day ?? ""}`);
+                }}
+                placeholder="YYYY"
+                className={inputClass}
+              />
+            </div>
+            <div className="flex-1">
+              <NepaliNumberInput
+                value={data.permission_month ?? ""}
+                onChange={(val: string) => {
+                  const ascii = nepaliToAscii(val);
+                  const clamped = ascii === "" ? "" : String(Math.min(12, Math.max(1, Number(ascii))));
+                  onChange("permission_month", clamped);
+                  onChange("permission_date", `${data.permission_year ?? ""}/${clamped}/${data.permission_day ?? ""}`);
+                }}
+                placeholder="MM"
+                className={inputClass}
+              />
+            </div>
+            <div className="flex-1">
+              <NepaliNumberInput
+                value={data.permission_day ?? ""}
+                onChange={(val: string) => {
+                  const ascii = nepaliToAscii(val);
+                  const clamped = ascii === "" ? "" : String(Math.min(32, Math.max(1, Number(ascii))));
+                  onChange("permission_day", clamped);
+                  onChange("permission_date", `${data.permission_year ?? ""}/${data.permission_month ?? ""}/${clamped}`);
+                }}
+                placeholder="DD"
+                className={inputClass}
+              />
+            </div>
           </div>
           <p className="text-xs text-gray-400 mt-1">Year / Month (1–12) / Day (1–32) — optional</p>
         </div>
@@ -369,9 +373,9 @@ function Step2({
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {SECTIONS.map((s) => (
           <Field key={s.key} label={s.label} sub={s.sub}>
-            <input
+            <NepaliNumberInput
               value={data[s.key]}
-              onChange={(e) => onChange(s.key, e.target.value)}
+              onChange={(val: string) => onChange(s.key, val)}
               placeholder={s.placeholder}
               className={inputClass}
             />
@@ -446,12 +450,14 @@ function Step3({
           Land Area <span className="text-gray-400 font-normal">/ जग्गाको क्षेत्रफल</span>
         </p>
         <div className="flex gap-3">
-          <input
-            value={data.land_area}
-            onChange={(e) => onChange("land_area", e.target.value)}
-            placeholder="e.g. 25"
-            className={`${inputClass} flex-1`}
-          />
+          <div className="flex-1">
+            <NepaliNumberInput
+              value={data.land_area}
+              onChange={(val: string) => onChange("land_area", val)}
+              placeholder="e.g. 25"
+              className={inputClass}
+            />
+          </div>
           <select
             aria-label="Land unit"
             value={data.land_unit}
@@ -470,14 +476,20 @@ function Step3({
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Field label="Number of Buildings" sub="भवन संख्या">
-          <input type="number" min="0" value={data.num_buildings}
-            onChange={(e) => onChange("num_buildings", e.target.value)}
-            placeholder="e.g. 3" className={inputClass} />
+          <NepaliNumberInput
+            value={data.num_buildings}
+            onChange={(val: string) => onChange("num_buildings", val)}
+            placeholder="e.g. 3"
+            className={inputClass}
+          />
         </Field>
         <Field label="Number of Classrooms" sub="कक्षाकोठा संख्या">
-          <input type="number" min="0" value={data.num_classrooms}
-            onChange={(e) => onChange("num_classrooms", e.target.value)}
-            placeholder="e.g. 12" className={inputClass} />
+          <NepaliNumberInput
+            value={data.num_classrooms}
+            onChange={(val: string) => onChange("num_classrooms", val)}
+            placeholder="e.g. 12"
+            className={inputClass}
+          />
         </Field>
       </div>
 
@@ -487,14 +499,20 @@ function Step3({
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Field label="Female" sub="महिला">
-            <input type="number" min="0" value={data.toilet_female}
-              onChange={(e) => onChange("toilet_female", e.target.value)}
-              placeholder="e.g. 4" className={inputClass} />
+            <NepaliNumberInput
+              value={data.toilet_female}
+              onChange={(val: string) => onChange("toilet_female", val)}
+              placeholder="e.g. 4"
+              className={inputClass}
+            />
           </Field>
           <Field label="Male" sub="पुरुष">
-            <input type="number" min="0" value={data.toilet_male}
-              onChange={(e) => onChange("toilet_male", e.target.value)}
-              placeholder="e.g. 4" className={inputClass} />
+            <NepaliNumberInput
+              value={data.toilet_male}
+              onChange={(val: string) => onChange("toilet_male", val)}
+              placeholder="e.g. 4"
+              className={inputClass}
+            />
           </Field>
         </div>
       </div>
@@ -533,7 +551,7 @@ function Step4({
   onNext: () => void;
   onBack: () => void;
 }) {
-  const smallInput =
+  const smallInputClass =
     "w-full border border-gray-200 rounded-lg px-2 py-2 text-sm text-center focus:outline-none focus:border-[#0f2044]";
 
   return (
@@ -559,12 +577,13 @@ function Step4({
           </thead>
           <tbody>
             {TEACHER_LEVELS.map((level, i) => {
-              const p  = Number(data[`${level.key}_permanent`]  || 0);
-              const c  = Number(data[`${level.key}_contract`]   || 0);
-              const g  = Number(data[`${level.key}_grant`]      || 0);
-              const s  = Number(data[`${level.key}_shi_anudan`] || 0);
-              const pr = Number(data[`${level.key}_private`]    || 0);
-              const r  = Number(data[`${level.key}_relief`]     || 0);
+              // Values are stored as Devanagari-digit strings; convert to ascii before summing.
+              const p  = Number(nepaliToAscii(data[`${level.key}_permanent`])  || 0);
+              const c  = Number(nepaliToAscii(data[`${level.key}_contract`])   || 0);
+              const g  = Number(nepaliToAscii(data[`${level.key}_grant`])      || 0);
+              const s  = Number(nepaliToAscii(data[`${level.key}_shi_anudan`]) || 0);
+              const pr = Number(nepaliToAscii(data[`${level.key}_private`])    || 0);
+              const r  = Number(nepaliToAscii(data[`${level.key}_relief`])     || 0);
               const total = p + c + g + s + pr + r;
 
               return (
@@ -575,11 +594,10 @@ function Step4({
                   </td>
                   {["permanent", "contract", "grant", "shi_anudan", "private", "relief"].map((type) => (
                     <td key={type} className="px-2 py-2">
-                      <input
-                        type="number" min="0"
+                      <NepaliNumberInput
                         value={data[`${level.key}_${type}`] || ""}
-                        onChange={(e) => onChange(`${level.key}_${type}`, e.target.value)}
-                        className={smallInput}
+                        onChange={(val: string) => onChange(`${level.key}_${type}`, val)}
+                        className={smallInputClass}
                         placeholder="0"
                       />
                     </td>
