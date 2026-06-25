@@ -4,6 +4,7 @@ from .views import (
     approve_teacher,
     reject_teacher,
     teacher_detail,
+    request_changes,
 )
 
 urlpatterns = [
@@ -11,4 +12,5 @@ urlpatterns = [
     path('<int:teacher_id>/approve/', approve_teacher),
     path('<int:teacher_id>/reject/', reject_teacher),
     path('teacher/<int:id>/', teacher_detail),
+    path('teacher/<int:teacher_id>/request-changes/', request_changes),
 ]

@@ -1,7 +1,10 @@
 from django.db import models
 
+
 class Teacher(models.Model):
-    # Step 1
+    # =========================
+    # STEP 1: PERSONAL INFO
+    # =========================
     name = models.CharField(max_length=255)
     fatherName = models.CharField(max_length=255)
     permanentAddress = models.TextField()
@@ -11,7 +14,9 @@ class Teacher(models.Model):
     email = models.EmailField(unique=True)
     password = models.CharField(max_length=255)
 
-    # Step 2
+    # =========================
+    # STEP 2: SCHOOL INFO
+    # =========================
     district = models.CharField(max_length=100, blank=True, null=True)
     municipality = models.CharField(max_length=100, blank=True, null=True)
     wardNo = models.CharField(max_length=10, blank=True, null=True)
@@ -22,7 +27,9 @@ class Teacher(models.Model):
     grade = models.CharField(max_length=100, blank=True, null=True)
     teacherType = models.CharField(max_length=100, blank=True, null=True)
 
-    # Step 3
+    # =========================
+    # STEP 3: SERVICE INFO
+    # =========================
     appointmentDate = models.CharField(max_length=20, blank=True, null=True)
     promotionDate = models.CharField(max_length=20, blank=True, null=True)
     qualification = models.CharField(max_length=100, blank=True, null=True)
@@ -31,14 +38,43 @@ class Teacher(models.Model):
     ageSixtyYear = models.CharField(max_length=20, blank=True, null=True)
     remarks = models.TextField(blank=True, null=True)
 
-    # Step 4 (documents)
-    citizenship = models.CharField(max_length=255, blank=True, null=True)
-    degree = models.CharField(max_length=255, blank=True, null=True)
-    transcript = models.CharField(max_length=255, blank=True, null=True)
-    teachingLicense = models.CharField(max_length=255, blank=True, null=True)
-    appointmentLetter = models.CharField(max_length=255, blank=True, null=True)
+    # =========================
+    # STEP 4: DOCUMENT UPLOADS
+    # REAL FILES SAVED IN /media/documents/
+    # =========================
+    citizenship = models.FileField(
+        upload_to='documents/',
+        blank=True,
+        null=True
+    )
 
-    # Admin
+    degree = models.FileField(
+        upload_to='documents/',
+        blank=True,
+        null=True
+    )
+
+    transcript = models.FileField(
+        upload_to='documents/',
+        blank=True,
+        null=True
+    )
+
+    teachingLicense = models.FileField(
+        upload_to='documents/',
+        blank=True,
+        null=True
+    )
+
+    appointmentLetter = models.FileField(
+        upload_to='documents/',
+        blank=True,
+        null=True
+    )
+
+    # =========================
+    # ADMIN STATUS
+    # =========================
     status = models.CharField(
         max_length=20,
         default="pending",
@@ -49,7 +85,13 @@ class Teacher(models.Model):
         ],
     )
 
+    # =========================
+    # CREATED TIME
+    # =========================
     created_at = models.DateTimeField(auto_now_add=True)
 
+    # =========================
+    # STRING DISPLAY
+    # =========================
     def __str__(self):
         return self.name
