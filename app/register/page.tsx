@@ -265,6 +265,22 @@ function validateWardNo(
   }
 }
 
+// ── Auto-calc "Year Turning 60" from DOB: +60 to year, month/day unchanged ──
+// No BS calendar rollback — BS calendar tables only cover up to ~2090, and a
+// DOB + 60 years will almost always exceed that, so day-of-month is copied
+// through as-is rather than attempting a real calendar adjustment.
+function computeAgeSixty(dobValue: string): string | null {
+  const ascii = nepaliToAscii(dobValue.trim());
+  const match = ascii.match(/^(\d{1,4})\/(\d{1,2})\/(\d{1,2})$/);
+  if (!match) return null;
+
+  const [, y, m, d] = match;
+  const sixtyYear = Number(y) + 60;
+  const mm = m.padStart(2, "0");
+  const dd = d.padStart(2, "0");
+  return toNepaliDigits(`${sixtyYear}/${mm}/${dd}`);
+}
+
 // ── Step 1: Personal Info ─────────────────────────────────────────
 function Step1({
   data,
@@ -381,7 +397,16 @@ function Step1({
           </label>
           <NepaliNumberInput
             value={data.dob}
-            onChange={(val: string) => { onChange("dob", val); setErrors((p) => ({ ...p, dob: "" })); }}
+            onChange={(val: string) => {
+              onChange("dob", val);
+              setErrors((p) => ({ ...p, dob: "" }));
+
+              // Auto-fill "Year Turning 60" whenever DOB resolves to a full date.
+              const sixty = computeAgeSixty(val);
+              if (sixty !== null) {
+                onChange("ageSixtyYear", sixty);
+              }
+            }}
             placeholder="२०४०/०५/१५"
             className={ic(errors, "dob")}
             allowSlash
@@ -784,7 +809,7 @@ function Step3({
           <option value="plus2">+2 / Intermediate / उच्च माध्यमिक</option>
           <option value="bachelor">Bachelor / स्नातक</option>
           <option value="master">Master / स्नातकोत्तर</option>
-          <option value="mphil_phd">M.Phil / PhD</option>
+          <option value="mphil_phd">M.Phil / PhD / विध्याबारिधी</option>
         </select>
         <FieldError msg={errors.qualification} />
       </div>
@@ -819,7 +844,7 @@ function Step3({
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
           Year Turning 60 (BS) <span className="text-gray-400 font-normal">/ ६० वर्ष पुग्ने उमेर</span>
-          <span className="text-gray-400 font-normal text-xs ml-1">(optional)</span>
+          <span className="text-gray-400 font-normal text-xs ml-1">(auto-filled from Date of Birth, editable)</span>
         </label>
         <NepaliNumberInput
           value={data.ageSixtyYear}
@@ -1226,7 +1251,6 @@ export default function RegisterPage() {
       </nav>
 
       <div className="bg-blue-50 border-b border-blue-100 px-6 py-2.5 flex items-center gap-2 text-sm text-blue-700">
-        <span>ℹ️</span>
         <span>After submitting, your account will be reviewed and approved by the District Education Head.</span>
         <span className="text-blue-400 mx-2">|</span>
         <span className="text-blue-500">दर्ता पछि विभाग प्रमुखबाट स्वीकृत हुनेछ।</span>
