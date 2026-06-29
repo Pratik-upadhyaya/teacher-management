@@ -409,7 +409,7 @@ function Step1({
             }}
             placeholder="२०४०/०५/१५"
             className={ic(errors, "dob")}
-            allowSlash
+            mode="date"
           />
           <FieldError msg={errors.dob} />
         </div>
@@ -773,7 +773,7 @@ function Step3({
             onChange={(val: string) => { onChange("appointmentDate", val); setErrors((p) => ({ ...p, appointmentDate: "" })); }}
             placeholder="२०८०/०३/१५"
             className={ic(errors, "appointmentDate")}
-            allowSlash
+            mode="date"
           />
           <FieldError msg={errors.appointmentDate} />
         </div>
@@ -788,7 +788,7 @@ function Step3({
             onChange={(val: string) => { onChange("promotionDate", val); setErrors((p) => ({ ...p, promotionDate: "" })); }}
             placeholder="२०८२/०१/०१"
             className={ic(errors, "promotionDate")}
-            allowSlash
+            mode="date"
           />
           <FieldError msg={errors.promotionDate} />
         </div>
@@ -851,7 +851,7 @@ function Step3({
           onChange={(val: string) => { onChange("ageSixtyYear", val); setErrors((p) => ({ ...p, ageSixtyYear: "" })); }}
           placeholder="२१००/०५/१५"
           className={ic(errors, "ageSixtyYear")}
-          allowSlash
+          mode="date"
         />
         <FieldError msg={errors.ageSixtyYear} />
       </div>
@@ -1191,47 +1191,6 @@ export default function RegisterPage() {
     setSubmitting(false);
   }
 }
-  // async function handleSubmit() {
-  //   setSubmitting(true);
-  //   setError("");
-  //   try {
-  //     const payload = {
-  //       ...formData,
-  //       // Convert Nepali digits to ASCII for backend storage
-  //       phone: nepaliToAscii(formData.phone),
-  //       permanentWardNo: nepaliToAscii(formData.permanentWardNo),
-  //       wardNo: nepaliToAscii(formData.wardNo),
-  //       dob: nepaliToAscii(formData.dob),
-  //       appointmentDate: nepaliToAscii(formData.appointmentDate),
-  //       promotionDate: nepaliToAscii(formData.promotionDate),
-  //       ageSixtyYear: nepaliToAscii(formData.ageSixtyYear),
-  //       extraordinaryLeave: nepaliToAscii(formData.extraordinaryLeave),
-  //       accumulatedLeave: nepaliToAscii(formData.accumulatedLeave),
-  //     };
-
-  //     const res = await fetch(
-  //       //`${process.env.NEXT_PUBLIC_API_URL}/api/`,
-  //       "http://127.0.0.1:8000/api/", //backend connection link
-  //       {
-  //         method: "POST",
-  //         headers: { "Content-Type": "application/json" },
-  //         body: JSON.stringify(payload),
-  //       }
-  //     );
-
-  //     if (!res.ok) {
-  //       const data = await res.json().catch(() => ({}));
-  //       const msg = Object.values(data).flat().join(" ") || "दर्ता गर्न सकिएन।";
-  //       throw new Error(msg);
-  //     }
-
-  //     window.location.href = "/login";
-  //   } catch (err: any) {
-  //     setError(err.message);
-  //   } finally {
-  //     setSubmitting(false);
-  //   }
-  // }
 
   return (
     <div className="min-h-screen bg-[#eaf0fb] flex flex-col">
