@@ -16,7 +16,6 @@ const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/documents", label: "Documents", icon: FileText },
   { href: "/profile", label: "Profile", icon: User },
-  { href: "/principal", label: "School Info", icon: School },
 ];
 
 export default function PortalLayout({
