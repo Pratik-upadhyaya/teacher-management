@@ -1,11 +1,19 @@
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from .models import School
 from .serializers import SchoolSerializer
+from accounts.permissions import IsAdminOrPrincipal
 
 
 @api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
 def school_list_create(request):
+    # GET: any authenticated user may view schools.
+    # POST: creating a school record is restricted to admin/principal --
+    # flag for Pratik to confirm this matches the intended workflow.
+    if request.method == 'POST' and not IsAdminOrPrincipal().has_permission(request, None):
+        return Response({"error": "Only admins or principals can create schools."}, status=403)
     if request.method == 'GET':
         schools = School.objects.all()
         serializer = SchoolSerializer(schools, many=True)

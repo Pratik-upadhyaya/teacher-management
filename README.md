@@ -38,7 +38,7 @@ npm install
 ### 3. Set up environment
 
 Create a `.env.local` file in the root:
-NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_API_URL=http://localhost:3000
 
 Change the URL to wherever the Django backend is running.
 

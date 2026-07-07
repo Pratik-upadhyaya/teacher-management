@@ -1,9 +1,12 @@
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from teachers.models import Teacher
+from accounts.permissions import IsAdminOrPrincipal
 
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated, IsAdminOrPrincipal])
 def dashboard_stats(request):
     total_teachers = Teacher.objects.count()
     pending = Teacher.objects.filter(status='pending').count()

@@ -2,6 +2,7 @@
 import NepaliInput from "@/components/NepaliInput";
 import NepaliNumberInput, { nepaliToAscii, toNepaliDigits } from "@/components/NepaliNumberInput";
 import { useState } from "react";
+import { API_BASE_URL } from "@/lib/api";
 
 // ── Districts & Municipalities ────────────────────────────────────
 const DISTRICTS: Record<string, { en: string; np: string; municipalities: { en: string; np: string }[] }> = {
@@ -1172,7 +1173,7 @@ export default function RegisterPage() {
     if (formData.appointmentLetter)
       payload.append("appointmentLetter", formData.appointmentLetter as any);
 
-    const res = await fetch("http://127.0.0.1:8000/api/", {
+    const res = await fetch(`${API_BASE_URL}/api/`, {
       method: "POST",
       body: payload,
     });

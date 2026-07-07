@@ -2,6 +2,7 @@
 import { useState } from "react";
 import NepaliInput from "@/components/NepaliInput";
 import NepaliNumberInput, { nepaliToAscii } from "@/components/NepaliNumberInput";
+import { API_BASE_URL } from "@/lib/api";
 
 // ── Step indicator ────────────────────────────────────────────────
 function StepBar({ current }: { current: number }) {
@@ -776,8 +777,7 @@ export default function PrincipalPage() {
     try {
       const token = localStorage.getItem("access");
       const res = await fetch(
-        //`${process.env.NEXT_PUBLIC_API_URL}/api/school-info/`,
-        "http://127.0.0.1:8000/api/schools/", //new api calling 
+        `${API_BASE_URL}/api/schools/`,
         {
           method: "POST",
           headers: {

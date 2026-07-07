@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { authFetch } from "@/lib/api";
 
 type Teacher = {
   id: number;
@@ -27,7 +28,7 @@ export default function AdminPage() {
   });
 
   function loadDashboard() {
-    fetch("http://127.0.0.1:8000/api/dashboard/stats/")
+    authFetch("/api/dashboard/stats/")
       .then((res) => res.json())
       .then((data) => setStats(data))
       .catch((err) => console.error(err));
@@ -38,10 +39,7 @@ export default function AdminPage() {
   }, []);
 
   async function approveTeacher(id: number) {
-    const res = await fetch(
-      `http://127.0.0.1:8000/api/register/${id}/approve/`,
-      { method: "PATCH" }
-    );
+    const res = await authFetch(`/api/${id}/approve/`, { method: "PATCH" });
 
     if (!res.ok) {
       alert("Approve failed");
@@ -52,10 +50,7 @@ export default function AdminPage() {
   }
 
   async function rejectTeacher(id: number) {
-    const res = await fetch(
-      `http://127.0.0.1:8000/api/register/${id}/reject/`,
-      { method: "PATCH" }
-    );
+    const res = await authFetch(`/api/${id}/reject/`, { method: "PATCH" });
 
     if (!res.ok) {
       alert("Reject failed");

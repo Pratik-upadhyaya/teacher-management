@@ -5,6 +5,7 @@
 // =========================
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import { authFetch, API_BASE_URL } from "@/lib/api";
 
 export default function TeacherDetailPage() {
   // =========================
@@ -23,7 +24,7 @@ export default function TeacherDetailPage() {
   // FETCH TEACHER DETAIL
   // =========================
   useEffect(() => {
-    fetch(`http://127.0.0.1:8000/api/teacher/${id}/`)
+    authFetch(`/api/teacher/${id}/`)
       .then((res) => res.json())
       .then((data) => setTeacher(data));
   }, [id]);
@@ -32,18 +33,15 @@ export default function TeacherDetailPage() {
   // SEND CHANGE REQUEST
   // =========================
   async function sendChangeRequest() {
-    const res = await fetch(
-      `http://127.0.0.1:8000/api/teacher/${id}/request-changes/`,
-      {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          message: changeMessage,
-        }),
-      }
-    );
+    const res = await authFetch(`/api/teacher/${id}/request-changes/`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        message: changeMessage,
+      }),
+    });
 
     if (res.ok) {
       alert("Change request sent to teacher");
@@ -66,7 +64,7 @@ export default function TeacherDetailPage() {
 
     const fullUrl = docUrl.startsWith("http")
       ? docUrl
-      : `http://127.0.0.1:8000/media/${docUrl}`;
+      : `${API_BASE_URL}/media/${docUrl}`;
 
     window.open(fullUrl, "_blank");
   }
