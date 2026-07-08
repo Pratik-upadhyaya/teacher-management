@@ -1,26 +1,54 @@
-// Central place for talking to the Django backend.
-//
-// Two things this fixes that were previously inconsistent across pages:
-// 1. Base URL was hardcoded to http://127.0.0.1:8000 in some files and
-//    process.env.NEXT_PUBLIC_API_URL in others. Now everything goes through
-//    API_BASE_URL.
-// 2. No fetch() call anywhere attached the JWT access token, so once the
-//    backend required authentication, every admin/principal/teacher screen
-//    would break. authFetch() attaches it automatically.
+import Cookies from "js-cookie";
 
+// Central place for talking to the Django backend.
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
 /**
+ * Retrieve the access token from secure cookies.
+ */
+export function getAccessToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return Cookies.get("access_token") || null;
+}
+
+/**
+ * Retrieve the refresh token from secure cookies.
+ */
+export function getRefreshToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return Cookies.get("refresh_token") || null;
+}
+
+/**
+ * Store access and refresh tokens in secure cookies.
+ */
+export function setTokens(access: string, refresh: string) {
+  if (typeof window === "undefined") return;
+  // secure: true ensures tokens are only transmitted over HTTPS
+  // sameSite: "strict" protects against CSRF attacks
+  Cookies.set("access_token", access, { secure: true, sameSite: "strict" });
+  Cookies.set("refresh_token", refresh, { secure: true, sameSite: "strict" });
+}
+
+/**
+ * Clear tokens from secure cookies.
+ */
+export function clearTokens() {
+  if (typeof window === "undefined") return;
+  Cookies.remove("access_token");
+  Cookies.remove("refresh_token");
+}
+
+/**
  * Wraps fetch() and attaches `Authorization: Bearer <access token>` from
- * localStorage, if one is present. Use this for any endpoint that requires
+ * secure cookies, if one is present. Use this for any endpoint that requires
  * a logged-in user (dashboard stats, approve/reject, teacher details,
  * schools, profile, etc). Public endpoints (login, register, teacher
  * self-application) should keep using plain fetch().
  */
 export async function authFetch(path: string, options: RequestInit = {}) {
-  const access =
-    typeof window !== "undefined" ? localStorage.getItem("access") : null;
+  const access = getAccessToken();
 
   const headers = new Headers(options.headers || {});
   if (access) {
@@ -32,7 +60,7 @@ export async function authFetch(path: string, options: RequestInit = {}) {
 
   // If the access token expired, try refreshing it once before giving up.
   if (res.status === 401 && typeof window !== "undefined") {
-    const refresh = localStorage.getItem("refresh");
+    const refresh = getRefreshToken();
     if (refresh) {
       const refreshRes = await fetch(`${API_BASE_URL}/api/token/refresh/`, {
         method: "POST",
@@ -41,13 +69,14 @@ export async function authFetch(path: string, options: RequestInit = {}) {
       });
       if (refreshRes.ok) {
         const { access: newAccess } = await refreshRes.json();
-        localStorage.setItem("access", newAccess);
+        // Since we refresh, update the access token cookie
+        Cookies.set("access_token", newAccess, { secure: true, sameSite: "strict" });
         headers.set("Authorization", `Bearer ${newAccess}`);
         return fetch(url, { ...options, headers });
       }
       // Refresh failed -- session is over, send the user back to login.
-      localStorage.removeItem("access");
-      localStorage.removeItem("refresh");
+      clearTokens();
+      localStorage.removeItem("teacher_name");
       window.location.href = "/login";
     }
   }

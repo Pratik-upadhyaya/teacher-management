@@ -66,7 +66,7 @@ export default function TeacherDetailPage() {
       ? docUrl
       : `${API_BASE_URL}/media/${docUrl}`;
 
-    window.open(fullUrl, "_blank");
+    window.open(fullUrl, "_blank", "noopener,noreferrer");
   }
 
   if (!teacher) return <div>Loading...</div>;

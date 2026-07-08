@@ -1,13 +1,15 @@
 "use client";
 import { useEffect, useState } from "react";
+import { authFetch } from "@/lib/api";
 
 // ── Validation ──────────────────────────────────────────────────────────────
+// Note: email is intentionally not part of the editable profile form or its
+// validation -- see the read-only email field further down for why.
 
 interface ProfileErrors {
   name?: string;
   phone?: string;
-  email?: string;
-  address?: string;
+  permanentAddress?: string;
 }
 
 interface PasswordErrors {
@@ -16,7 +18,7 @@ interface PasswordErrors {
   confirm?: string;
 }
 
-function validateProfile(form: { name: string; phone: string; email: string; address: string }): ProfileErrors {
+function validateProfile(form: { name: string; phone: string; permanentAddress: string }): ProfileErrors {
   const errs: ProfileErrors = {};
 
   if (!form.name.trim()) {
@@ -31,14 +33,8 @@ function validateProfile(form: { name: string; phone: string; email: string; add
     errs.phone = "मान्य फोन नम्बर प्रविष्ट गर्नुहोस्। (Enter a valid phone number)";
   }
 
-  if (!form.email.trim()) {
-    errs.email = "इमेल ठेगाना आवश्यक छ। (Email is required)";
-  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
-    errs.email = "मान्य इमेल ठेगाना प्रविष्ट गर्नुहोस्। (Enter a valid email)";
-  }
-
-  if (!form.address.trim()) {
-    errs.address = "स्थायी ठेगाना आवश्यक छ। (Address is required)";
+  if (!form.permanentAddress.trim()) {
+    errs.permanentAddress = "स्थायी ठेगाना आवश्यक छ। (Address is required)";
   }
 
   return errs;
@@ -53,8 +49,10 @@ function validatePasswords(passwords: { current: string; newPass: string; confir
 
   if (!passwords.newPass) {
     errs.newPass = "नयाँ पासवर्ड आवश्यक छ। (New password is required)";
-  } else if (passwords.newPass.length < 6) {
-    errs.newPass = "पासवर्ड कम्तिमा ६ अक्षरको हुनुपर्छ। (Min 6 characters)";
+  } else if (passwords.newPass.length < 8) {
+    // Matches the backend's MinimumLengthValidator (8 chars) -- catching
+    // this client-side avoids a round trip just to get rejected.
+    errs.newPass = "पासवर्ड कम्तिमा ८ अक्षरको हुनुपर्छ। (Min 8 characters)";
   } else if (passwords.newPass === passwords.current) {
     errs.newPass = "नयाँ पासवर्ड हालकोभन्दा फरक हुनुपर्छ। (Must differ from current)";
   }
@@ -81,8 +79,7 @@ export default function ProfilePage() {
   const [form, setForm] = useState({
     name: "",
     phone: "",
-    email: "",
-    address: "",
+    permanentAddress: "",
   });
 
   const [profileErrors, setProfileErrors] = useState<ProfileErrors>({});
@@ -97,18 +94,14 @@ export default function ProfilePage() {
   useEffect(() => {
     async function fetchMe() {
       try {
-        const token = localStorage.getItem("access");
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/teachers/me/`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+        const res = await authFetch("/api/teachers/me/");
+        if (!res.ok) throw new Error("Failed to load profile");
         const data = await res.json();
         setTeacher(data);
         setForm({
           name: data.name ?? "",
           phone: data.phone ?? "",
-          email: data.email ?? "",
-          address: data.address ?? "",
+          permanentAddress: data.permanentAddress ?? "",
         });
       } catch {
         setErrorMsg("प्रोफाइल लोड गर्न सकिएन। (Failed to load profile)");
@@ -147,21 +140,16 @@ export default function ProfilePage() {
 
     setSaving(true);
     try {
-      const token = localStorage.getItem("access");
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/teachers/me/`,
-        {
-          method: "PATCH",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(form),
-        }
-      );
+      const res = await authFetch("/api/teachers/me/", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
       if (!res.ok) throw new Error("परिवर्तन सुरक्षित गर्न सकिएन। (Failed to save)");
+      const updated = await res.json();
+      setTeacher(updated);
       setSuccessMsg("प्रोफाइल सफलतापूर्वक अपडेट भयो। (Profile updated successfully)");
-      localStorage.setItem("teacher_name", form.name);
+      localStorage.setItem("teacher_name", updated.name);
     } catch {
       setErrorMsg("परिवर्तन सुरक्षित गर्न सकिएन। (Could not save changes)");
     } finally {
@@ -182,22 +170,20 @@ export default function ProfilePage() {
 
     setChangingPassword(true);
     try {
-      const token = localStorage.getItem("access");
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/change-password/`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            current_password: passwords.current,
-            new_password: passwords.newPass,
-          }),
-        }
-      );
-      if (!res.ok) throw new Error("हालको पासवर्ड गलत छ। (Incorrect current password)");
+      const res = await authFetch("/api/accounts/change-password/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          current_password: passwords.current,
+          new_password: passwords.newPass,
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(
+          body.error || "हालको पासवर्ड गलत छ। (Incorrect current password)"
+        );
+      }
       setSuccessMsg("पासवर्ड सफलतापूर्वक परिवर्तन भयो। (Password changed successfully)");
       setPasswords({ current: "", newPass: "", confirm: "" });
     } catch (err: any) {
@@ -223,6 +209,24 @@ export default function ProfilePage() {
       .slice(0, 2)
       .join("") ?? "T";
 
+  // Reflects the teacher's real `status` field -- this used to be a
+  // hard-coded "Approved by Admin" badge regardless of actual status,
+  // which would misrepresent a still-pending or rejected application.
+  const statusBadge: Record<string, { label: string; className: string }> = {
+    approved: { label: "● Approved by Admin", className: "bg-green-100 text-green-700" },
+    pending: { label: "● Pending Review", className: "bg-yellow-100 text-yellow-700" },
+    rejected: { label: "● Rejected", className: "bg-red-100 text-red-700" },
+  };
+  const status = statusBadge[teacher?.status] ?? statusBadge.pending;
+
+  const memberSince = teacher?.created_at
+    ? new Date(teacher.created_at).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      })
+    : undefined;
+
   // Shared input class helper
   const fieldClass = (hasError: boolean) =>
     `w-full border rounded-lg px-3 py-2.5 text-sm focus:outline-none transition ${
@@ -242,22 +246,22 @@ export default function ProfilePage() {
           </div>
           <p className="font-semibold text-gray-800">{teacher?.name}</p>
           <p className="text-xs text-gray-400">
-            {teacher?.subject} · {teacher?.position}
+            {teacher?.subject} · {teacher?.teacherType}
           </p>
-          <a href="#" className="text-xs text-blue-500 block">
-            {teacher?.school?.name}
-          </a>
-          <span className="inline-block bg-green-100 text-green-700 text-xs px-3 py-1 rounded-full">
-            ● Approved by Admin
+          <p className="text-xs text-gray-500">{teacher?.schoolName}</p>
+          <span
+            className={`inline-block text-xs px-3 py-1 rounded-full ${status.className}`}
+          >
+            {status.label}
           </span>
           <div className="text-left pt-3 space-y-2 text-xs text-gray-500 divide-y divide-gray-50">
             {[
-              ["TSC No.", teacher?.tsc_no],
-              ["Recruited", teacher?.join_date],
-              ["District", teacher?.school?.district],
-              ["Classes", teacher?.classes],
-              ["Subject", teacher?.subject],
-              ["Member since", teacher?.member_since],
+              ["Token No.", teacher?.tokenNo],
+              ["Appointed", teacher?.appointmentDate],
+              ["District", teacher?.district],
+              ["Level / Grade", teacher?.level],
+              ["Teacher type", teacher?.teacherType],
+              ["Member since", memberSince],
             ].map(([label, value]) => (
               <div key={label} className="flex justify-between pt-2">
                 <span className="text-gray-400">{label}</span>
@@ -314,21 +318,21 @@ export default function ProfilePage() {
   className={fieldClass(!!profileErrors.phone)}
 />
 
-{/* Email */}
+{/* Email (read-only) */}
 <label htmlFor="profile-email" className="block text-sm font-medium text-gray-700 mb-1">
   Email address <span className="text-gray-400 font-normal">/ इमेल</span>
 </label>
 <input
   id="profile-email"
   type="email"
-  value={form.email}
-  onChange={(e) => updateForm("email", e.target.value)}
-  placeholder="teacher@shree.edu.np"
-  className={fieldClass(!!profileErrors.email)}
+  value={teacher?.email ?? ""}
+  disabled
+  className="w-full border rounded-lg px-3 py-2.5 text-sm bg-gray-50 text-gray-500 cursor-not-allowed border-gray-200"
 />
-              {profileErrors.email && (
-                <p className="text-red-500 text-xs mt-1">{profileErrors.email}</p>
-              )}
+<p className="text-xs text-gray-400 mt-1">
+  Your email is your login ID and can&apos;t be changed here — contact an
+  admin if it needs to be updated.
+</p>
             </div>
             <div>
               <label htmlFor="profile-address" className="block text-sm font-medium text-gray-700 mb-1">
@@ -338,13 +342,13 @@ export default function ProfilePage() {
               <input
                 id="profile-address"
                 type="text"
-                value={form.address}
-                onChange={(e) => updateForm("address", e.target.value)}
+                value={form.permanentAddress}
+                onChange={(e) => updateForm("permanentAddress", e.target.value)}
                 placeholder="Ward No., Municipality, District"
-                className={fieldClass(!!profileErrors.address)}
+                className={fieldClass(!!profileErrors.permanentAddress)}
               />
-              {profileErrors.address && (
-                <p className="text-red-500 text-xs mt-1">{profileErrors.address}</p>
+              {profileErrors.permanentAddress && (
+                <p className="text-red-500 text-xs mt-1">{profileErrors.permanentAddress}</p>
               )}
             </div>
             <div className="flex gap-3">
@@ -361,8 +365,7 @@ export default function ProfilePage() {
                   setForm({
                     name: teacher?.name ?? "",
                     phone: teacher?.phone ?? "",
-                    email: teacher?.email ?? "",
-                    address: teacher?.address ?? "",
+                    permanentAddress: teacher?.permanentAddress ?? "",
                   });
                   setProfileErrors({});
                 }}

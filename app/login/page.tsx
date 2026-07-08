@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { Lock, Mail } from "lucide-react";
+import { setTokens } from "@/lib/api";
 
 // ── Validation ─────────────────────────────────────────────────────────────
 
@@ -73,8 +74,7 @@ export default function LoginPage() {
       if (!res.ok) throw new Error("इमेल वा पासवर्ड गलत छ। (Invalid email or password)");
 
       const data = await res.json();
-      localStorage.setItem("access", data.access);
-      localStorage.setItem("refresh", data.refresh);
+      setTokens(data.access, data.refresh);
 
       const meRes = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/teachers/me/`,

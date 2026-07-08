@@ -75,7 +75,7 @@ export default function DocumentsPage() {
   function openDocument(path?: string | null) {
     if (!path) return;
     const fullUrl = path.startsWith("http") ? path : `${API_BASE_URL}${path}`;
-    window.open(fullUrl, "_blank");
+    window.open(fullUrl, "_blank", "noopener,noreferrer");
   }
 
   const uploadedCount = teacher

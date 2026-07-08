@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { FileText, School, BookOpen, Calendar } from "lucide-react";
 import Link from "next/link";
-import { API_BASE_URL } from "@/lib/api";
+import { authFetch } from "@/lib/api";
 
 type Teacher = {
   name?: string;
@@ -45,10 +45,7 @@ export default function DashboardPage() {
   useEffect(() => {
     async function fetchMe() {
       try {
-        const token = localStorage.getItem("access");
-        const res = await fetch(`${API_BASE_URL}/api/teachers/me/`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const res = await authFetch("/api/teachers/me/");
         if (!res.ok) throw new Error();
         const data = await res.json();
         setTeacher(data);

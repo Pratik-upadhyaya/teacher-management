@@ -11,6 +11,7 @@ import {
   Menu,
   X,
 } from "lucide-react";
+import { getAccessToken, clearTokens } from "@/lib/api";
 
 const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -28,26 +29,35 @@ export default function PortalLayout({
   const [teacherName, setTeacherName] = useState("Teacher");
   const [initials, setInitials] = useState("T");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [authorized, setAuthorized] = useState(false);
 
   useEffect(() => {
-    const token = localStorage.getItem("access");
-    //if (!token) {
-    //  router.replace("/login");
-    //  return;
-    //}
+    const token = getAccessToken();
+    if (!token) {
+      router.replace("/login");
+      return;
+    }
     const name = localStorage.getItem("teacher_name") || "Teacher";
     setTeacherName(name);
     const parts = name.trim().split(" ");
     setInitials(
       parts.length >= 2 ? parts[0][0] + parts[1][0] : parts[0][0]
     );
+    setAuthorized(true);
   }, [router]);
 
   function handleLogout() {
-    localStorage.removeItem("access");
-    localStorage.removeItem("refresh");
+    clearTokens();
     localStorage.removeItem("teacher_name");
     router.push("/login");
+  }
+
+  if (!authorized) {
+    return (
+      <div className="min-h-screen bg-[#eaf0fb] flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-[#0f2044] border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
   }
 
   return (
