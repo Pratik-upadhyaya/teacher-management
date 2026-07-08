@@ -6,6 +6,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { authFetch, API_BASE_URL } from "@/lib/api";
+import { X, Download } from "lucide-react";
 
 export default function TeacherDetailPage() {
   // =========================
@@ -19,6 +20,8 @@ export default function TeacherDetailPage() {
   // =========================
   const [teacher, setTeacher] = useState<any>(null);
   const [changeMessage, setChangeMessage] = useState("");
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewTitle, setPreviewTitle] = useState<string>("");
 
   // =========================
   // FETCH TEACHER DETAIL
@@ -52,21 +55,36 @@ export default function TeacherDetailPage() {
   }
 
   // =========================
+  // DOWNLOAD TEACHER JSON DATA
+  // =========================
+  function downloadTeacherJSON() {
+    if (!teacher) return;
+    const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(
+      JSON.stringify(teacher, null, 2)
+    )}`;
+    const downloadAnchor = document.createElement("a");
+    downloadAnchor.setAttribute("href", jsonString);
+    downloadAnchor.setAttribute("download", `teacher_${teacher.name?.replace(/\s+/g, "_")}_profile.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    document.body.removeChild(downloadAnchor);
+  }
+
+  // =========================
   // OPEN DOCUMENT
   // =========================
-  function openDocument(docUrl: string | null) {
+  function openDocument(label: string, docUrl: string | null) {
     if (!docUrl) {
       alert("Document not uploaded");
       return;
     }
 
-    console.log("DOC URL =", docUrl);
-
     const fullUrl = docUrl.startsWith("http")
       ? docUrl
       : `${API_BASE_URL}/media/${docUrl}`;
 
-    window.open(fullUrl, "_blank", "noopener,noreferrer");
+    setPreviewUrl(fullUrl);
+    setPreviewTitle(label);
   }
 
   if (!teacher) return <div>Loading...</div>;
@@ -118,6 +136,14 @@ export default function TeacherDetailPage() {
               <p><b>Phone:</b> {teacher.phone}</p>
               <p><b>Email:</b> {teacher.email}</p>
             </div>
+
+            <button
+              onClick={downloadTeacherJSON}
+              className="mt-6 w-full flex items-center justify-center gap-2 bg-[#0b2c5f] hover:bg-[#1a3260] text-white py-3 rounded-xl transition text-sm font-semibold shadow-sm"
+            >
+              <Download size={15} />
+              Download Profile (JSON)
+            </button>
           </div>
 
           {/* RIGHT DETAILS */}
@@ -159,29 +185,29 @@ export default function TeacherDetailPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <button
-                  onClick={() => openDocument(teacher.citizenship)}
-                  className="p-3 bg-blue-100 rounded-xl"
+                  onClick={() => openDocument("Citizenship", teacher.citizenship)}
+                  className="p-3 bg-blue-100 rounded-xl hover:bg-blue-200 transition font-medium text-[#0b2c5f]"
                 >
                   Citizenship
                 </button>
 
                 <button
-                  onClick={() => openDocument(teacher.degree)}
-                  className="p-3 bg-blue-100 rounded-xl"
+                  onClick={() => openDocument("Degree", teacher.degree)}
+                  className="p-3 bg-blue-100 rounded-xl hover:bg-blue-200 transition font-medium text-[#0b2c5f]"
                 >
                   Degree
                 </button>
 
                 <button
-                  onClick={() => openDocument(teacher.transcript)}
-                  className="p-3 bg-blue-100 rounded-xl"
+                  onClick={() => openDocument("Transcript", teacher.transcript)}
+                  className="p-3 bg-blue-100 rounded-xl hover:bg-blue-200 transition font-medium text-[#0b2c5f]"
                 >
                   Transcript
                 </button>
 
                 <button
-                  onClick={() => openDocument(teacher.teachingLicense)}
-                  className="p-3 bg-blue-100 rounded-xl"
+                  onClick={() => openDocument("Teaching License", teacher.teachingLicense)}
+                  className="p-3 bg-blue-100 rounded-xl hover:bg-blue-200 transition font-medium text-[#0b2c5f]"
                 >
                   License
                 </button>
@@ -212,6 +238,60 @@ export default function TeacherDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Document Preview Modal */}
+      {previewUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="relative bg-white rounded-2xl w-full max-w-4xl h-[85vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            {/* Modal Header */}
+            <div className="flex justify-between items-center px-6 py-4 border-b border-gray-100">
+              <div>
+                <h3 className="text-lg font-bold text-[#0b2c5f]">{previewTitle}</h3>
+                <p className="text-xs text-gray-400">Review Document</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <a
+                  href={previewUrl}
+                  download
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 text-xs font-semibold text-white bg-[#0b2c5f] hover:bg-[#1a3260] px-3 py-2 rounded-lg transition"
+                >
+                  <Download size={13} />
+                  Download
+                </a>
+                <button
+                  onClick={() => {
+                    setPreviewUrl(null);
+                    setPreviewTitle("");
+                  }}
+                  className="p-1.5 hover:bg-gray-100 text-gray-400 hover:text-gray-600 rounded-lg transition"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 p-6 bg-gray-50 overflow-auto flex justify-center items-center">
+              {previewUrl.toLowerCase().endsWith(".pdf") ? (
+                <iframe
+                  src={previewUrl}
+                  className="w-full h-full rounded-xl border-0 bg-white"
+                  title={previewTitle}
+                />
+              ) : (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={previewUrl}
+                  className="max-h-full max-w-full object-contain rounded-xl shadow-sm"
+                  alt={previewTitle}
+                />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -15,7 +15,7 @@ load_dotenv(BASE_DIR / '.env')
 # SECURITY
 # =========================
 # SECRET_KEY and DEBUG now come from environment variables (.env file, NOT committed to git).
-SECRET_KEY = os.environ.get('HcWQwnrZ4VV_NgFGjnAg0alJBStryHOUB33LiK-A88-2Vbw5rMeVMmYBDBCKSuFdUn4')
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY')
 if not SECRET_KEY:
     raise RuntimeError(
         "DJANGO_SECRET_KEY is not set. Copy backend/.env.example to backend/.env "

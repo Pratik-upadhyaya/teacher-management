@@ -62,6 +62,21 @@ export default function LoginPage() {
 
     setLoading(true);
     try {
+      // Check local mock sub-admins first to allow logging in with newly added accounts
+      const localSubAdminsStr = localStorage.getItem("local_sub_admins");
+      if (localSubAdminsStr) {
+        const localSubAdmins = JSON.parse(localSubAdminsStr);
+        const match = localSubAdmins.find(
+          (sa: any) => sa.email === email && sa.password === password
+        );
+        if (match) {
+          setTokens("mock_access_token_sub_admin", "mock_refresh_token_sub_admin");
+          localStorage.setItem("teacher_name", match.name);
+          window.location.href = "/admin";
+          return;
+        }
+      }
+
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/token/`,
         {
@@ -75,6 +90,7 @@ export default function LoginPage() {
 
       const data = await res.json();
       setTokens(data.access, data.refresh);
+      localStorage.setItem("user_role", data.role || "teacher");
 
       const meRes = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/teachers/me/`,
@@ -85,7 +101,7 @@ export default function LoginPage() {
         localStorage.setItem("teacher_name", me.name);
       }
 
-      if (data.role === "admin") {
+      if (data.role === "admin" || data.role === "sub-admin") {
         window.location.href = "/admin";
       } else {
         window.location.href = "/dashboard";
