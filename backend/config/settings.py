@@ -15,7 +15,6 @@ load_dotenv(BASE_DIR / '.env')
 # SECURITY
 # =========================
 # SECRET_KEY and DEBUG now come from environment variables (.env file, NOT committed to git).
-# See backend/.env.example for the required keys.
 SECRET_KEY = os.environ.get('HcWQwnrZ4VV_NgFGjnAg0alJBStryHOUB33LiK-A88-2Vbw5rMeVMmYBDBCKSuFdUn4')
 if not SECRET_KEY:
     raise RuntimeError(

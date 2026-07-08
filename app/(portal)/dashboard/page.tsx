@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
-import { FileText, School, BookOpen, Calendar, Download } from "lucide-react";
+import { FileText, School, BookOpen, Calendar } from "lucide-react";
+import Link from "next/link";
 import { API_BASE_URL } from "@/lib/api";
 
 type Teacher = {
@@ -99,6 +100,7 @@ export default function DashboardPage() {
       icon: FileText,
       color: "text-orange-500",
       bg: "bg-orange-50",
+      href: "/documents",
     },
     {
       label: "Member Since",
@@ -123,12 +125,6 @@ export default function DashboardPage() {
       ? "bg-red-500"
       : "bg-yellow-400";
 
-  function openDocument(path?: string | null) {
-    if (!path) return;
-    const fullUrl = path.startsWith("http") ? path : `${API_BASE_URL}${path}`;
-    window.open(fullUrl, "_blank");
-  }
-
   return (
     <div className="space-y-6">
       {/* Greeting */}
@@ -149,22 +145,28 @@ export default function DashboardPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {stats.map((s) => (
-          <div
-            key={s.label}
-            className="bg-white rounded-xl border border-gray-100 p-5 flex items-center gap-4"
-          >
-            <div className={`${s.bg} ${s.color} p-3 rounded-xl`}>
-              <s.icon size={20} />
+        {stats.map((s) => {
+          const CardInner = (
+            <div className="bg-white rounded-xl border border-gray-100 p-5 flex items-center gap-4 h-full hover:border-[#0f2044]/20 transition">
+              <div className={`${s.bg} ${s.color} p-3 rounded-xl`}>
+                <s.icon size={20} />
+              </div>
+              <div>
+                <p className="text-xs text-gray-400 uppercase tracking-wide">
+                  {s.label}
+                </p>
+                <p className="font-semibold text-gray-800 mt-0.5">{s.value}</p>
+              </div>
             </div>
-            <div>
-              <p className="text-xs text-gray-400 uppercase tracking-wide">
-                {s.label}
-              </p>
-              <p className="font-semibold text-gray-800 mt-0.5">{s.value}</p>
-            </div>
-          </div>
-        ))}
+          );
+          return s.href ? (
+            <Link key={s.label} href={s.href}>
+              {CardInner}
+            </Link>
+          ) : (
+            <div key={s.label}>{CardInner}</div>
+          );
+        })}
       </div>
 
       {/* Info table */}
@@ -194,39 +196,6 @@ export default function DashboardPage() {
             </div>
           ))}
         </div>
-      </div>
-
-      {/* Documents */}
-      <div className="bg-white rounded-xl border border-gray-100 p-5">
-        <h2 className="font-semibold text-[#0f2044] mb-4">My Documents</h2>
-        {DOCUMENT_FIELDS.every((d) => !teacher?.[d.key]) ? (
-          <p className="text-sm text-gray-400">No documents uploaded yet.</p>
-        ) : (
-          <div className="divide-y divide-gray-50">
-            {DOCUMENT_FIELDS.map((d) => {
-              const url = teacher?.[d.key] as string | null | undefined;
-              return (
-                <div
-                  key={d.key}
-                  className="flex justify-between items-center py-2.5 text-sm"
-                >
-                  <span className="text-gray-600">{d.label}</span>
-                  {url ? (
-                    <button
-                      onClick={() => openDocument(url)}
-                      className="flex items-center gap-1.5 text-[#0f2044] font-medium hover:underline"
-                    >
-                      <Download size={14} />
-                      View
-                    </button>
-                  ) : (
-                    <span className="text-gray-300">Not uploaded</span>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
       </div>
     </div>
   );

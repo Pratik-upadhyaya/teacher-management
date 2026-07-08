@@ -50,12 +50,25 @@ def teacher_list_create(request):
 # =========================
 # CURRENT LOGGED-IN TEACHER (used by login page to greet the user)
 # =========================
-@api_view(['GET'])
+DOCUMENT_FIELDS = ('citizenship', 'degree', 'transcript', 'teachingLicense', 'appointmentLetter')
+
+
+@api_view(['GET', 'PATCH'])
 @permission_classes([IsAuthenticated])
 def teacher_me(request):
     teacher = Teacher.objects.filter(email=request.user.email).first()
     if not teacher:
         return Response({"error": "No teacher profile linked to this account."}, status=404)
+
+    if request.method == 'PATCH':
+        # Only document file fields may be updated here (used by the
+        # Documents page to upload/replace a specific document). General
+        # profile-field editing is a separate, not-yet-built feature.
+        for field in DOCUMENT_FIELDS:
+            if field in request.FILES:
+                setattr(teacher, field, request.FILES[field])
+        teacher.save()
+
     serializer = TeacherSerializer(teacher)
     return Response(serializer.data)
 
