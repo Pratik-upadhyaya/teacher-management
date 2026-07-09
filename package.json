@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "exceljs": "^4.4.0",
     "input-tool-helper": "^0.0.2",
     "js-cookie": "^3.0.5",
     "lucide-react": "^0.383.0",

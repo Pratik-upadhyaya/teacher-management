@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState, useRef } from "react";
-import { FileText, ExternalLink, Upload, X, Download } from "lucide-react";
+import { FileText, ExternalLink, Upload, X, Download, Clock, AlertCircle } from "lucide-react";
 import { API_BASE_URL, authFetch } from "@/lib/api";
 
 type DocKey =
@@ -12,6 +12,15 @@ type DocKey =
 
 type Teacher = Record<DocKey, string | null> & { [key: string]: any };
 
+type ChangeRequest = {
+  id: number;
+  document_type: DocKey;
+  file: string;
+  status: "pending" | "approved" | "rejected";
+  requested_at: string;
+  review_note: string;
+};
+
 const DOC_TYPES: { key: DocKey; label: string }[] = [
   { key: "citizenship", label: "Citizenship / नागरिकता" },
   { key: "degree", label: "Degree Certificate / प्रमाणपत्र" },
@@ -22,6 +31,7 @@ const DOC_TYPES: { key: DocKey; label: string }[] = [
 
 export default function DocumentsPage() {
   const [teacher, setTeacher] = useState<Teacher | null>(null);
+  const [requests, setRequests] = useState<ChangeRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [uploadingKey, setUploadingKey] = useState<DocKey | null>(null);
@@ -30,21 +40,30 @@ export default function DocumentsPage() {
   const fileRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   useEffect(() => {
-    fetchMe();
+    fetchAll();
   }, []);
 
-  async function fetchMe() {
+  async function fetchAll() {
     try {
-      const res = await authFetch("/api/teachers/me/");
-      if (!res.ok) throw new Error();
-      const data = await res.json();
-      setTeacher(data);
+      const [meRes, reqRes] = await Promise.all([
+        authFetch("/api/teachers/me/"),
+        authFetch("/api/documents/change-requests/mine/"),
+      ]);
+      if (!meRes.ok) throw new Error();
+      setTeacher(await meRes.json());
+      setRequests(reqRes.ok ? await reqRes.json() : []);
       setError("");
     } catch {
       setError("Failed to load your documents.");
     } finally {
       setLoading(false);
     }
+  }
+
+  // Most recent request for a given document slot (backend returns newest
+  // first), so a rejected/approved history doesn't hide a newer pending one.
+  function latestRequestFor(key: DocKey): ChangeRequest | undefined {
+    return requests.find((r) => r.document_type === key);
   }
 
   async function handleFileSelected(key: DocKey, file: File | undefined) {
@@ -59,14 +78,16 @@ export default function DocumentsPage() {
     setError("");
     try {
       const fd = new FormData();
-      fd.append(key, file);
-      const res = await authFetch("/api/teachers/me/", {
-        method: "PATCH",
+      fd.append("document_type", key);
+      fd.append("file", file);
+      const res = await authFetch("/api/documents/change-requests/mine/", {
+        method: "POST",
         body: fd,
       });
       if (!res.ok) throw new Error();
-      const data = await res.json();
-      setTeacher(data);
+      // Refresh both teacher (unchanged until approved) and request list
+      // (so the new "Pending review" badge shows up immediately).
+      await fetchAll();
     } catch {
       setError("Upload failed. Please try again.");
     } finally {
@@ -95,6 +116,14 @@ export default function DocumentsPage() {
         </p>
       </div>
 
+      <div className="bg-blue-50 border border-blue-100 text-[#0f2044] text-sm rounded-lg px-4 py-3 flex gap-2">
+        <AlertCircle size={16} className="shrink-0 mt-0.5" />
+        <span>
+          Uploading a new or replacement document sends it for admin/sub-admin
+          review. It only becomes your official document once approved.
+        </span>
+      </div>
+
       {/* Error */}
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-lg px-4 py-3">
@@ -117,64 +146,85 @@ export default function DocumentsPage() {
           {DOC_TYPES.map((d) => {
             const url = teacher?.[d.key];
             const isUploading = uploadingKey === d.key;
+            const latest = latestRequestFor(d.key);
+            const isPending = latest?.status === "pending";
+            const isRejected = latest?.status === "rejected";
 
             return (
-              <div
-                key={d.key}
-                className="flex items-center justify-between px-5 py-4"
-              >
-                <div className="flex items-center gap-4">
-                  <div
-                    className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
-                      url ? "bg-blue-50" : "bg-gray-50"
-                    }`}
-                  >
-                    <FileText
-                      size={16}
-                      className={url ? "text-[#0f2044]" : "text-gray-300"}
-                    />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-800">
-                      {d.label}
-                    </p>
-                    <p className="text-xs text-gray-400">
-                      {url ? "Uploaded" : "Not uploaded"}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-1">
-                  {url && (
-                    <button
-                      onClick={() => openDocument(d.label, url)}
-                      className="p-2 text-gray-400 hover:text-[#0f2044] rounded-lg hover:bg-blue-50 transition"
-                      title="View"
+              <div key={d.key} className="px-5 py-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div
+                      className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
+                        url ? "bg-blue-50" : "bg-gray-50"
+                      }`}
                     >
-                      <ExternalLink size={15} />
-                    </button>
-                  )}
+                      <FileText
+                        size={16}
+                        className={url ? "text-[#0f2044]" : "text-gray-300"}
+                      />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-800">
+                        {d.label}
+                      </p>
+                      <p className="text-xs text-gray-400 flex items-center gap-1">
+                        {url ? "Uploaded" : "Not uploaded"}
+                        {isPending && (
+                          <span className="ml-1.5 inline-flex items-center gap-1 text-amber-600 font-medium">
+                            <Clock size={11} /> Pending review
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                  </div>
 
-                  <input
-                    ref={(el) => {
-                      fileRefs.current[d.key] = el;
-                    }}
-                    type="file"
-                    accept="image/*,.pdf"
-                    className="hidden"
-                    onChange={(e) =>
-                      handleFileSelected(d.key, e.target.files?.[0])
-                    }
-                  />
-                  <button
-                    onClick={() => fileRefs.current[d.key]?.click()}
-                    disabled={isUploading}
-                    className="flex items-center gap-1.5 text-xs font-semibold text-[#0f2044] bg-gray-50 hover:bg-gray-100 px-3 py-2 rounded-lg transition disabled:opacity-50"
-                  >
-                    <Upload size={13} />
-                    {isUploading ? "Uploading…" : url ? "Replace" : "Upload"}
-                  </button>
+                  <div className="flex items-center gap-1">
+                    {url && (
+                      <button
+                        onClick={() => openDocument(d.label, url)}
+                        className="p-2 text-gray-400 hover:text-[#0f2044] rounded-lg hover:bg-blue-50 transition"
+                        title="View current document"
+                      >
+                        <ExternalLink size={15} />
+                      </button>
+                    )}
+
+                    <input
+                      ref={(el) => {
+                        fileRefs.current[d.key] = el;
+                      }}
+                      type="file"
+                      accept="image/*,.pdf"
+                      className="hidden"
+                      onChange={(e) =>
+                        handleFileSelected(d.key, e.target.files?.[0])
+                      }
+                    />
+                    <button
+                      onClick={() => fileRefs.current[d.key]?.click()}
+                      disabled={isUploading}
+                      className="flex items-center gap-1.5 text-xs font-semibold text-[#0f2044] bg-gray-50 hover:bg-gray-100 px-3 py-2 rounded-lg transition disabled:opacity-50"
+                    >
+                      <Upload size={13} />
+                      {isUploading
+                        ? "Uploading…"
+                        : isPending
+                        ? "Replace pending upload"
+                        : url
+                        ? "Replace"
+                        : "Upload"}
+                    </button>
+                  </div>
                 </div>
+
+                {isRejected && (
+                  <div className="mt-2 ml-13 bg-red-50 border border-red-100 text-red-600 text-xs rounded-lg px-3 py-2">
+                    Your last submission for this document was rejected
+                    {latest?.review_note ? `: "${latest.review_note}"` : "."} Please
+                    upload a corrected copy.
+                  </div>
+                )}
               </div>
             );
           })}

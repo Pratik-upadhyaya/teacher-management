@@ -1,3 +1,128 @@
-from django.shortcuts import render
+from django.core.files.base import ContentFile
+from django.shortcuts import get_object_or_404
+from django.utils import timezone
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 
-# Create your views here.
+from accounts.permissions import IsAdminOrPrincipal
+from teachers.models import Teacher
+from .models import DocumentChangeRequest
+from .serializers import DocumentChangeRequestSerializer
+
+VALID_DOCUMENT_TYPES = {choice[0] for choice in DocumentChangeRequest.DOCUMENT_TYPE_CHOICES}
+
+
+def _teacher_for(request):
+    return Teacher.objects.filter(email=request.user.email).first()
+
+
+# =========================
+# TEACHER-FACING: submit / view own requests
+# =========================
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
+def my_document_requests(request):
+    """GET: list this teacher's own change requests (any status).
+    POST (multipart: document_type, file): submit a new document for
+    review. Never touches the live Teacher document field -- that only
+    happens on admin/sub-admin approval."""
+    teacher = _teacher_for(request)
+    if not teacher:
+        return Response({"error": "No teacher profile linked to this account."}, status=404)
+
+    if request.method == 'GET':
+        return Response(
+            DocumentChangeRequestSerializer(teacher.document_requests.all(), many=True).data
+        )
+
+    document_type = request.data.get('document_type')
+    file_obj = request.FILES.get('file')
+
+    if document_type not in VALID_DOCUMENT_TYPES:
+        return Response({"error": "Invalid or missing document_type."}, status=400)
+    if not file_obj:
+        return Response({"error": "No file provided."}, status=400)
+    if file_obj.size > 5 * 1024 * 1024:
+        return Response({"error": "File too large — max 5MB."}, status=400)
+
+    # Only one pending request per document slot at a time -- resubmitting
+    # replaces the pending upload rather than stacking duplicates, so
+    # reviewers never see two open requests for the same document.
+    existing = teacher.document_requests.filter(
+        document_type=document_type, status='pending'
+    ).first()
+    if existing:
+        existing.file = file_obj
+        existing.requested_at = timezone.now()
+        existing.save()
+        return Response(DocumentChangeRequestSerializer(existing).data, status=200)
+
+    change_request = DocumentChangeRequest.objects.create(
+        teacher=teacher,
+        document_type=document_type,
+        file=file_obj,
+    )
+    return Response(DocumentChangeRequestSerializer(change_request).data, status=201)
+
+
+# =========================
+# REVIEWER-FACING (admin / sub-admin / principal)
+# =========================
+@api_view(['GET'])
+@permission_classes([IsAuthenticated, IsAdminOrPrincipal])
+def document_request_list(request):
+    """Review queue. Defaults to pending only; pass ?status=all (or
+    approved/rejected) to see everything else."""
+    status_param = request.GET.get('status', 'pending')
+    qs = DocumentChangeRequest.objects.select_related('teacher', 'reviewed_by')
+    if status_param != 'all':
+        qs = qs.filter(status=status_param)
+    return Response(DocumentChangeRequestSerializer(qs, many=True).data)
+
+
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated, IsAdminOrPrincipal])
+def approve_document_request(request, request_id):
+    change_request = get_object_or_404(DocumentChangeRequest, id=request_id)
+
+    if change_request.status != 'pending':
+        return Response({"error": "This request has already been reviewed."}, status=400)
+
+    # Copy the staged file into the teacher's live document field. Using
+    # .save() here (rather than pointing the field at the same stored
+    # file) gives the teacher's document its own proper 'documents/' copy,
+    # while document_requests/<file> stays behind as the original
+    # submission record.
+    change_request.file.open('rb')
+    content = change_request.file.read()
+    change_request.file.close()
+    original_name = change_request.file.name.rsplit('/', 1)[-1]
+
+    document_field = getattr(change_request.teacher, change_request.document_type)
+    document_field.save(original_name, ContentFile(content), save=False)
+    change_request.teacher.save()
+
+    change_request.status = 'approved'
+    change_request.reviewed_by = request.user
+    change_request.reviewed_at = timezone.now()
+    change_request.save()
+
+    return Response(DocumentChangeRequestSerializer(change_request).data)
+
+
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated, IsAdminOrPrincipal])
+def reject_document_request(request, request_id):
+    change_request = get_object_or_404(DocumentChangeRequest, id=request_id)
+
+    if change_request.status != 'pending':
+        return Response({"error": "This request has already been reviewed."}, status=400)
+
+    change_request.status = 'rejected'
+    change_request.review_note = request.data.get('message', '')
+    change_request.reviewed_by = request.user
+    change_request.reviewed_at = timezone.now()
+    change_request.save()
+
+    return Response(DocumentChangeRequestSerializer(change_request).data)

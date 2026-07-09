@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { authFetch } from "@/lib/api";
-import { Download, UserPlus, Trash2, X } from "lucide-react";
+import { authFetch, API_BASE_URL } from "@/lib/api";
+import { Download, UserPlus, Trash2, X, Check, FileText } from "lucide-react";
 
 type Teacher = {
   id: number;
@@ -27,6 +27,12 @@ export default function AdminPage() {
     approved_teachers: [] as Teacher[],
     rejected_teachers: [] as Teacher[],
   });
+
+  const [documentRequests, setDocumentRequests] = useState<any[]>([]);
+  const [docRequestError, setDocRequestError] = useState("");
+  const [docRequestBusyId, setDocRequestBusyId] = useState<number | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewTitle, setPreviewTitle] = useState("");
 
   const [subAdmins, setSubAdmins] = useState<any[]>([]);
   const [subAdminListError, setSubAdminListError] = useState("");
@@ -63,9 +69,66 @@ export default function AdminPage() {
       });
   }
 
+  function loadDocumentRequests() {
+    authFetch("/api/documents/change-requests/?status=pending")
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to load document requests.");
+        return res.json();
+      })
+      .then((data) => {
+        setDocumentRequests(data);
+        setDocRequestError("");
+      })
+      .catch((err) => {
+        console.error(err);
+        setDocRequestError("Could not load pending document requests.");
+      });
+  }
+
+  async function approveDocumentRequest(id: number) {
+    setDocRequestBusyId(id);
+    try {
+      const res = await authFetch(`/api/documents/change-requests/${id}/approve/`, {
+        method: "PATCH",
+      });
+      if (!res.ok) throw new Error();
+      setDocumentRequests((prev) => prev.filter((r) => r.id !== id));
+    } catch {
+      alert("Approve failed. Please try again.");
+    } finally {
+      setDocRequestBusyId(null);
+    }
+  }
+
+  async function rejectDocumentRequest(id: number) {
+    const note = prompt("Optional note for the teacher (why it's being rejected):") || "";
+    setDocRequestBusyId(id);
+    try {
+      const res = await authFetch(`/api/documents/change-requests/${id}/reject/`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: note }),
+      });
+      if (!res.ok) throw new Error();
+      setDocumentRequests((prev) => prev.filter((r) => r.id !== id));
+    } catch {
+      alert("Reject failed. Please try again.");
+    } finally {
+      setDocRequestBusyId(null);
+    }
+  }
+
+  function previewDocumentFile(label: string, path?: string | null) {
+    if (!path) return;
+    const fullUrl = path.startsWith("http") ? path : `${API_BASE_URL}${path}`;
+    setPreviewUrl(fullUrl);
+    setPreviewTitle(label);
+  }
+
   useEffect(() => {
     loadDashboard();
     loadSubAdmins();
+    loadDocumentRequests();
   }, []);
 
   function downloadAllTeachersCSV() {
@@ -275,6 +338,22 @@ export default function AdminPage() {
               }`}
             >
               Rejected
+            </button>
+
+            <button
+              onClick={() => setActiveTab("document-requests")}
+              className={`w-full text-left px-4 py-3 rounded-xl transition flex items-center justify-between ${
+                activeTab === "document-requests"
+                  ? "bg-white text-[#0f2044] font-semibold"
+                  : "hover:bg-blue-900"
+              }`}
+            >
+              <span>Document Requests</span>
+              {documentRequests.length > 0 && (
+                <span className="bg-amber-400 text-[#0f2044] text-xs font-bold px-2 py-0.5 rounded-full">
+                  {documentRequests.length}
+                </span>
+              )}
             </button>
 
             <button
@@ -519,6 +598,87 @@ export default function AdminPage() {
           </div>
         )}
 
+        {/* Document Requests Tab */}
+        {activeTab === "document-requests" && (
+          <div className="bg-white rounded-2xl shadow p-6">
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-[#0f2044]">
+                Pending Document Requests
+              </h2>
+              <p className="text-sm text-gray-500">
+                A teacher's uploaded document only replaces the official one once
+                approved here.
+              </p>
+            </div>
+
+            {docRequestError && (
+              <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-lg px-4 py-3 mb-4">
+                {docRequestError}
+              </div>
+            )}
+
+            {documentRequests.length === 0 ? (
+              <p className="text-gray-500 py-4">No pending document requests.</p>
+            ) : (
+              <div className="space-y-4">
+                {documentRequests.map((r) => {
+                  const busy = docRequestBusyId === r.id;
+                  return (
+                    <div
+                      key={r.id}
+                      className="border rounded-xl p-5 flex justify-between items-center hover:shadow-md transition"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
+                          <FileText size={18} className="text-[#0f2044]" />
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-[#0f2044]">
+                            {r.teacherName}
+                          </h3>
+                          <p className="text-gray-500 text-sm">{r.document_type}</p>
+                          <p className="text-gray-400 text-xs">
+                            Submitted{" "}
+                            {new Date(r.requested_at).toLocaleDateString("en-US", {
+                              year: "numeric",
+                              month: "short",
+                              day: "numeric",
+                            })}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex gap-3">
+                        <button
+                          onClick={() => previewDocumentFile(r.document_type, r.file)}
+                          className="px-4 py-2 bg-gray-50 text-[#0f2044] rounded-lg hover:bg-gray-100 text-sm font-semibold"
+                        >
+                          View
+                        </button>
+                        <button
+                          onClick={() => approveDocumentRequest(r.id)}
+                          disabled={busy}
+                          className="flex items-center gap-1.5 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-60 text-sm font-semibold"
+                        >
+                          <Check size={14} />
+                          Approve
+                        </button>
+                        <button
+                          onClick={() => rejectDocumentRequest(r.id)}
+                          disabled={busy}
+                          className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-60 text-sm font-semibold"
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Sub-Admins Tab */}
         {activeTab === "sub-admins" && (
           <div className="bg-white rounded-2xl shadow p-6">
@@ -686,6 +846,57 @@ export default function AdminPage() {
                 {subAdminLoading ? "Creating..." : "Create Sub-Admin"}
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Document Preview Modal */}
+      {previewUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="relative bg-white rounded-2xl w-full max-w-4xl h-[85vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex justify-between items-center px-6 py-4 border-b border-gray-100">
+              <div>
+                <h3 className="text-lg font-bold text-[#0f2044]">{previewTitle}</h3>
+                <p className="text-xs text-gray-400">Submitted document</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <a
+                  href={previewUrl}
+                  download
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 text-xs font-semibold text-[#0f2044] bg-gray-50 hover:bg-gray-100 px-3 py-2 rounded-lg transition"
+                >
+                  <Download size={13} />
+                  Download
+                </a>
+                <button
+                  onClick={() => {
+                    setPreviewUrl(null);
+                    setPreviewTitle("");
+                  }}
+                  className="p-1.5 hover:bg-gray-100 text-gray-400 hover:text-gray-600 rounded-lg transition"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 p-6 bg-gray-50 overflow-auto flex justify-center items-center">
+              {previewUrl.toLowerCase().endsWith(".pdf") ? (
+                <iframe
+                  src={previewUrl}
+                  className="w-full h-full rounded-xl border-0 bg-white"
+                  title={previewTitle}
+                />
+              ) : (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={previewUrl}
+                  className="max-h-full max-w-full object-contain rounded-xl shadow-sm"
+                  alt={previewTitle}
+                />
+              )}
+            </div>
           </div>
         </div>
       )}
