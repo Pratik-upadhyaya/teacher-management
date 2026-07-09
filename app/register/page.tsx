@@ -310,13 +310,18 @@ function Step1({
     else if (!/^(98|97)\d{8}$/.test(asciiPhone))
       errs.phone = "मान्य नेपाली नम्बर (९८/९७XXXXXXXX)";
 
-    if (!data.email.trim())
+    if (!data.email.trim()) {
       errs.email = "इमेल आवश्यक छ";
+    } else if (
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email.trim())
+    ) {
+    errs.email = "मान्य इमेल ठेगाना प्रविष्ट गर्नुहोस्";
+    }
 
     if (!data.password)
       errs.password = "पासवर्ड आवश्यक छ";
-    else if (!/^(?=.*[A-Za-z])(?=.*\d).{8,}$/.test(data.password))
-      errs.password = "कम्तीमा ८ अक्षर, १ letter र १ number";
+    else if (!/^(?=.*[A-Za-z])(?=.*\d)\S{8,}$/.test(data.password))
+      errs.password = "कम्तीमा ८ अक्षर, १ letter, १ number र space नहुने पासवर्ड प्रयोग गर्नुहोस्";
 
     if (!data.confirmPassword)
       errs.confirmPassword = "पासवर्ड पुन: लेख्नुहोस्";
@@ -858,15 +863,17 @@ function Step3({
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Remarks <span className="text-gray-400 font-normal">/ कैफियत</span>
-          <span className="text-gray-400 font-normal text-xs ml-1">(optional)</span>
-        </label>
-        <NepaliInput
+  <label className="block text-sm font-medium text-gray-700 mb-1">
+    Remarks <span className="text-gray-400 font-normal">/ कैफियत</span>
+    <span className="text-gray-400 font-normal text-xs ml-1">(optional)</span>
+  </label>
+
+        <textarea
           value={data.remarks}
-          onChange={(val: string) => onChange("remarks", val)}
-          placeholder="थप विवरण..."
-          className={ic(errors, "remarks")}
+          onChange={(e) => onChange("remarks", e.target.value)}
+          placeholder="थप विवरण... / Additional remarks..."
+          rows={3}
+          className={`w-full rounded-md border px-3 py-2 ${ic(errors, "remarks")}`}
         />
       </div>
 
