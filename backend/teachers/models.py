@@ -1,4 +1,5 @@
 from django.db import models
+from django.conf import settings
 
 
 class Teacher(models.Model):
@@ -89,6 +90,17 @@ class Teacher(models.Model):
     # CREATED TIME
     # =========================
     created_at = models.DateTimeField(auto_now_add=True)
+
+    # Who last approved/rejected/requested changes on this application.
+    # Nullable + SET_NULL so removing a sub-admin account later doesn't
+    # delete the teacher records they reviewed -- just clears the credit.
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='reviewed_teachers',
+    )
 
     # =========================
     # STRING DISPLAY

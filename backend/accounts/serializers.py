@@ -61,8 +61,15 @@ class SubAdminSerializer(serializers.ModelSerializer):
     """Read-only listing of sub-admin accounts for the admin panel.
     Deliberately excludes password -- it's never sent to the client.
     `first_name` is used as the display name, since User (unlike Teacher)
-    has no dedicated 'name' field."""
+    has no dedicated 'name' field. `approved_count`/`rejected_count` come
+    from annotations in list_sub_admins, not real model fields."""
+
+    approved_count = serializers.IntegerField(read_only=True, default=0)
+    rejected_count = serializers.IntegerField(read_only=True, default=0)
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'phone', 'first_name', 'date_joined']
+        fields = [
+            'id', 'username', 'email', 'phone', 'first_name', 'date_joined',
+            'approved_count', 'rejected_count',
+        ]

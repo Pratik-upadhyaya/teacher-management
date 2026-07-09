@@ -5,6 +5,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db.models import Count, Q
 from .serializers import RegisterSerializer, StaffCreateSerializer, SubAdminSerializer
 from .permissions import IsAdmin
 from .models import User
@@ -112,10 +113,18 @@ def change_password(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated, IsAdmin])
 def list_sub_admins(request):
-    """Admin-only: list all sub-admin accounts. Sub-admins can create/edit
+    """Admin-only: list all sub-admin accounts, with how many teacher
+    applications each has approved/rejected. Sub-admins can create/edit
     teacher records but cannot see or manage other sub-admins -- account
     management (this endpoint and create_staff_user) stays admin-only."""
-    sub_admins = User.objects.filter(role='sub-admin').order_by('-date_joined')
+    sub_admins = User.objects.filter(role='sub-admin').annotate(
+        approved_count=Count(
+            'reviewed_teachers', filter=Q(reviewed_teachers__status='approved')
+        ),
+        rejected_count=Count(
+            'reviewed_teachers', filter=Q(reviewed_teachers__status='rejected')
+        ),
+    ).order_by('-date_joined')
     return Response(SubAdminSerializer(sub_admins, many=True).data)
 
 

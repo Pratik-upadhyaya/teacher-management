@@ -111,6 +111,7 @@ def approve_teacher(request, teacher_id):
 
     teacher = get_object_or_404(Teacher, id=teacher_id)
     teacher.status = "approved"
+    teacher.reviewed_by = request.user
 
     # Create the teacher's login account now, using the password they set
     # on the application form -- previously this was stored in plaintext
@@ -141,6 +142,7 @@ def approve_teacher(request, teacher_id):
 def reject_teacher(request, teacher_id):
     teacher = get_object_or_404(Teacher, id=teacher_id)
     teacher.status = "rejected"
+    teacher.reviewed_by = request.user
     teacher.save()
     return Response({"message": "Teacher rejected"})
 
@@ -154,6 +156,7 @@ def request_changes(request, teacher_id):
     teacher = get_object_or_404(Teacher, id=teacher_id)
 
     teacher.remarks = request.data.get("message", "")
+    teacher.reviewed_by = request.user
     teacher.save()
 
     return Response({"message": "Change request sent"})

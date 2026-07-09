@@ -551,6 +551,8 @@ export default function AdminPage() {
                     <tr className="border-b text-gray-400 font-medium">
                       <th className="py-3 px-4">Name</th>
                       <th className="py-3 px-4">Email</th>
+                      <th className="py-3 px-4 text-center">Approved</th>
+                      <th className="py-3 px-4 text-center">Rejected</th>
                       <th className="py-3 px-4">Created At</th>
                       <th className="py-3 px-4 text-right">Actions</th>
                     </tr>
@@ -562,6 +564,16 @@ export default function AdminPage() {
                           {admin.first_name || admin.username}
                         </td>
                         <td className="py-4 px-4 text-gray-600">{admin.email}</td>
+                        <td className="py-4 px-4 text-center">
+                          <span className="inline-block bg-green-50 text-green-700 font-semibold px-2.5 py-1 rounded-lg">
+                            {admin.approved_count ?? 0}
+                          </span>
+                        </td>
+                        <td className="py-4 px-4 text-center">
+                          <span className="inline-block bg-red-50 text-red-700 font-semibold px-2.5 py-1 rounded-lg">
+                            {admin.rejected_count ?? 0}
+                          </span>
+                        </td>
                         <td className="py-4 px-4 text-gray-500">
                           {admin.date_joined
                             ? new Date(admin.date_joined).toLocaleDateString("en-US", {
