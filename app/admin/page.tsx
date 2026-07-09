@@ -29,6 +29,7 @@ export default function AdminPage() {
   });
 
   const [subAdmins, setSubAdmins] = useState<any[]>([]);
+  const [subAdminListError, setSubAdminListError] = useState("");
   const [showAddSubAdminModal, setShowAddSubAdminModal] = useState(false);
   const [subAdminName, setSubAdminName] = useState("");
   const [subAdminEmail, setSubAdminEmail] = useState("");
@@ -45,26 +46,20 @@ export default function AdminPage() {
   }
 
   function loadSubAdmins() {
-    authFetch("/api/admin/sub-admins/")
+    authFetch("/api/accounts/sub-admins/")
       .then((res) => {
-        if (!res.ok) throw new Error();
+        if (!res.ok) throw new Error("Failed to load sub-admins.");
         return res.json();
       })
-      .then((data) => setSubAdmins(data))
+      .then((data) => {
+        setSubAdmins(data);
+        setSubAdminListError("");
+      })
       .catch((err) => {
         console.error(err);
-        // Failover mock data including any locally added sub-admins
-        const stored = localStorage.getItem("local_sub_admins");
-        if (stored) {
-          setSubAdmins(JSON.parse(stored));
-        } else {
-          const mockSubAdmins = [
-            { id: 1, name: "Hari Prasad", email: "hari@school.edu.np", created_at: "2026-01-10" },
-            { id: 2, name: "Gita Shrestha", email: "gita@school.edu.np", created_at: "2026-02-15" }
-          ];
-          setSubAdmins(mockSubAdmins);
-          localStorage.setItem("local_sub_admins", JSON.stringify(mockSubAdmins));
-        }
+        setSubAdminListError(
+          "Could not load sub-admins. Only an admin account can view this list."
+        );
       });
   }
 
@@ -113,30 +108,47 @@ export default function AdminPage() {
       setSubAdminError("All fields are required.");
       return;
     }
+    if (subAdminPassword.length < 8) {
+      setSubAdminError("Password must be at least 8 characters.");
+      return;
+    }
+
+    // The backend User model needs a unique `username`, separate from
+    // email. Derive one from the email's local part rather than asking
+    // for yet another field -- if it collides, the backend's error is
+    // shown below and the admin can adjust the email.
+    const username = subAdminEmail
+      .split("@")[0]
+      .toLowerCase()
+      .replace(/[^a-z0-9._-]/g, "");
 
     setSubAdminLoading(true);
     try {
-      const res = await authFetch("/api/admin/sub-admins/", {
+      const res = await authFetch("/api/accounts/staff/create/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: subAdminName,
+          username,
           email: subAdminEmail,
           password: subAdminPassword,
-          role: "sub-admin"
+          first_name: subAdminName,
+          role: "sub-admin",
         }),
       });
 
       if (!res.ok) {
-        throw new Error("Failed to add sub-admin. The email might already be registered.");
+        const body = await res.json().catch(() => ({}));
+        const firstError =
+          typeof body === "object"
+            ? (Object.values(body)[0] as any)
+            : undefined;
+        throw new Error(
+          (Array.isArray(firstError) ? firstError[0] : firstError) ||
+            "Failed to add sub-admin. The email might already be registered."
+        );
       }
 
-      const newAdmin = await res.json();
-      const newAdminWithPass = { ...newAdmin, password: subAdminPassword };
-      const updated = [...subAdmins, newAdminWithPass];
-      setSubAdmins(updated);
-      localStorage.setItem("local_sub_admins", JSON.stringify(updated));
-
+      loadSubAdmins();
       setSubAdminSuccess("Sub-admin added successfully!");
       setSubAdminName("");
       setSubAdminEmail("");
@@ -147,26 +159,6 @@ export default function AdminPage() {
       }, 1500);
     } catch (err: any) {
       setSubAdminError(err.message || "An error occurred.");
-      // Fallback for demo/development if the API fails or is not implemented yet
-      const fallbackNewAdmin = {
-        id: Date.now(),
-        name: subAdminName,
-        email: subAdminEmail,
-        password: subAdminPassword,
-        created_at: new Date().toISOString().split("T")[0]
-      };
-      const updated = [...subAdmins, fallbackNewAdmin];
-      setSubAdmins(updated);
-      localStorage.setItem("local_sub_admins", JSON.stringify(updated));
-
-      setSubAdminSuccess("Sub-admin added!");
-      setSubAdminName("");
-      setSubAdminEmail("");
-      setSubAdminPassword("");
-      setTimeout(() => {
-        setShowAddSubAdminModal(false);
-        setSubAdminSuccess("");
-      }, 1500);
     } finally {
       setSubAdminLoading(false);
     }
@@ -176,18 +168,14 @@ export default function AdminPage() {
     if (!confirm("Are you sure you want to remove this sub-admin?")) return;
 
     try {
-      const res = await authFetch(`/api/admin/sub-admins/${id}/`, {
+      const res = await authFetch(`/api/accounts/sub-admins/${id}/`, {
         method: "DELETE",
       });
-      if (!res.ok) throw new Error();
-      const updated = subAdmins.filter(sa => sa.id !== id);
-      setSubAdmins(updated);
-      localStorage.setItem("local_sub_admins", JSON.stringify(updated));
-    } catch {
-      // Local fallback removal
-      const updated = subAdmins.filter(sa => sa.id !== id);
-      setSubAdmins(updated);
-      localStorage.setItem("local_sub_admins", JSON.stringify(updated));
+      if (!res.ok) throw new Error("Failed to remove sub-admin.");
+      setSubAdmins((prev) => prev.filter((sa) => sa.id !== id));
+    } catch (err) {
+      console.error(err);
+      alert("Could not remove sub-admin. Please try again.");
     }
   }
 
@@ -548,6 +536,12 @@ export default function AdminPage() {
               </button>
             </div>
 
+            {subAdminListError && (
+              <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-lg px-4 py-3 mb-4">
+                {subAdminListError}
+              </div>
+            )}
+
             {subAdmins.length === 0 ? (
               <p className="text-gray-500 py-4">No sub-admins found.</p>
             ) : (
@@ -564,9 +558,19 @@ export default function AdminPage() {
                   <tbody className="divide-y divide-gray-100">
                     {subAdmins.map((admin) => (
                       <tr key={admin.id} className="hover:bg-gray-50 transition">
-                        <td className="py-4 px-4 font-semibold text-[#0f2044]">{admin.name}</td>
+                        <td className="py-4 px-4 font-semibold text-[#0f2044]">
+                          {admin.first_name || admin.username}
+                        </td>
                         <td className="py-4 px-4 text-gray-600">{admin.email}</td>
-                        <td className="py-4 px-4 text-gray-500">{admin.created_at || "—"}</td>
+                        <td className="py-4 px-4 text-gray-500">
+                          {admin.date_joined
+                            ? new Date(admin.date_joined).toLocaleDateString("en-US", {
+                                year: "numeric",
+                                month: "short",
+                                day: "numeric",
+                              })
+                            : "—"}
+                        </td>
                         <td className="py-4 px-4 text-right">
                           <button
                             onClick={() => removeSubAdmin(admin.id)}

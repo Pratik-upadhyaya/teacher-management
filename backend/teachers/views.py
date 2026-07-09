@@ -48,9 +48,18 @@ def teacher_list_create(request):
 
 
 # =========================
-# CURRENT LOGGED-IN TEACHER (used by login page to greet the user)
+# CURRENT LOGGED-IN TEACHER (used by login page to greet the user,
+# and by the Profile page to view/edit contact details)
 # =========================
+# Document file fields, updatable via multipart PATCH from the Documents
+# page (upload/replace a specific document).
 DOCUMENT_FIELDS = ('citizenship', 'degree', 'transcript', 'teachingLicense', 'appointmentLetter')
+
+# Fields a teacher is allowed to edit about themselves from the Profile
+# page. Deliberately excludes email (it's the login identifier -- see
+# comment below), password, status, and every school/service field, which
+# only admins/principals should be able to change.
+PROFILE_EDITABLE_FIELDS = ("name", "phone", "permanentAddress")
 
 
 @api_view(['GET', 'PATCH'])
@@ -61,13 +70,32 @@ def teacher_me(request):
         return Response({"error": "No teacher profile linked to this account."}, status=404)
 
     if request.method == 'PATCH':
-        # Only document file fields may be updated here (used by the
-        # Documents page to upload/replace a specific document). General
-        # profile-field editing is a separate, not-yet-built feature.
+        # Document uploads (multipart, from the Documents page) and general
+        # profile-field edits (JSON, from the Profile page) can both land
+        # here. Handle whichever parts of the body are present.
         for field in DOCUMENT_FIELDS:
             if field in request.FILES:
                 setattr(teacher, field, request.FILES[field])
-        teacher.save()
+
+        # Only accept the whitelisted profile fields -- silently ignore
+        # anything else in the body (email, status, etc.) rather than
+        # trusting TeacherSerializer's fields='__all__' for writes here.
+        # Email is intentionally not editable through this endpoint: it's
+        # what links this Teacher row to the User login account
+        # (teacher_me looks it up via request.user.email) and is also the
+        # User's `username`, so changing it here would silently break the
+        # teacher's ability to log in. A real "change email" flow would
+        # need to update both records together -- out of scope for now.
+        profile_data = {k: v for k, v in request.data.items() if k in PROFILE_EDITABLE_FIELDS}
+        if profile_data:
+            serializer = TeacherSerializer(teacher, data=profile_data, partial=True)
+            if not serializer.is_valid():
+                return Response(serializer.errors, status=400)
+            serializer.save()  # also persists any file fields set above
+        else:
+            teacher.save()
+
+        return Response(TeacherSerializer(teacher).data)
 
     serializer = TeacherSerializer(teacher)
     return Response(serializer.data)

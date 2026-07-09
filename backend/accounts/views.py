@@ -3,8 +3,11 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
-from .serializers import RegisterSerializer, StaffCreateSerializer
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
+from .serializers import RegisterSerializer, StaffCreateSerializer, SubAdminSerializer
 from .permissions import IsAdmin
+from .models import User
 from teachers.models import Teacher
 
 
@@ -50,7 +53,7 @@ def login_user(request):
     if not email or not password:
         return Response({"error": "Email and password are required."}, status=400)
 
-    from .models import User
+    from .models import User  # noqa: local import kept for clarity at call site
     try:
         user_obj = User.objects.get(email=email)
     except User.DoesNotExist:
@@ -69,6 +72,64 @@ def login_user(request):
         "username": user.username,
         "role": user.role,
     })
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def change_password(request):
+    """Lets a logged-in user change their own password. Matches
+    app/(portal)/profile/page.tsx: {current_password, new_password}."""
+    current_password = request.data.get("current_password")
+    new_password = request.data.get("new_password")
+
+    if not current_password or not new_password:
+        return Response(
+            {"error": "Current and new password are required."}, status=400
+        )
+
+    if not request.user.check_password(current_password):
+        return Response({"error": "Current password is incorrect."}, status=400)
+
+    if current_password == new_password:
+        return Response(
+            {"error": "New password must be different from the current password."},
+            status=400,
+        )
+
+    try:
+        # Same validators Django runs for regular account creation
+        # (length, not-too-common, not-all-numeric, etc).
+        validate_password(new_password, user=request.user)
+    except DjangoValidationError as e:
+        return Response({"error": " ".join(e.messages)}, status=400)
+
+    request.user.set_password(new_password)
+    request.user.save()
+
+    return Response({"message": "Password updated successfully."})
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated, IsAdmin])
+def list_sub_admins(request):
+    """Admin-only: list all sub-admin accounts. Sub-admins can create/edit
+    teacher records but cannot see or manage other sub-admins -- account
+    management (this endpoint and create_staff_user) stays admin-only."""
+    sub_admins = User.objects.filter(role='sub-admin').order_by('-date_joined')
+    return Response(SubAdminSerializer(sub_admins, many=True).data)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated, IsAdmin])
+def delete_sub_admin(request, id):
+    """Admin-only: remove a sub-admin account. Scoped to role='sub-admin'
+    so this endpoint can never be used to delete a principal/admin/teacher
+    account, even if someone guesses another user's id."""
+    user = User.objects.filter(id=id, role='sub-admin').first()
+    if not user:
+        return Response({"error": "Sub-admin not found."}, status=404)
+    user.delete()
+    return Response({"message": "Sub-admin removed."})
 
 
 # =========================

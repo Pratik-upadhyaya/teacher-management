@@ -28,17 +28,20 @@ class RegisterSerializer(serializers.ModelSerializer):
 
 
 class StaffCreateSerializer(serializers.ModelSerializer):
-    """Used by admins to create principal/admin accounts. Only reachable
-    by an authenticated admin -- see create_staff_user view."""
+    """Used by admins to create principal/sub-admin/admin accounts. Only
+    reachable by an authenticated admin -- see create_staff_user view."""
     password = serializers.CharField(write_only=True, min_length=8)
 
     class Meta:
         model = User
-        fields = ['username', 'email', 'password', 'role', 'phone']
+        fields = ['username', 'email', 'password', 'role', 'phone', 'first_name']
+        extra_kwargs = {'first_name': {'required': False}}
 
     def validate_role(self, value):
-        if value not in ('principal', 'admin'):
-            raise serializers.ValidationError("Role must be 'principal' or 'admin'.")
+        if value not in ('principal', 'sub-admin', 'admin'):
+            raise serializers.ValidationError(
+                "Role must be 'principal', 'sub-admin', or 'admin'."
+            )
         return value
 
     def create(self, validated_data):
@@ -46,8 +49,20 @@ class StaffCreateSerializer(serializers.ModelSerializer):
             username=validated_data['username'],
             email=validated_data['email'],
             role=validated_data['role'],
-            phone=validated_data.get('phone')
+            phone=validated_data.get('phone'),
+            first_name=validated_data.get('first_name', ''),
         )
         user.set_password(validated_data['password'])
         user.save()
         return user
+
+
+class SubAdminSerializer(serializers.ModelSerializer):
+    """Read-only listing of sub-admin accounts for the admin panel.
+    Deliberately excludes password -- it's never sent to the client.
+    `first_name` is used as the display name, since User (unlike Teacher)
+    has no dedicated 'name' field."""
+
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'email', 'phone', 'first_name', 'date_joined']
