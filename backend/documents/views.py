@@ -119,8 +119,15 @@ def reject_document_request(request, request_id):
     if change_request.status != 'pending':
         return Response({"error": "This request has already been reviewed."}, status=400)
 
+    message = request.data.get('message', '').strip()
+    if not message:
+        return Response(
+            {"error": "A reason is required when rejecting a document request."},
+            status=400,
+        )
+
     change_request.status = 'rejected'
-    change_request.review_note = request.data.get('message', '')
+    change_request.review_note = message
     change_request.reviewed_by = request.user
     change_request.reviewed_at = timezone.now()
     change_request.save()
