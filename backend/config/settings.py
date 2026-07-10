@@ -18,7 +18,7 @@ load_dotenv(BASE_DIR / '.env')
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY')
 if not SECRET_KEY:
     raise RuntimeError(
-        "DJANGO_SECRET_KEY is not set. Copy backend/.env.example to backend/.env "
+        "DJANGO_SECRET_KEY is not set. Please set it in your .env file"
         "and fill in a real secret key (e.g. via `python -c \"import secrets; print(secrets.token_urlsafe(50))\"`)."
     )
 

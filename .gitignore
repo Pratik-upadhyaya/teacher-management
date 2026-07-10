@@ -45,6 +45,5 @@ backend/venv/
 backend/db.sqlite3
 backend/.env
 backend/media/
-!backend/.env.example
 *.pyc
 __pycache__/
