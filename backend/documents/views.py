@@ -7,6 +7,7 @@ from rest_framework.response import Response
 
 from accounts.permissions import IsAdminOrPrincipal
 from teachers.models import Teacher
+from .file_processing import DocumentValidationError, process_document_upload
 from .models import DocumentChangeRequest
 from .serializers import DocumentChangeRequestSerializer
 
@@ -43,8 +44,11 @@ def my_document_requests(request):
         return Response({"error": "Invalid or missing document_type."}, status=400)
     if not file_obj:
         return Response({"error": "No file provided."}, status=400)
-    if file_obj.size > 5 * 1024 * 1024:
-        return Response({"error": "File too large — max 5MB."}, status=400)
+
+    try:
+        processed_file = process_document_upload(file_obj)
+    except DocumentValidationError as e:
+        return Response({"error": str(e)}, status=400)
 
     # Only one pending request per document slot at a time -- resubmitting
     # replaces the pending upload rather than stacking duplicates, so
@@ -53,7 +57,7 @@ def my_document_requests(request):
         document_type=document_type, status='pending'
     ).first()
     if existing:
-        existing.file = file_obj
+        existing.file = processed_file
         existing.requested_at = timezone.now()
         existing.save()
         return Response(DocumentChangeRequestSerializer(existing).data, status=200)
@@ -61,7 +65,7 @@ def my_document_requests(request):
     change_request = DocumentChangeRequest.objects.create(
         teacher=teacher,
         document_type=document_type,
-        file=file_obj,
+        file=processed_file,
     )
     return Response(DocumentChangeRequestSerializer(change_request).data, status=201)
 
@@ -119,12 +123,9 @@ def reject_document_request(request, request_id):
     if change_request.status != 'pending':
         return Response({"error": "This request has already been reviewed."}, status=400)
 
-    message = request.data.get('message', '').strip()
+    message = (request.data.get('message') or '').strip()
     if not message:
-        return Response(
-            {"error": "A reason is required when rejecting a document request."},
-            status=400,
-        )
+        return Response({"error": "A rejection reason is required."}, status=400)
 
     change_request.status = 'rejected'
     change_request.review_note = message

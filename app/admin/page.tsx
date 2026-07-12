@@ -33,6 +33,12 @@ export default function AdminPage() {
   const [docRequestBusyId, setDocRequestBusyId] = useState<number | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewTitle, setPreviewTitle] = useState("");
+  const [previewRequestId, setPreviewRequestId] = useState<number | null>(null);
+
+  const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  const [rejectTargetId, setRejectTargetId] = useState<number | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
+  const [rejectReasonError, setRejectReasonError] = useState("");
 
   const [subAdmins, setSubAdmins] = useState<any[]>([]);
   const [subAdminListError, setSubAdminListError] = useState("");
@@ -43,15 +49,6 @@ export default function AdminPage() {
   const [subAdminError, setSubAdminError] = useState("");
   const [subAdminSuccess, setSubAdminSuccess] = useState("");
   const [subAdminLoading, setSubAdminLoading] = useState(false);
-
-  // Sub-admin management is main-admin only. Set from the role stored at
-  // login (see app/login/page.tsx) -- sub-admins themselves are already
-  // blocked at the API level (IsAdmin, not IsAdminOrPrincipal), this just
-  // keeps the tab/button from showing up for them in the UI.
-  const [isAdmin, setIsAdmin] = useState(false);
-  useEffect(() => {
-    setIsAdmin(localStorage.getItem("user_role") === "admin");
-  }, []);
 
   function loadDashboard() {
     authFetch("/api/dashboard/stats/")
@@ -109,43 +106,63 @@ export default function AdminPage() {
     }
   }
 
-  async function rejectDocumentRequest(id: number) {
-    const note = prompt("Optional note for the teacher (why it's being rejected):") || "";
+  function openRejectModal(id: number) {
+    // Preview and reject share one flow — close the preview so the reject
+    // modal has focus, rather than stacking two modals.
+    setPreviewUrl(null);
+    setPreviewTitle("");
+    setPreviewRequestId(null);
+    setRejectTargetId(id);
+    setRejectReason("");
+    setRejectReasonError("");
+    setRejectModalOpen(true);
+  }
+
+  function closeRejectModal() {
+    setRejectModalOpen(false);
+    setRejectTargetId(null);
+    setRejectReason("");
+    setRejectReasonError("");
+  }
+
+  async function submitRejectDocumentRequest() {
+    if (rejectTargetId == null) return;
+    const reason = rejectReason.trim();
+    if (!reason) {
+      setRejectReasonError("A rejection reason is required.");
+      return;
+    }
+    const id = rejectTargetId;
     setDocRequestBusyId(id);
     try {
       const res = await authFetch(`/api/documents/change-requests/${id}/reject/`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: note }),
+        body: JSON.stringify({ message: reason }),
       });
       if (!res.ok) throw new Error();
       setDocumentRequests((prev) => prev.filter((r) => r.id !== id));
+      closeRejectModal();
     } catch {
-      alert("Reject failed. Please try again.");
+      setRejectReasonError("Reject failed. Please try again.");
     } finally {
       setDocRequestBusyId(null);
     }
   }
 
-  function previewDocumentFile(label: string, path?: string | null) {
+  function previewDocumentFile(id: number, label: string, path?: string | null) {
     if (!path) return;
     const fullUrl = path.startsWith("http") ? path : `${API_BASE_URL}${path}`;
     setPreviewUrl(fullUrl);
     setPreviewTitle(label);
+    setPreviewRequestId(id);
   }
 
   useEffect(() => {
     loadDashboard();
+    loadSubAdmins();
     loadDocumentRequests();
   }, []);
-
-  useEffect(() => {
-    if (isAdmin) loadSubAdmins();
-  }, [isAdmin]);
-
-  useEffect(() => {
-    if (!isAdmin && activeTab === "sub-admins") setActiveTab("dashboard");
-  }, [isAdmin, activeTab]);
 
   function downloadAllTeachersCSV() {
     const headers = ["ID", "Name", "Token No", "Subject", "Phone", "Email", "Status"];
@@ -372,18 +389,16 @@ export default function AdminPage() {
               )}
             </button>
 
-            {isAdmin && (
-              <button
-                onClick={() => setActiveTab("sub-admins")}
-                className={`w-full text-left px-4 py-3 rounded-xl transition ${
-                  activeTab === "sub-admins"
-                    ? "bg-white text-[#0f2044] font-semibold"
-                    : "hover:bg-blue-900"
-                }`}
-              >
-                Sub-Admins
-              </button>
-            )}
+            <button
+              onClick={() => setActiveTab("sub-admins")}
+              className={`w-full text-left px-4 py-3 rounded-xl transition ${
+                activeTab === "sub-admins"
+                  ? "bg-white text-[#0f2044] font-semibold"
+                  : "hover:bg-blue-900"
+              }`}
+            >
+              Sub-Admins
+            </button>
           </div>
         </div>
 
@@ -668,7 +683,7 @@ export default function AdminPage() {
 
                       <div className="flex gap-3">
                         <button
-                          onClick={() => previewDocumentFile(r.document_type, r.file)}
+                          onClick={() => previewDocumentFile(r.id, r.document_type, r.file)}
                           className="px-4 py-2 bg-gray-50 text-[#0f2044] rounded-lg hover:bg-gray-100 text-sm font-semibold"
                         >
                           View
@@ -682,7 +697,7 @@ export default function AdminPage() {
                           Approve
                         </button>
                         <button
-                          onClick={() => rejectDocumentRequest(r.id)}
+                          onClick={() => openRejectModal(r.id)}
                           disabled={busy}
                           className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-60 text-sm font-semibold"
                         >
@@ -698,7 +713,7 @@ export default function AdminPage() {
         )}
 
         {/* Sub-Admins Tab */}
-        {activeTab === "sub-admins" && isAdmin && (
+        {activeTab === "sub-admins" && (
           <div className="bg-white rounded-2xl shadow p-6">
             <div className="flex justify-between items-center mb-6">
               <div>
@@ -878,6 +893,31 @@ export default function AdminPage() {
                 <p className="text-xs text-gray-400">Submitted document</p>
               </div>
               <div className="flex items-center gap-3">
+                {previewRequestId != null && (
+                  <>
+                    <button
+                      onClick={async () => {
+                        const id = previewRequestId;
+                        await approveDocumentRequest(id);
+                        setPreviewUrl(null);
+                        setPreviewTitle("");
+                        setPreviewRequestId(null);
+                      }}
+                      disabled={docRequestBusyId === previewRequestId}
+                      className="flex items-center gap-1.5 text-xs font-semibold text-white bg-green-500 hover:bg-green-600 disabled:opacity-60 px-3 py-2 rounded-lg transition"
+                    >
+                      <Check size={13} />
+                      Approve
+                    </button>
+                    <button
+                      onClick={() => openRejectModal(previewRequestId)}
+                      disabled={docRequestBusyId === previewRequestId}
+                      className="text-xs font-semibold text-white bg-red-500 hover:bg-red-600 disabled:opacity-60 px-3 py-2 rounded-lg transition"
+                    >
+                      Reject
+                    </button>
+                  </>
+                )}
                 <a
                   href={previewUrl}
                   download
@@ -892,6 +932,7 @@ export default function AdminPage() {
                   onClick={() => {
                     setPreviewUrl(null);
                     setPreviewTitle("");
+                    setPreviewRequestId(null);
                   }}
                   className="p-1.5 hover:bg-gray-100 text-gray-400 hover:text-gray-600 rounded-lg transition"
                 >
@@ -915,6 +956,55 @@ export default function AdminPage() {
                 />
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reject Reason Modal */}
+      {rejectModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="relative bg-white rounded-2xl w-full max-w-md p-6 sm:p-8 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h3 className="text-xl font-bold text-[#0f2044]">Reject Document</h3>
+                <p className="text-xs text-gray-400">
+                  A reason is required so the teacher knows what to fix
+                </p>
+              </div>
+              <button
+                onClick={closeRejectModal}
+                className="p-1.5 hover:bg-gray-100 text-gray-400 hover:text-gray-600 rounded-lg transition"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">
+                Reason for rejection
+              </label>
+              <textarea
+                value={rejectReason}
+                onChange={(e) => {
+                  setRejectReason(e.target.value);
+                  if (rejectReasonError) setRejectReasonError("");
+                }}
+                rows={4}
+                placeholder="e.g. Document is blurry, please re-upload a clear scan"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#0f2044] focus:ring-1 focus:ring-[#0f2044] transition"
+              />
+              {rejectReasonError && (
+                <p className="text-red-600 text-xs mt-1.5">{rejectReasonError}</p>
+              )}
+            </div>
+
+            <button
+              onClick={submitRejectDocumentRequest}
+              disabled={docRequestBusyId === rejectTargetId}
+              className="w-full mt-4 bg-red-500 hover:bg-red-600 text-white rounded-lg py-3 text-sm font-semibold transition disabled:opacity-60"
+            >
+              {docRequestBusyId === rejectTargetId ? "Rejecting..." : "Confirm Rejection"}
+            </button>
           </div>
         </div>
       )}

@@ -2,6 +2,12 @@
 import { useEffect, useState, useRef } from "react";
 import { FileText, ExternalLink, Upload, X, Download, Clock, AlertCircle } from "lucide-react";
 import { API_BASE_URL, authFetch } from "@/lib/api";
+import {
+  ACCEPTED_DOCUMENT_TYPES,
+  FileTooLargeError,
+  UnsupportedFileTypeError,
+  prepareDocumentFile,
+} from "@/lib/documentUpload";
 
 type DocKey =
   | "citizenship"
@@ -35,6 +41,7 @@ export default function DocumentsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [uploadingKey, setUploadingKey] = useState<DocKey | null>(null);
+  const [preparingKey, setPreparingKey] = useState<DocKey | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewTitle, setPreviewTitle] = useState<string>("");
   const fileRefs = useRef<Record<string, HTMLInputElement | null>>({});
@@ -69,17 +76,29 @@ export default function DocumentsPage() {
   async function handleFileSelected(key: DocKey, file: File | undefined) {
     if (!file) return;
 
-    if (file.size > 5 * 1024 * 1024) {
-      setError("File too large — max 5MB.");
+    setPreparingKey(key);
+    setError("");
+    let ready: File;
+    try {
+      ready = await prepareDocumentFile(file);
+    } catch (err) {
+      if (err instanceof UnsupportedFileTypeError) {
+        setError(err.message);
+      } else if (err instanceof FileTooLargeError) {
+        setError(err.message);
+      } else {
+        setError("Couldn't process that file. Please try a different one.");
+      }
+      setPreparingKey(null);
       return;
     }
+    setPreparingKey(null);
 
     setUploadingKey(key);
-    setError("");
     try {
       const fd = new FormData();
       fd.append("document_type", key);
-      fd.append("file", file);
+      fd.append("file", ready);
       const res = await authFetch("/api/documents/change-requests/mine/", {
         method: "POST",
         body: fd,
@@ -146,6 +165,7 @@ export default function DocumentsPage() {
           {DOC_TYPES.map((d) => {
             const url = teacher?.[d.key];
             const isUploading = uploadingKey === d.key;
+            const isPreparing = preparingKey === d.key;
             const latest = latestRequestFor(d.key);
             const isPending = latest?.status === "pending";
             const isRejected = latest?.status === "rejected";
@@ -195,7 +215,7 @@ export default function DocumentsPage() {
                         fileRefs.current[d.key] = el;
                       }}
                       type="file"
-                      accept="image/*,.pdf"
+                      accept={ACCEPTED_DOCUMENT_TYPES}
                       className="hidden"
                       onChange={(e) =>
                         handleFileSelected(d.key, e.target.files?.[0])
@@ -203,11 +223,13 @@ export default function DocumentsPage() {
                     />
                     <button
                       onClick={() => fileRefs.current[d.key]?.click()}
-                      disabled={isUploading}
+                      disabled={isUploading || isPreparing}
                       className="flex items-center gap-1.5 text-xs font-semibold text-[#0f2044] bg-gray-50 hover:bg-gray-100 px-3 py-2 rounded-lg transition disabled:opacity-50"
                     >
                       <Upload size={13} />
-                      {isUploading
+                      {isPreparing
+                        ? "Preparing…"
+                        : isUploading
                         ? "Uploading…"
                         : isPending
                         ? "Replace pending upload"
