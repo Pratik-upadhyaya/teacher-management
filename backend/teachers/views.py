@@ -159,8 +159,11 @@ def request_changes(request, teacher_id):
 # =========================
 # TEACHER DETAIL API
 # =========================
+# Returns a teacher's full PII (DOB, phone, address, document file paths,
+# etc.) -- this is reviewer-only, same as teacher_list_create's GET.
+# Teachers view their OWN data via teacher_me, not this endpoint.
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsAdminOrPrincipal])
 def teacher_detail(request, id):
     teacher = get_object_or_404(Teacher, id=id)
 

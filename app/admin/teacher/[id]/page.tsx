@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { authFetch, API_BASE_URL } from "@/lib/api";
+import { authFetch, fetchDocumentBlobUrl } from "@/lib/api";
 import { Download, UserPlus, Trash2, X, Check, FileText } from "lucide-react";
 
 type Teacher = {
@@ -31,9 +31,13 @@ export default function AdminPage() {
   const [documentRequests, setDocumentRequests] = useState<any[]>([]);
   const [docRequestError, setDocRequestError] = useState("");
   const [docRequestBusyId, setDocRequestBusyId] = useState<number | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewTitle, setPreviewTitle] = useState("");
   const [previewRequestId, setPreviewRequestId] = useState<number | null>(null);
+  const [previewIsPdf, setPreviewIsPdf] = useState(false);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState("");
 
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
   const [rejectTargetId, setRejectTargetId] = useState<number | null>(null);
@@ -109,9 +113,7 @@ export default function AdminPage() {
       if (!res.ok) throw new Error();
       setDocumentRequests((prev) => prev.filter((r) => r.id !== id));
       if (previewRequestId === id) {
-        setPreviewUrl(null);
-        setPreviewTitle("");
-        setPreviewRequestId(null);
+        closePreview();
       }
     } catch {
       alert("Approve failed. Please try again.");
@@ -158,9 +160,7 @@ export default function AdminPage() {
       }
       setDocumentRequests((prev) => prev.filter((r) => r.id !== id));
       if (previewRequestId === id) {
-        setPreviewUrl(null);
-        setPreviewTitle("");
-        setPreviewRequestId(null);
+        closePreview();
       }
       closeRejectModal();
     } catch (err: any) {
@@ -170,12 +170,34 @@ export default function AdminPage() {
     }
   }
 
-  function previewDocumentFile(label: string, path: string | null | undefined, requestId: number) {
+  async function previewDocumentFile(label: string, path: string | null | undefined, requestId: number) {
     if (!path) return;
-    const fullUrl = path.startsWith("http") ? path : `${API_BASE_URL}${path}`;
-    setPreviewUrl(fullUrl);
+    setPreviewOpen(true);
     setPreviewTitle(label);
     setPreviewRequestId(requestId);
+    setPreviewIsPdf(path.toLowerCase().endsWith(".pdf"));
+    setPreviewError("");
+    setPreviewLoading(true);
+    setPreviewUrl(null);
+    try {
+      const blobUrl = await fetchDocumentBlobUrl(path);
+      setPreviewUrl(blobUrl);
+    } catch (err) {
+      setPreviewError(
+        err instanceof Error ? err.message : "Could not load this document."
+      );
+    } finally {
+      setPreviewLoading(false);
+    }
+  }
+
+  function closePreview() {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewOpen(false);
+    setPreviewUrl(null);
+    setPreviewTitle("");
+    setPreviewRequestId(null);
+    setPreviewError("");
   }
 
   useEffect(() => {
@@ -913,7 +935,7 @@ export default function AdminPage() {
       )}
 
       {/* Document Preview Modal */}
-      {previewUrl && (
+      {previewOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="relative bg-white rounded-2xl w-full max-w-4xl h-[85vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
             <div className="flex justify-between items-center px-6 py-4 border-b border-gray-100">
@@ -922,22 +944,20 @@ export default function AdminPage() {
                 <p className="text-xs text-gray-400">Submitted document</p>
               </div>
               <div className="flex items-center gap-3">
-                <a
-                  href={previewUrl}
-                  download
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 text-xs font-semibold text-[#0f2044] bg-gray-50 hover:bg-gray-100 px-3 py-2 rounded-lg transition"
-                >
-                  <Download size={13} />
-                  Download
-                </a>
+                {previewUrl && (
+                  <a
+                    href={previewUrl}
+                    download
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 text-xs font-semibold text-[#0f2044] bg-gray-50 hover:bg-gray-100 px-3 py-2 rounded-lg transition"
+                  >
+                    <Download size={13} />
+                    Download
+                  </a>
+                )}
                 <button
-                  onClick={() => {
-                    setPreviewUrl(null);
-                    setPreviewTitle("");
-                    setPreviewRequestId(null);
-                  }}
+                  onClick={closePreview}
                   className="p-1.5 hover:bg-gray-100 text-gray-400 hover:text-gray-600 rounded-lg transition"
                 >
                   <X size={20} />
@@ -945,20 +965,24 @@ export default function AdminPage() {
               </div>
             </div>
             <div className="flex-1 p-6 bg-gray-50 overflow-auto flex justify-center items-center">
-              {previewUrl.toLowerCase().endsWith(".pdf") ? (
+              {previewLoading ? (
+                <p className="text-sm text-gray-400">Loading document…</p>
+              ) : previewError ? (
+                <p className="text-sm text-red-600">{previewError}</p>
+              ) : previewUrl && previewIsPdf ? (
                 <iframe
                   src={previewUrl}
                   className="w-full h-full rounded-xl border-0 bg-white"
                   title={previewTitle}
                 />
-              ) : (
+              ) : previewUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={previewUrl}
                   className="max-h-full max-w-full object-contain rounded-xl shadow-sm"
                   alt={previewTitle}
                 />
-              )}
+              ) : null}
             </div>
 
             {/* Approve / Reject live inside the preview now, so a reviewer

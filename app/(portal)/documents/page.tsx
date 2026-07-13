@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, useRef } from "react";
 import { FileText, ExternalLink, Upload, X, Download, Clock, AlertCircle } from "lucide-react";
-import { API_BASE_URL, authFetch } from "@/lib/api";
+import { authFetch, fetchDocumentBlobUrl } from "@/lib/api";
 import {
   ACCEPTED_DOCUMENT_TYPES,
   FileTooLargeError,
@@ -42,8 +42,12 @@ export default function DocumentsPage() {
   const [error, setError] = useState("");
   const [uploadingKey, setUploadingKey] = useState<DocKey | null>(null);
   const [preparingKey, setPreparingKey] = useState<DocKey | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewTitle, setPreviewTitle] = useState<string>("");
+  const [previewIsPdf, setPreviewIsPdf] = useState(false);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState("");
   const fileRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   useEffect(() => {
@@ -114,11 +118,32 @@ export default function DocumentsPage() {
     }
   }
 
-  function openDocument(label: string, path?: string | null) {
+  async function openDocument(label: string, path?: string | null) {
     if (!path) return;
-    const fullUrl = path.startsWith("http") ? path : `${API_BASE_URL}${path}`;
-    setPreviewUrl(fullUrl);
+    setPreviewOpen(true);
     setPreviewTitle(label);
+    setPreviewIsPdf(path.toLowerCase().endsWith(".pdf"));
+    setPreviewError("");
+    setPreviewLoading(true);
+    setPreviewUrl(null);
+    try {
+      const blobUrl = await fetchDocumentBlobUrl(path);
+      setPreviewUrl(blobUrl);
+    } catch (err) {
+      setPreviewError(
+        err instanceof Error ? err.message : "Could not load this document."
+      );
+    } finally {
+      setPreviewLoading(false);
+    }
+  }
+
+  function closePreview() {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewOpen(false);
+    setPreviewUrl(null);
+    setPreviewTitle("");
+    setPreviewError("");
   }
 
   const uploadedCount = teacher
@@ -254,7 +279,7 @@ export default function DocumentsPage() {
       )}
 
       {/* Document Preview Modal */}
-      {previewUrl && (
+      {previewOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="relative bg-white rounded-2xl w-full max-w-4xl h-[85vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
             {/* Modal Header */}
@@ -264,21 +289,20 @@ export default function DocumentsPage() {
                 <p className="text-xs text-gray-400">Document Preview</p>
               </div>
               <div className="flex items-center gap-3">
-                <a
-                  href={previewUrl}
-                  download
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 text-xs font-semibold text-[#0f2044] bg-gray-50 hover:bg-gray-100 px-3 py-2 rounded-lg transition"
-                >
-                  <Download size={13} />
-                  Download
-                </a>
+                {previewUrl && (
+                  <a
+                    href={previewUrl}
+                    download
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 text-xs font-semibold text-[#0f2044] bg-gray-50 hover:bg-gray-100 px-3 py-2 rounded-lg transition"
+                  >
+                    <Download size={13} />
+                    Download
+                  </a>
+                )}
                 <button
-                  onClick={() => {
-                    setPreviewUrl(null);
-                    setPreviewTitle("");
-                  }}
+                  onClick={closePreview}
                   className="p-1.5 hover:bg-gray-100 text-gray-400 hover:text-gray-600 rounded-lg transition"
                 >
                   <X size={20} />
@@ -288,20 +312,24 @@ export default function DocumentsPage() {
 
             {/* Modal Body */}
             <div className="flex-1 p-6 bg-gray-50 overflow-auto flex justify-center items-center">
-              {previewUrl.toLowerCase().endsWith(".pdf") ? (
+              {previewLoading ? (
+                <p className="text-sm text-gray-400">Loading document…</p>
+              ) : previewError ? (
+                <p className="text-sm text-red-600">{previewError}</p>
+              ) : previewUrl && previewIsPdf ? (
                 <iframe
                   src={previewUrl}
                   className="w-full h-full rounded-xl border-0 bg-white"
                   title={previewTitle}
                 />
-              ) : (
+              ) : previewUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={previewUrl}
                   className="max-h-full max-w-full object-contain rounded-xl shadow-sm"
                   alt={previewTitle}
                 />
-              )}
+              ) : null}
             </div>
           </div>
         </div>

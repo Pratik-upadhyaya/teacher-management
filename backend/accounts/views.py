@@ -7,7 +7,7 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import Count, Q
 from .serializers import RegisterSerializer, StaffCreateSerializer, SubAdminSerializer
-from .permissions import IsAdmin
+from .permissions import IsAdmin, IsAdminOrPrincipal
 from .models import User
 from teachers.models import Teacher
 
@@ -145,7 +145,7 @@ def delete_sub_admin(request, id):
 # TEACHER DETAIL API
 # =========================
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsAdminOrPrincipal])
 def teacher_detail(request, id):
     try:
         teacher = Teacher.objects.get(id=id)

@@ -1,4 +1,8 @@
+import os
+
+from django.conf import settings
 from django.core.files.base import ContentFile
+from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework.decorators import api_view, permission_classes
@@ -12,6 +16,12 @@ from .models import DocumentChangeRequest
 from .serializers import DocumentChangeRequestSerializer
 
 VALID_DOCUMENT_TYPES = {choice[0] for choice in DocumentChangeRequest.DOCUMENT_TYPE_CHOICES}
+
+# Teacher fields that hold a *live* (approved) document -- checked against
+# in serve_document below so a teacher can view their own approved file.
+TEACHER_DOCUMENT_FIELDS = (
+    "citizenship", "degree", "transcript", "teachingLicense", "appointmentLetter",
+)
 
 
 def _teacher_for(request):
@@ -134,3 +144,53 @@ def reject_document_request(request, request_id):
     change_request.save()
 
     return Response(DocumentChangeRequestSerializer(change_request).data)
+
+
+# =========================
+# AUTHENTICATED MEDIA SERVING
+# =========================
+# Uploaded documents (citizenship, degree certs, etc.) must never be
+# reachable by an unauthenticated request or by an unrelated teacher --
+# these are real government ID documents. This view replaces Django's bare
+# static()-served MEDIA_URL (which had no auth check at all) with one that
+# checks: reviewers (admin/principal/sub-admin) can view any document;
+# a teacher can only view a document that is actually theirs, whether
+# still pending review (document_requests/...) or already approved onto
+# their live record (documents/...). Everyone else gets 403/404.
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def serve_document(request, path):
+    user = request.user
+    is_reviewer = getattr(user, "role", None) in ("admin", "principal", "sub-admin")
+
+    owner_teacher = None
+
+    change_request = DocumentChangeRequest.objects.filter(file=path).select_related("teacher").first()
+    if change_request:
+        owner_teacher = change_request.teacher
+    else:
+        for field_name in TEACHER_DOCUMENT_FIELDS:
+            match = Teacher.objects.filter(**{field_name: path}).first()
+            if match:
+                owner_teacher = match
+                break
+
+    if owner_teacher is None:
+        # Not a path any known document record points to -- nothing to serve,
+        # regardless of who's asking.
+        raise Http404
+
+    is_owner = owner_teacher.email == user.email
+
+    if not (is_reviewer or is_owner):
+        return Response({"error": "You do not have permission to view this file."}, status=403)
+
+    # Resolve to an absolute path and confirm it's still inside MEDIA_ROOT --
+    # defense-in-depth against path traversal, even though the matches above
+    # already constrain `path` to values actually stored on a model.
+    media_root = os.path.abspath(settings.MEDIA_ROOT)
+    full_path = os.path.abspath(os.path.join(media_root, path))
+    if not full_path.startswith(media_root + os.sep) or not os.path.isfile(full_path):
+        raise Http404
+
+    return FileResponse(open(full_path, "rb"))

@@ -58,6 +58,28 @@ export function clearTokens() {
  * schools, profile, etc). Public endpoints (login, register, teacher
  * self-application) should keep using plain fetch().
  */
+/**
+ * Fetches a protected /media/ file (citizenship, degree, etc.) through
+ * authFetch and returns a local blob: URL suitable for an <img>/<iframe>
+ * src or a download link. Plain <img src="..."> can't attach the
+ * Authorization header the backend's serve_document view now requires, so
+ * every document preview/download must go through this instead of using
+ * the API path directly. Caller is responsible for calling
+ * URL.revokeObjectURL() on the result once it's no longer displayed.
+ */
+export async function fetchDocumentBlobUrl(path: string): Promise<string> {
+  const res = await authFetch(path);
+  if (!res.ok) {
+    throw new Error(
+      res.status === 403
+        ? "You don't have permission to view this document."
+        : "Could not load this document."
+    );
+  }
+  const blob = await res.blob();
+  return URL.createObjectURL(blob);
+}
+
 export async function authFetch(path: string, options: RequestInit = {}) {
   const access = getAccessToken();
 
