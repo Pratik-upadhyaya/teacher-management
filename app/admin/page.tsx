@@ -54,6 +54,22 @@ export default function AdminPage() {
   const [subAdminSuccess, setSubAdminSuccess] = useState("");
   const [subAdminLoading, setSubAdminLoading] = useState(false);
 
+  // Sub-admin management is main-admin only. Set from the role stored at
+  // login (see app/login/page.tsx) -- sub-admins themselves are already
+  // blocked at the API level (IsAdmin, not IsAdminOrPrincipal), this just
+  // keeps the tab/button from showing up for them in the UI.
+  const [isAdmin, setIsAdmin] = useState(false);
+  useEffect(() => {
+    setIsAdmin(localStorage.getItem("user_role") === "admin");
+  }, []);
+
+  // If a sub-admin ever ends up on this tab (stale state, browser back
+  // button, etc.) bounce them to the dashboard instead of showing a
+  // panel whose data they aren't allowed to fetch anyway.
+  useEffect(() => {
+    if (!isAdmin && activeTab === "sub-admins") setActiveTab("dashboard");
+  }, [isAdmin, activeTab]);
+
   function loadDashboard() {
     authFetch("/api/dashboard/stats/")
       .then((res) => res.json())
@@ -184,9 +200,12 @@ export default function AdminPage() {
 
   useEffect(() => {
     loadDashboard();
-    loadSubAdmins();
     loadDocumentRequests();
   }, []);
+
+  useEffect(() => {
+    if (isAdmin) loadSubAdmins();
+  }, [isAdmin]);
 
   function downloadAllTeachersCSV() {
     const headers = ["ID", "Name", "Token No", "Subject", "Phone", "Email", "Status"];
@@ -413,16 +432,18 @@ export default function AdminPage() {
               )}
             </button>
 
-            <button
-              onClick={() => setActiveTab("sub-admins")}
-              className={`w-full text-left px-4 py-3 rounded-xl transition ${
-                activeTab === "sub-admins"
-                  ? "bg-white text-[#0f2044] font-semibold"
-                  : "hover:bg-blue-900"
-              }`}
-            >
-              Sub-Admins
-            </button>
+            {isAdmin && (
+              <button
+                onClick={() => setActiveTab("sub-admins")}
+                className={`w-full text-left px-4 py-3 rounded-xl transition ${
+                  activeTab === "sub-admins"
+                    ? "bg-white text-[#0f2044] font-semibold"
+                    : "hover:bg-blue-900"
+                }`}
+              >
+                Sub-Admins
+              </button>
+            )}
           </div>
         </div>
 
@@ -737,7 +758,7 @@ export default function AdminPage() {
         )}
 
         {/* Sub-Admins Tab */}
-        {activeTab === "sub-admins" && (
+        {activeTab === "sub-admins" && isAdmin && (
           <div className="bg-white rounded-2xl shadow p-6">
             <div className="flex justify-between items-center mb-6">
               <div>
