@@ -29,6 +29,17 @@ def dashboard_stats(request):
         'email'
     )
 
+  
+    rejected_teachers = Teacher.objects.filter(status='rejected').values(
+        'id',
+        'name',
+        'tokenNo',
+        'subject',
+        'phone',
+        'email',
+        'remarks'
+    )
+
     data = {
         "total_teachers": total_teachers,
         "pending_approvals": pending,
@@ -36,6 +47,7 @@ def dashboard_stats(request):
         "rejected": rejected,
         "pending_teachers": list(pending_teachers),
         "approved_teachers": list(approved_teachers),
+        "rejected_teachers": list(rejected_teachers),
     }
 
     return Response(data)

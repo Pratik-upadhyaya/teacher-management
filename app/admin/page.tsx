@@ -12,6 +12,7 @@ type Teacher = {
   subject: string;
   phone?: string;
   email?: string;
+  remarks?: string;
 };
 
 export default function AdminPage() {
@@ -43,6 +44,15 @@ export default function AdminPage() {
   const [rejectTargetId, setRejectTargetId] = useState<number | null>(null);
   const [rejectReason, setRejectReason] = useState("");
   const [rejectReasonError, setRejectReasonError] = useState("");
+
+  // Separate reject-reason modal for TEACHER APPLICATION rejection --
+  // distinct from the document-change-request reject modal above, since
+  // they hit different endpoints and shouldn't share state.
+  const [teacherRejectModalOpen, setTeacherRejectModalOpen] = useState(false);
+  const [teacherRejectTarget, setTeacherRejectTarget] = useState<Teacher | null>(null);
+  const [teacherRejectReason, setTeacherRejectReason] = useState("");
+  const [teacherRejectReasonError, setTeacherRejectReasonError] = useState("");
+  const [teacherRejectBusy, setTeacherRejectBusy] = useState(false);
 
   const [subAdmins, setSubAdmins] = useState<any[]>([]);
   const [subAdminListError, setSubAdminListError] = useState("");
@@ -329,15 +339,46 @@ export default function AdminPage() {
     loadDashboard();
   }
 
-  async function rejectTeacher(id: number) {
-    const res = await authFetch(`/api/${id}/reject/`, { method: "PATCH" });
+  function openTeacherRejectModal(teacher: Teacher) {
+    setTeacherRejectTarget(teacher);
+    setTeacherRejectReason("");
+    setTeacherRejectReasonError("");
+    setTeacherRejectModalOpen(true);
+  }
 
-    if (!res.ok) {
-      alert("Reject failed");
+  function closeTeacherRejectModal() {
+    setTeacherRejectModalOpen(false);
+    setTeacherRejectTarget(null);
+    setTeacherRejectReason("");
+    setTeacherRejectReasonError("");
+  }
+
+  async function submitRejectTeacher() {
+    if (!teacherRejectTarget) return;
+    const reason = teacherRejectReason.trim();
+    if (!reason) {
+      setTeacherRejectReasonError("A rejection reason is required.");
       return;
     }
 
-    loadDashboard();
+    setTeacherRejectBusy(true);
+    try {
+      const res = await authFetch(`/api/${teacherRejectTarget.id}/reject/`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: reason }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || "Reject failed. Please try again.");
+      }
+      closeTeacherRejectModal();
+      loadDashboard();
+    } catch (err: any) {
+      setTeacherRejectReasonError(err.message || "Reject failed. Please try again.");
+    } finally {
+      setTeacherRejectBusy(false);
+    }
   }
 
   function viewTeacher(teacher: Teacher) {
@@ -556,7 +597,7 @@ export default function AdminPage() {
                         </button>
 
                         <button
-                          onClick={() => rejectTeacher(teacher.id)}
+                          onClick={() => openTeacherRejectModal(teacher)}
                           className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
                         >
                           Reject
@@ -670,9 +711,38 @@ export default function AdminPage() {
               Rejected Teachers
             </h2>
 
-            <p className="text-gray-500">
-              Rejected teachers will appear here.
-            </p>
+            {stats.rejected_teachers.length === 0 ? (
+              <p className="text-gray-500">No rejected teachers.</p>
+            ) : (
+              <div className="space-y-4">
+                {stats.rejected_teachers.map((teacher) => (
+                  <div
+                    key={teacher.id}
+                    className="border rounded-xl p-5 flex justify-between items-center hover:shadow-md transition"
+                  >
+                    <div>
+                      <h3 className="font-bold text-lg text-[#0f2044]">
+                        {teacher.name}
+                      </h3>
+                      <p className="text-gray-500">Token: {teacher.tokenNo}</p>
+                      <p className="text-gray-500">Subject: {teacher.subject}</p>
+                      {teacher.remarks && (
+                        <p className="text-red-600 text-sm mt-1">
+                          Reason: {teacher.remarks}
+                        </p>
+                      )}
+                    </div>
+
+                    <button
+                      onClick={() => viewTeacher(teacher)}
+                      className="px-4 py-2 bg-[#0f2044] text-white rounded-lg hover:bg-[#1a3260]"
+                    >
+                      View
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -1049,6 +1119,57 @@ export default function AdminPage() {
               className="w-full mt-4 bg-red-500 hover:bg-red-600 text-white rounded-lg py-3 text-sm font-semibold transition disabled:opacity-60"
             >
               {docRequestBusyId === rejectTargetId ? "Rejecting..." : "Confirm Rejection"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Reject Teacher Application Modal */}
+      {teacherRejectModalOpen && teacherRejectTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="relative bg-white rounded-2xl w-full max-w-md p-6 sm:p-8 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h3 className="text-xl font-bold text-[#0f2044]">
+                  Reject {teacherRejectTarget.name}'s Application
+                </h3>
+                <p className="text-xs text-gray-400">
+                  A reason is required so the teacher knows what to fix
+                </p>
+              </div>
+              <button
+                onClick={closeTeacherRejectModal}
+                className="p-1.5 hover:bg-gray-100 text-gray-400 hover:text-gray-600 rounded-lg transition"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">
+                Reason for rejection
+              </label>
+              <textarea
+                value={teacherRejectReason}
+                onChange={(e) => {
+                  setTeacherRejectReason(e.target.value);
+                  if (teacherRejectReasonError) setTeacherRejectReasonError("");
+                }}
+                rows={4}
+                placeholder="e.g. Missing teaching license, please resubmit application"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#0f2044] focus:ring-1 focus:ring-[#0f2044] transition"
+              />
+              {teacherRejectReasonError && (
+                <p className="text-red-600 text-xs mt-1.5">{teacherRejectReasonError}</p>
+              )}
+            </div>
+
+            <button
+              onClick={submitRejectTeacher}
+              disabled={teacherRejectBusy}
+              className="w-full mt-4 bg-red-500 hover:bg-red-600 text-white rounded-lg py-3 text-sm font-semibold transition disabled:opacity-60"
+            >
+              {teacherRejectBusy ? "Rejecting..." : "Confirm Rejection"}
             </button>
           </div>
         </div>

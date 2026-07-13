@@ -135,7 +135,13 @@ def approve_teacher(request, teacher_id):
 @permission_classes([IsAuthenticated, IsAdminOrPrincipal])
 def reject_teacher(request, teacher_id):
     teacher = get_object_or_404(Teacher, id=teacher_id)
+
+    message = (request.data.get("message") or "").strip()
+    if not message:
+        return Response({"error": "A rejection reason is required."}, status=400)
+
     teacher.status = "rejected"
+    teacher.remarks = message
     teacher.reviewed_by = request.user
     teacher.save()
     return Response({"message": "Teacher rejected"})

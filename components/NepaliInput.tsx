@@ -53,7 +53,7 @@ function useNepaliInput(onChange: (val: string) => void) {
 
   // Same as pickSuggestion, but appends a trailing space so typing can
   // continue straight into the next word -- used when the user presses
-  // Space to commit the current word instead of clicking a suggestion.
+  // Enter to commit the current word instead of clicking a suggestion.
   function commitSuggestionAndAdvance(word: string, currentVal: string) {
     const words = currentVal.split(" ");
     words[words.length - 1] = word;
@@ -62,7 +62,7 @@ function useNepaliInput(onChange: (val: string) => void) {
     setShowSuggestions(false);
   }
 
-  // Called on Space. If suggestions are showing for the word just typed,
+  // Called on Enter. If suggestions are showing for the word just typed,
   // commit the most common one (suggestions[0]) instead of inserting a
   // literal space into the raw English text.
   function handleSpaceKey(e: React.KeyboardEvent<HTMLInputElement>, currentVal: string) {
@@ -71,7 +71,15 @@ function useNepaliInput(onChange: (val: string) => void) {
       commitSuggestionAndAdvance(suggestions[0], currentVal);
     }
   }
-
+ // Called on Enter. If suggestions are showing for the word just typed,
+  // commit the most common one (suggestions[0]) instead of inserting a
+  // literal space into the raw English text.
+  function handleEnterKey(e: React.KeyboardEvent<HTMLInputElement>, currentVal: string) {
+    if (e.key === "Enter" && suggestions.length > 0) {
+      e.preventDefault();
+      commitSuggestionAndAdvance(suggestions[0], currentVal);
+    }
+  }
   // Called on blur. If suggestions are still showing (meaning the user
   // typed a romanized word but left the field without clicking one of the
   // options), commit the most common suggestion -- suggestions[0], as
@@ -93,6 +101,7 @@ function useNepaliInput(onChange: (val: string) => void) {
     setShowSuggestions,
     commitTopSuggestionIfPending,
     handleSpaceKey,
+    handleEnterKey,
   };
 }
 
@@ -113,6 +122,7 @@ export default function NepaliInput({
     setShowSuggestions,
     commitTopSuggestionIfPending,
     handleSpaceKey,
+    handleEnterKey,
   } = useNepaliInput(onChange);
 
   return (
@@ -122,6 +132,7 @@ export default function NepaliInput({
         value={value}
         onChange={handleChange}
         onKeyDown={(e) => handleSpaceKey(e, value)}
+        onKeyUp={(e) => handleEnterKey(e, value)}
         onBlur={() =>
           setTimeout(() => commitTopSuggestionIfPending(value), 150)
         }
