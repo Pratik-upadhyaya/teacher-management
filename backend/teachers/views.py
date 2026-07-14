@@ -8,6 +8,7 @@ from rest_framework.response import Response
 from .models import Teacher
 from .serializers import TeacherSerializer
 from accounts.permissions import IsAdminOrPrincipal
+from accounts.otp import is_verified, clear_verified
 
 
 # =========================
@@ -38,10 +39,33 @@ def teacher_list_create(request):
     # CREATE TEACHER
     # =========================
     if request.method == 'POST':
+        email = (request.data.get("email") or "").strip()
+        phone = (request.data.get("phone") or "").strip()
+
+        # Enforced server-side, not just in the frontend wizard -- the
+        # verify-OTP endpoint marks these as verified in cache (see
+        # accounts/otp.py) once the applicant confirms the code sent to
+        # each. Without this check, someone hitting this endpoint
+        # directly could skip verification entirely.
+        if not is_verified("email", email):
+            return Response(
+                {"error": "Please verify your email address before submitting."},
+                status=400,
+            )
+        if not is_verified("phone", phone):
+            return Response(
+                {"error": "Please verify your phone number before submitting."},
+                status=400,
+            )
+
         serializer = TeacherSerializer(data=request.data)
 
         if serializer.is_valid():
             serializer.save()
+            # Consume the verification so it can't be reused for a second
+            # application with the same email/phone.
+            clear_verified("email", email)
+            clear_verified("phone", phone)
             return Response(serializer.data, status=201)
 
         return Response(serializer.errors, status=400)

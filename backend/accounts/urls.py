@@ -7,6 +7,8 @@ from .views import (
     change_password,
     list_sub_admins,
     delete_sub_admin,
+    send_otp,
+    verify_otp,
 )
 
 urlpatterns = [
@@ -19,4 +21,8 @@ urlpatterns = [
 
     # Teacher details for view button
     path('teacher/<int:id>/', teacher_detail),
+
+    # Registration verification (public, throttled -- see accounts/otp.py)
+    path('otp/send/', send_otp),
+    path('otp/verify/', verify_otp),
 ]

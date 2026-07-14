@@ -1,4 +1,5 @@
-from rest_framework.decorators import api_view, permission_classes
+import re
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -8,6 +9,8 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import Count, Q
 from .serializers import RegisterSerializer, StaffCreateSerializer, SubAdminSerializer
 from .permissions import IsAdmin, IsAdminOrPrincipal
+from .throttles import LoginRateThrottle, OtpSendRateThrottle
+from .otp import generate_and_store_otp, check_otp, send_email_otp, send_sms_otp
 from .models import User
 from teachers.models import Teacher
 
@@ -42,6 +45,7 @@ def create_staff_user(request):
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
+@throttle_classes([LoginRateThrottle])
 def login_user(request):
     """
     Accepts {email, password} (matching app/login/page.tsx). Django's User
@@ -166,3 +170,72 @@ def teacher_detail(request, id):
     }
 
     return Response(data)
+
+
+# =========================
+# REGISTRATION OTP VERIFICATION (email + phone)
+# =========================
+# Public, throttled endpoints used by the teacher self-registration wizard
+# to verify an email/phone actually belongs to the applicant before their
+# application can be submitted. See accounts/otp.py for storage/delivery.
+_PHONE_RE = re.compile(r"^(98|97)\d{8}$")
+_EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
+
+
+def _validate_otp_target(otp_type, value):
+    if otp_type not in ("email", "phone"):
+        return "type must be 'email' or 'phone'."
+    if not value or not value.strip():
+        return "value is required."
+    if otp_type == "email" and not _EMAIL_RE.match(value.strip()):
+        return "Enter a valid email address."
+    if otp_type == "phone" and not _PHONE_RE.match(value.strip()):
+        return "Enter a valid Nepali phone number (98/97XXXXXXXX)."
+    return None
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+@throttle_classes([OtpSendRateThrottle])
+def send_otp(request):
+    otp_type = request.data.get("type")
+    value = (request.data.get("value") or "").strip()
+
+    validation_error = _validate_otp_target(otp_type, value)
+    if validation_error:
+        return Response({"error": validation_error}, status=400)
+
+    code = generate_and_store_otp(otp_type, value)
+
+    try:
+        if otp_type == "email":
+            send_email_otp(value, code)
+        else:
+            send_sms_otp(value, code)
+    except Exception:
+        return Response(
+            {"error": "Could not send verification code. Please try again."},
+            status=502,
+        )
+
+    return Response({"message": "Verification code sent."})
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def verify_otp(request):
+    otp_type = request.data.get("type")
+    value = (request.data.get("value") or "").strip()
+    code = (request.data.get("code") or "").strip()
+
+    validation_error = _validate_otp_target(otp_type, value)
+    if validation_error:
+        return Response({"error": validation_error}, status=400)
+    if not code:
+        return Response({"error": "Enter the code you received."}, status=400)
+
+    success, error_message = check_otp(otp_type, value, code)
+    if not success:
+        return Response({"error": error_message}, status=400)
+
+    return Response({"message": "Verified."})

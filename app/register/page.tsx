@@ -2,6 +2,7 @@
 import NepaliInput from "@/components/NepaliInput";
 import NepaliNumberInput, { nepaliToAscii, toNepaliDigits } from "@/components/NepaliNumberInput";
 import { useState } from "react";
+import { Check } from "lucide-react";
 import { API_BASE_URL } from "@/lib/api";
 
 // ── Districts & Municipalities ────────────────────────────────────
@@ -282,6 +283,133 @@ function computeAgeSixty(dobValue: string): string | null {
   return toNepaliDigits(`${sixtyYear}/${mm}/${dd}`);
 }
 
+// ── Inline OTP verification widget ─────────────────────────────────
+// Used beside both the email and phone fields in Step 1. Sends a code via
+// /api/accounts/otp/send/, then swaps to a code-entry UI; on a correct
+// code it calls onVerified() and collapses to a "Verified" badge. See
+// backend/accounts/otp.py for how codes are generated/checked/expired.
+function OtpVerify({
+  type,
+  value,
+  verified,
+  onVerified,
+  disabled,
+}: {
+  type: "email" | "phone";
+  value: string;
+  verified: boolean;
+  onVerified: () => void;
+  disabled?: boolean;
+}) {
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [code, setCode] = useState("");
+  const [verifying, setVerifying] = useState(false);
+  const [error, setError] = useState("");
+
+  async function sendCode() {
+    setError("");
+    setSending(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/accounts/otp/send/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type, value }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || "Could not send code.");
+      setSent(true);
+      setCode("");
+    } catch (err: any) {
+      setError(err.message || "Could not send code.");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  async function confirmCode() {
+    if (!code.trim()) {
+      setError("Enter the code you received.");
+      return;
+    }
+    setError("");
+    setVerifying(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/accounts/otp/verify/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type, value, code: code.trim() }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || "Incorrect code.");
+      onVerified();
+      setSent(false);
+      setCode("");
+    } catch (err: any) {
+      setError(err.message || "Incorrect code.");
+    } finally {
+      setVerifying(false);
+    }
+  }
+
+  if (verified) {
+    return (
+      <span className="flex items-center gap-1 text-green-600 text-xs font-semibold shrink-0 h-[42px]">
+        <Check size={14} />
+        Verified
+      </span>
+    );
+  }
+
+  if (!sent) {
+    return (
+      <div className="shrink-0">
+        <button
+          type="button"
+          onClick={sendCode}
+          disabled={disabled || sending}
+          className="text-xs font-semibold text-[#0f2044] border border-[#0f2044] px-3 h-[42px] rounded-lg hover:bg-[#0f2044] hover:text-white transition disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-[#0f2044]"
+        >
+          {sending ? "Sending…" : "Verify"}
+        </button>
+        {error && <p className="text-red-500 text-xs mt-1 w-32">{error}</p>}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex gap-1.5">
+        <input
+          value={code}
+          onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+          placeholder="Code"
+          inputMode="numeric"
+          maxLength={6}
+          className="border border-gray-200 rounded-lg px-2 h-[42px] text-sm w-20 focus:outline-none focus:border-[#0f2044]"
+        />
+        <button
+          type="button"
+          onClick={confirmCode}
+          disabled={verifying}
+          className="text-xs font-semibold bg-[#0f2044] text-white px-3 h-[42px] rounded-lg hover:bg-[#1a3260] disabled:opacity-60 shrink-0"
+        >
+          {verifying ? "…" : "Confirm"}
+        </button>
+      </div>
+      <button
+        type="button"
+        onClick={sendCode}
+        disabled={sending}
+        className="text-xs text-gray-400 hover:text-gray-600 underline text-left"
+      >
+        {sending ? "Resending…" : "Resend code"}
+      </button>
+      {error && <p className="text-red-500 text-xs w-40">{error}</p>}
+    </div>
+  );
+}
+
 // ── Step 1: Personal Info ─────────────────────────────────────────
 function Step1({
   data,
@@ -289,7 +417,7 @@ function Step1({
   onNext,
 }: {
   data: any;
-  onChange: (f: string, v: string) => void;
+  onChange: (f: string, v: string | boolean) => void;
   onNext: () => void;
 }) {
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -309,6 +437,8 @@ function Step1({
       errs.phone = "फोन नम्बर आवश्यक छ";
     else if (!/^(98|97)\d{8}$/.test(asciiPhone))
       errs.phone = "मान्य नेपाली नम्बर (९८/९७XXXXXXXX)";
+    else if (!data.phoneVerified)
+      errs.phone = "कृपया फोन नम्बर प्रमाणित गर्नुहोस् (Please verify your phone number)";
 
     if (!data.email.trim()) {
       errs.email = "इमेल आवश्यक छ";
@@ -316,6 +446,8 @@ function Step1({
       !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email.trim())
     ) {
     errs.email = "मान्य इमेल ठेगाना प्रविष्ट गर्नुहोस्";
+    } else if (!data.emailVerified) {
+      errs.email = "कृपया इमेल प्रमाणित गर्नुहोस् (Please verify your email)";
     }
 
     if (!data.password)
@@ -424,13 +556,30 @@ function Step1({
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Phone <span className="text-gray-400 font-normal">/ फोन नम्बर</span>
           </label>
-          <NepaliNumberInput
-            value={data.phone}
-            onChange={(val: string) => { onChange("phone", val); setErrors((p) => ({ ...p, phone: "" })); }}
-            placeholder="९८XXXXXXXX"
-            className={ic(errors, "phone")}
-          />
-          <FieldError msg={errors.phone} />
+          <div className="flex items-start gap-2">
+            <div className="flex-1">
+              <NepaliNumberInput
+                value={data.phone}
+                onChange={(val: string) => {
+                  onChange("phone", val);
+                  setErrors((p) => ({ ...p, phone: "" }));
+                  // Editing the number after verifying invalidates that
+                  // verification -- it was for the old value.
+                  if (data.phoneVerified) onChange("phoneVerified", false);
+                }}
+                placeholder="९८XXXXXXXX"
+                className={ic(errors, "phone")}
+              />
+              <FieldError msg={errors.phone} />
+            </div>
+            <OtpVerify
+              type="phone"
+              value={nepaliToAscii(data.phone.trim())}
+              verified={!!data.phoneVerified}
+              onVerified={() => onChange("phoneVerified", true)}
+              disabled={!/^(98|97)\d{8}$/.test(nepaliToAscii(data.phone.trim()))}
+            />
+          </div>
         </div>
       </div>
 
@@ -438,14 +587,29 @@ function Step1({
         <label className="block text-sm font-medium text-gray-700 mb-1">
           Email <span className="text-gray-400 font-normal">/ इमेल</span>
         </label>
-        <input
-          type="email"
-          value={data.email}
-          onChange={(e) => { onChange("email", e.target.value); setErrors((p) => ({ ...p, email: "" })); }}
-          placeholder="ram@school.edu.np"
-          className={ic(errors, "email")}
-        />
-        <FieldError msg={errors.email} />
+        <div className="flex items-start gap-2">
+          <div className="flex-1">
+            <input
+              type="email"
+              value={data.email}
+              onChange={(e) => {
+                onChange("email", e.target.value);
+                setErrors((p) => ({ ...p, email: "" }));
+                if (data.emailVerified) onChange("emailVerified", false);
+              }}
+              placeholder="ram@school.edu.np"
+              className={ic(errors, "email")}
+            />
+            <FieldError msg={errors.email} />
+          </div>
+          <OtpVerify
+            type="email"
+            value={data.email.trim()}
+            verified={!!data.emailVerified}
+            onVerified={() => onChange("emailVerified", true)}
+            disabled={!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email.trim())}
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1110,6 +1274,7 @@ export default function RegisterPage() {
     // Step 1
     name: "", fatherName: "", permanentAddress: "", permanentWardNo: "",
     dob: "", phone: "", email: "", password: "", confirmPassword: "",
+    emailVerified: false, phoneVerified: false,
     // Step 2
     district: "", municipality: "", wardNo: "", schoolName: "", tokenNo: "",
     subject: "", level: "", grade: "", teacherType: "",
@@ -1120,7 +1285,7 @@ export default function RegisterPage() {
     citizenship: "", degree: "", transcript: "", teachingLicense: "", appointmentLetter: "",
   });
 
-  function handleChange(field: string, value: string) {
+  function handleChange(field: string, value: string | boolean) {
     setFormData((prev) => ({ ...prev, [field]: value }));
   }
 

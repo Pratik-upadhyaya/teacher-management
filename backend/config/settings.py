@@ -30,6 +30,27 @@ ALLOWED_HOSTS = [
 
 
 # =========================
+# EMAIL (used for registration OTP verification -- see accounts/otp.py)
+# =========================
+# No SMTP credentials set up yet, so this defaults to Django's console
+# backend: OTP emails print to the runserver console/log instead of
+# actually sending. To switch to real email once credentials are ready,
+# set DJANGO_EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
+# in .env, plus EMAIL_HOST / EMAIL_PORT / EMAIL_HOST_USER /
+# EMAIL_HOST_PASSWORD / EMAIL_USE_TLS -- accounts/otp.py itself needs no
+# changes.
+EMAIL_BACKEND = os.environ.get(
+    'DJANGO_EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend'
+)
+EMAIL_HOST = os.environ.get('EMAIL_HOST', '')
+EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '587'))
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
+EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True') == 'True'
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'noreply@teacherportal.local')
+
+
+# =========================
 # APPLICATIONS
 # =========================
 INSTALLED_APPS = [
@@ -170,6 +191,14 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
     ),
+    # Login previously had no rate limiting at all -- brute-forcing a
+    # password was feasible. 'login' is a custom throttle scope used only
+    # by accounts.views.login_user (see accounts/throttles.py), so this
+    # doesn't affect other public endpoints like registration.
+    'DEFAULT_THROTTLE_RATES': {
+        'login': '5/min',
+        'otp_send': '3/min',
+    },
 }
 
 from datetime import timedelta
