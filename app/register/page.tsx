@@ -379,7 +379,7 @@ function OtpVerify({
 
   return (
     <div className="flex flex-col gap-1">
-      <div className="flex gap-1.5">
+      <div className="flex gap-1.5"> 
         <input
           value={code}
           onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
@@ -554,7 +554,7 @@ function Step1({
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Phone <span className="text-gray-400 font-normal">/ फोन नम्बर</span>
+            Phone Number <span className="text-gray-400 font-normal">/ फोन नम्बर</span>
           </label>
           <div className="flex items-start gap-2">
             <div className="flex-1">
@@ -585,7 +585,7 @@ function Step1({
 
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          Email <span className="text-gray-400 font-normal">/ इमेल</span>
+          Email Address <span className="text-gray-400 font-normal">/ इमेल ठेगाना</span>
         </label>
         <div className="flex items-start gap-2">
           <div className="flex-1">
@@ -849,9 +849,9 @@ function Step2({
             className={ic(errors, "grade")}
           >
             <option value="">श्रेणी छान्नुहोस्</option>
-            <option value="first">First / प्रथम</option>
+            <option value="first">Third / तृतीय</option>
             <option value="second">Second / द्वितीय</option>
-            <option value="third">Third / तृतीय</option>
+            <option value="third">First / प्रथम</option>
           </select>
           <FieldError msg={errors.grade} />
         </div>
