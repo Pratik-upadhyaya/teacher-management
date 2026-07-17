@@ -51,22 +51,41 @@ def _compress_image(file_obj: UploadedFile) -> ContentFile:
         raise DocumentValidationError(
             "That file doesn't look like a valid image. Please upload a JPG, PNG, HEIC, or PDF."
         )
+    except Image.DecompressionBombError:
+        # Not a subclass of the exceptions above -- Pillow raises this
+        # separately when the image's *declared* pixel dimensions are
+        # absurdly large relative to its file size (a classic "image
+        # bomb": tiny upload, huge claimed resolution, meant to exhaust
+        # memory/CPU on decode). Reject it the same way as any other
+        # invalid upload rather than letting it 500.
+        raise DocumentValidationError(
+            "That image's dimensions are too large to process. Please upload a smaller photo."
+        )
 
     # verify() leaves the image unusable for further work — reopen fresh.
     file_obj.seek(0)
-    with Image.open(file_obj) as img:
-        img = img.convert("RGB")  # flattens alpha/CMYK/etc; JPEG has no alpha channel
-        w, h = img.size
-        if max(w, h) > MAX_DIMENSION:
-            scale = MAX_DIMENSION / max(w, h)
-            img = img.resize((round(w * scale), round(h * scale)), Image.LANCZOS)
+    try:
+        with Image.open(file_obj) as img:
+            img = img.convert("RGB")  # flattens alpha/CMYK/etc; JPEG has no alpha channel
+            w, h = img.size
+            if max(w, h) > MAX_DIMENSION:
+                scale = MAX_DIMENSION / max(w, h)
+                img = img.resize((round(w * scale), round(h * scale)), Image.LANCZOS)
 
-        for quality in JPEG_QUALITIES:
-            buf = io.BytesIO()
-            img.save(buf, format="JPEG", quality=quality, optimize=True)
-            if buf.tell() <= IMAGE_MAX_BYTES:
-                buf.seek(0)
-                return ContentFile(buf.read(), name="document.jpg")
+            for quality in JPEG_QUALITIES:
+                buf = io.BytesIO()
+                img.save(buf, format="JPEG", quality=quality, optimize=True)
+                if buf.tell() <= IMAGE_MAX_BYTES:
+                    buf.seek(0)
+                    return ContentFile(buf.read(), name="document.jpg")
+    except (UnidentifiedImageError, OSError, SyntaxError):
+        raise DocumentValidationError(
+            "That file doesn't look like a valid image. Please upload a JPG, PNG, HEIC, or PDF."
+        )
+    except Image.DecompressionBombError:
+        raise DocumentValidationError(
+            "That image's dimensions are too large to process. Please upload a smaller photo."
+        )
 
     raise DocumentValidationError(
         "This image is too large to process — please upload a smaller photo."

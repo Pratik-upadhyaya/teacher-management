@@ -63,6 +63,15 @@ def login_user(request):
         user_obj = User.objects.get(email=email)
     except User.DoesNotExist:
         return Response({"error": "Invalid credentials"}, status=401)
+    except User.MultipleObjectsReturned:
+        # Shouldn't be reachable now that email is unique=True at the DB
+        # level, but this guards any row that predates that migration
+        # (e.g. duplicate accounts created before the constraint existed)
+        # so login fails cleanly instead of 500ing.
+        return Response(
+            {"error": "Multiple accounts share this email. Please contact an admin."},
+            status=409,
+        )
 
     user = authenticate(username=user_obj.username, password=password)
 

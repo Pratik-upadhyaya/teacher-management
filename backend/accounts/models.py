@@ -20,6 +20,13 @@ class User(AbstractUser):
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='teacher')
     phone = models.CharField(max_length=20, blank=True, null=True)
 
+    # Every account-creation path (self-registration, admin-created staff)
+    # looks users up by email, and login_user does User.objects.get(email=...),
+    # which raises MultipleObjectsReturned if two accounts share an email.
+    # unique=True closes that at the DB level and makes DRF auto-validate
+    # it (400 on duplicate) instead of allowing it through silently.
+    email = models.EmailField('email address', unique=True)
+
     objects = UserManager()
 
     def __str__(self):
