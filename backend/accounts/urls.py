@@ -2,6 +2,7 @@ from django.urls import path
 from .views import (
     register_user,
     login_user,
+    logout_user,
     teacher_detail,
     create_staff_user,
     change_password,
@@ -14,6 +15,7 @@ from .views import (
 urlpatterns = [
     path('register/', register_user),
     path('login/', login_user),
+    path('logout/', logout_user),  # blacklists the given refresh token
     path('staff/create/', create_staff_user),  # admin-only: create principal/sub-admin/admin accounts
     path('change-password/', change_password),  # any logged-in user
     path('sub-admins/', list_sub_admins),  # admin-only

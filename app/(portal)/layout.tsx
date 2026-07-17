@@ -11,7 +11,7 @@ import {
   Menu,
   X,
 } from "lucide-react";
-import { getAccessToken, clearTokens } from "@/lib/api";
+import { getAccessToken, logout } from "@/lib/api";
 
 const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -46,8 +46,8 @@ export default function PortalLayout({
     setAuthorized(true);
   }, [router]);
 
-  function handleLogout() {
-    clearTokens();
+  async function handleLogout() {
+    await logout();
     localStorage.removeItem("teacher_name");
     router.push("/login");
   }

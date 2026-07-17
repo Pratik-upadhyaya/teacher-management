@@ -1,4 +1,6 @@
 from rest_framework import serializers
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
 from .models import User
 
 
@@ -14,6 +16,23 @@ class RegisterSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['username', 'email', 'password', 'phone']
+
+    def validate_password(self, value):
+        # min_length=8 above only checks length. This runs the same
+        # AUTH_PASSWORD_VALIDATORS settings.py already declares (common
+        # password check, not-too-similar-to-username/email, not entirely
+        # numeric) -- accounts/views.py:change_password already does this
+        # for password changes, but registration itself never did, so
+        # e.g. "aaaaaaaa" was a fully valid password until now.
+        temp_user = User(
+            username=self.initial_data.get('username', ''),
+            email=self.initial_data.get('email', ''),
+        )
+        try:
+            validate_password(value, user=temp_user)
+        except DjangoValidationError as e:
+            raise serializers.ValidationError(list(e.messages))
+        return value
 
     def create(self, validated_data):
         user = User(
@@ -36,6 +55,20 @@ class StaffCreateSerializer(serializers.ModelSerializer):
         model = User
         fields = ['username', 'email', 'password', 'role', 'phone', 'first_name']
         extra_kwargs = {'first_name': {'required': False}}
+
+    def validate_password(self, value):
+        # Same rationale as RegisterSerializer above -- this path can
+        # create admin accounts, so weak-password enforcement matters at
+        # least as much here.
+        temp_user = User(
+            username=self.initial_data.get('username', ''),
+            email=self.initial_data.get('email', ''),
+        )
+        try:
+            validate_password(value, user=temp_user)
+        except DjangoValidationError as e:
+            raise serializers.ValidationError(list(e.messages))
+        return value
 
     def validate_role(self, value):
         if value not in ('principal', 'sub-admin', 'admin'):

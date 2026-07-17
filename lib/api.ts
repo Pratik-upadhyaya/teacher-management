@@ -52,6 +52,33 @@ export function clearTokens() {
 }
 
 /**
+ * Logs the user out: blacklists the refresh token server-side (so it
+ * can't be replayed later) and then clears the cookies. Best-effort --
+ * if the network call fails (offline, server down), we still clear
+ * cookies locally so the user isn't stuck unable to log out on this
+ * device, they just won't have revoked the token server-side.
+ */
+export async function logout() {
+  const access = getAccessToken();
+  const refresh = getRefreshToken();
+  if (access && refresh) {
+    try {
+      await fetch(`${API_BASE_URL}/api/accounts/logout/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${access}`,
+        },
+        body: JSON.stringify({ refresh }),
+      });
+    } catch {
+      // Network error -- fall through to clearing cookies anyway.
+    }
+  }
+  clearTokens();
+}
+
+/**
  * Wraps fetch() and attaches `Authorization: Bearer <access token>` from
  * cookies, if one is present. Use this for any endpoint that requires
  * a logged-in user (dashboard stats, approve/reject, teacher details,
@@ -101,9 +128,19 @@ export async function authFetch(path: string, options: RequestInit = {}) {
         body: JSON.stringify({ refresh }),
       });
       if (refreshRes.ok) {
-        const { access: newAccess } = await refreshRes.json();
+        const { access: newAccess, refresh: newRefresh } = await refreshRes.json();
         // Since we refresh, update the access token cookie
         Cookies.set("access_token", newAccess, cookieOptions());
+        // ROTATE_REFRESH_TOKENS is on server-side, so /api/token/refresh/
+        // always returns a new refresh token too, and blacklists the one
+        // we just used. Not storing it here would leave the stale
+        // (now-blacklisted) token in the cookie -- fine for this request,
+        // but the NEXT 401 would fail this same refresh step with "Token
+        // is blacklisted" instead of silently renewing, logging the user
+        // out mid-session for no visible reason.
+        if (newRefresh) {
+          Cookies.set("refresh_token", newRefresh, cookieOptions());
+        }
         headers.set("Authorization", `Bearer ${newAccess}`);
         return fetch(url, { ...options, headers });
       }

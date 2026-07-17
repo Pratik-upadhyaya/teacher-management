@@ -3,6 +3,7 @@ from rest_framework.decorators import api_view, permission_classes, throttle_cla
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.exceptions import TokenError
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
@@ -86,6 +87,28 @@ def login_user(request):
         "username": user.username,
         "role": user.role,
     })
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def logout_user(request):
+    """Blacklists the given refresh token so it can't be used again --
+    without this, logging out only cleared the cookie client-side; the
+    token itself stayed valid on the server for its full 7-day lifetime.
+    Matches whatever calls this with {"refresh": "<token>"}."""
+    refresh_str = request.data.get("refresh")
+    if not refresh_str:
+        return Response({"error": "Refresh token is required."}, status=400)
+
+    try:
+        token = RefreshToken(refresh_str)
+        token.blacklist()
+    except TokenError:
+        # Already invalid/expired/blacklisted -- logout still "succeeds"
+        # from the user's point of view, nothing further to revoke.
+        pass
+
+    return Response({"message": "Logged out."})
 
 
 @api_view(['POST'])

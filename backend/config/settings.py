@@ -63,6 +63,7 @@ INSTALLED_APPS = [
 
     # Third-party apps
     'rest_framework',
+    'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
 
     # Local apps
@@ -206,6 +207,12 @@ SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(hours=8),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'ROTATE_REFRESH_TOKENS': True,
+    # Without this, ROTATE_REFRESH_TOKENS alone doesn't actually invalidate
+    # the old token -- it just issues a new one alongside it. A leaked
+    # refresh token stayed valid for its full 7-day lifetime regardless.
+    # This, plus the token_blacklist app above, makes rotation (and the
+    # logout_user endpoint below) actually revoke tokens.
+    'BLACKLIST_AFTER_ROTATION': True,
 }
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
