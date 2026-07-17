@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { authFetch, fetchDocumentBlobUrl } from "@/lib/api";
+import { authFetch, fetchDocumentBlobUrl, logout } from "@/lib/api";
 import { Download, UserPlus, Trash2, X, Check, FileText } from "lucide-react";
 
 type Teacher = {
@@ -72,6 +72,12 @@ export default function AdminPage() {
   useEffect(() => {
     setIsAdmin(localStorage.getItem("user_role") === "admin");
   }, []);
+
+  async function handleLogout() {
+    await logout();
+    localStorage.removeItem("user_role");
+    router.push("/login");
+  }
 
   // If a sub-admin ever ends up on this tab (stale state, browser back
   // button, etc.) bounce them to the dashboard instead of showing a
@@ -489,7 +495,10 @@ export default function AdminPage() {
         </div>
 
         <div className="p-5">
-          <button className="w-full bg-red-500 hover:bg-red-600 py-3 rounded-xl font-semibold">
+          <button
+            onClick={handleLogout}
+            className="w-full bg-red-500 hover:bg-red-600 py-3 rounded-xl font-semibold"
+          >
             Logout
           </button>
         </div>
