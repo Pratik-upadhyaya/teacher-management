@@ -1378,7 +1378,7 @@ export default function RegisterPage() {
           </div>
         </div>
         <button className="text-white/80 text-sm border border-white/20 px-3 py-1 rounded-lg hover:bg-white/10 transition">
-          NP / EN
+          English / नेपाली
         </button>
       </nav>
 
