@@ -38,12 +38,7 @@ class Migration(migrations.Migration):
             model_name='teacher',
             name='tsc_number',
         ),
-        migrations.AddField(
-            model_name='teacher',
-            name='accumulatedLeave',
-            field=models.CharField(blank=True, max_length=20, null=True),
-        ),
-        migrations.AddField(
+         migrations.AddField(
             model_name='teacher',
             name='ageSixtyYear',
             field=models.CharField(blank=True, max_length=20, null=True),

@@ -52,8 +52,7 @@ class Teacher(models.Model):
     promotionDate = models.CharField(max_length=20, blank=True, null=True)
     qualification = models.CharField(max_length=100, blank=True, null=True)
     extraordinaryLeave = models.CharField(max_length=20, blank=True, null=True)
-    accumulatedLeave = models.CharField(max_length=20, blank=True, null=True)
-
+    
     # Remaining balance out of the 1095-day (3-year) career cap on
     # extraordinary leave, computed server-side at registration as
     # max(1095 - extraordinaryLeave, 0) -- see teachers/views.py. Never

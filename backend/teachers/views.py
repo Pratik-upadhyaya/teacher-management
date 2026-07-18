@@ -261,7 +261,6 @@ def teacher_detail(request, id):
         "qualification": teacher.qualification,
         "extraordinaryLeave": teacher.extraordinaryLeave,
         "extraordinaryLeaveRemaining": teacher.extraordinaryLeaveRemaining,
-        "accumulatedLeave": teacher.accumulatedLeave,
         "ageSixtyYear": teacher.ageSixtyYear,
 
         # DOCUMENTS (IMPORTANT: use .name)

@@ -1031,17 +1031,7 @@ function Step3({
           />
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Accumulated Leave till Chaitra <span className="text-gray-400 font-normal">/ चैतसम्मको संचित बि.बि.</span>
-          </label>
-          <NepaliNumberInput
-            value={data.accumulatedLeave}
-            onChange={(val: string) => onChange("accumulatedLeave", val)}
-            placeholder="०"
-            className={ic(errors, "accumulatedLeave")}
-          />
-        </div>
+       
       </div>
 
       <div>
@@ -1244,7 +1234,6 @@ function Step5({
             String(Math.max(1095 - (parseInt(nepaliToAscii(data.extraordinaryLeave || "0"), 10) || 0), 0))
           ),
         ],
-        ["Accumulated Leave / संचित बि.बि.", data.accumulatedLeave || "०"],
         ["Age 60 Year / ६० वर्ष", data.ageSixtyYear || "—"],
         ["Remarks / कैफियत", data.remarks || "—"],
       ],
@@ -1320,7 +1309,7 @@ export default function RegisterPage() {
     subject: "", level: "", grade: "", teacherType: "",
     // Step 3
     appointmentDate: "", promotionDate: "", qualification: "",
-    extraordinaryLeave: "", accumulatedLeave: "", ageSixtyYear: "", remarks: "",
+    extraordinaryLeave: "", ageSixtyYear: "", remarks: "",
     // Step 4
     citizenship: "", degree: "", transcript: "", teachingLicense: "", appointmentLetter: "",
   });
@@ -1366,7 +1355,6 @@ export default function RegisterPage() {
     payload.append("promotionDate", nepaliToAscii(formData.promotionDate));
     payload.append("qualification", formData.qualification);
     payload.append("extraordinaryLeave", nepaliToAscii(formData.extraordinaryLeave));
-    payload.append("accumulatedLeave", nepaliToAscii(formData.accumulatedLeave));
     payload.append("ageSixtyYear", nepaliToAscii(formData.ageSixtyYear));
     payload.append("remarks", formData.remarks);
 

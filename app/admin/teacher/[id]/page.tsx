@@ -48,7 +48,6 @@ type TeacherDetail = {
   qualification: string | null;
   extraordinaryLeave: string | null;
   extraordinaryLeaveRemaining: number | null;
-  accumulatedLeave: string | null;
   ageSixtyYear: string | null;
 
   // Raw storage-relative paths (e.g. "documents/xyz.jpg"), NOT full URLs --
@@ -366,7 +365,6 @@ export default function TeacherDetailPage() {
                   : null
               }
             />
-            <Field label="Accumulated Leave" value={teacher.accumulatedLeave} />
             <Field label="Age 60 Year" value={teacher.ageSixtyYear} />
           </div>
 
