@@ -7,6 +7,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from .models import Teacher
 from .serializers import TeacherSerializer
+from schools.models import School
 from accounts.permissions import IsAdminOrPrincipal
 from accounts.otp import is_verified, clear_verified
 
@@ -61,12 +62,26 @@ def teacher_list_create(request):
         serializer = TeacherSerializer(data=request.data)
 
         if serializer.is_valid():
-            serializer.save()
+            teacher = serializer.save()
+
+            # Soft-link to an existing School record if the entered EMIS
+            # code matches one -- best-effort, not required. A teacher can
+            # still register even if their school hasn't been set up in
+            # the system yet, or if they mistype the code; an admin can
+            # sort mismatches out later since schoolName/schoolEmisCode
+            # are preserved regardless.
+            emis = (request.data.get("schoolEmisCode") or "").strip()
+            if emis:
+                matched_school = School.objects.filter(emis_code=emis).first()
+                if matched_school:
+                    teacher.school = matched_school
+                    teacher.save(update_fields=["school"])
+
             # Consume the verification so it can't be reused for a second
             # application with the same email/phone.
             clear_verified("email", email)
             clear_verified("phone", phone)
-            return Response(serializer.data, status=201)
+            return Response(TeacherSerializer(teacher).data, status=201)
 
         return Response(serializer.errors, status=400)
 
@@ -214,6 +229,12 @@ def teacher_detail(request, id):
         "municipality": teacher.municipality,
         "wardNo": teacher.wardNo,
         "schoolName": teacher.schoolName,
+        "schoolEmisCode": teacher.schoolEmisCode,
+        "school": {
+            "id": teacher.school.id,
+            "school_name": teacher.school.school_name,
+            "emis_code": teacher.school.emis_code,
+        } if teacher.school else None,
         "tokenNo": teacher.tokenNo,
         "subject": teacher.subject,
         "level": teacher.level,

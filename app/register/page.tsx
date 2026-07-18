@@ -689,6 +689,11 @@ function Step2({
 
     validateNepaliOnly(data.schoolName, errs, "schoolName", "विद्यालयको नाम");
 
+    if (!data.schoolEmisCode.trim())
+      errs.schoolEmisCode = "ईमिस कोड आवश्यक छ";
+    else if (!/^[a-zA-Z0-9\-]+$/.test(data.schoolEmisCode))
+      errs.schoolEmisCode = "अक्षर, अंक र हाइफन मात्र";
+
     if (!data.tokenNo.trim())
       errs.tokenNo = "संकेत नं आवश्यक छ";
     else if (!/^[a-zA-Z0-9\-]+$/.test(data.tokenNo))
@@ -780,6 +785,19 @@ function Step2({
           className={ic(errors, "schoolName")}
         />
         <FieldError msg={errors.schoolName} />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          School EMIS Code <span className="text-gray-400 font-normal">/ विद्यालय ईमिस कोड</span>
+        </label>
+        <input
+          value={data.schoolEmisCode}
+          onChange={(e) => { onChange("schoolEmisCode", e.target.value); setErrors((p) => ({ ...p, schoolEmisCode: "" })); }}
+          placeholder="e.g. 27401001"
+          className={ic(errors, "schoolEmisCode")}
+        />
+        <FieldError msg={errors.schoolEmisCode} />
       </div>
 
       <div>
@@ -1190,6 +1208,7 @@ function Step5({
         ["Municipality / नगरपालिका", municipalityLabel],
         ["Ward No. / वडा नं (विद्यालय)", data.wardNo],
         ["School / विद्यालय", data.schoolName],
+        ["School EMIS Code / ईमिस कोड", data.schoolEmisCode],
         ["Code No. / संकेत नं", data.tokenNo],
         ["Subject / विषय", data.subject],
         ["Level / तह", levelLabels[data.level] || data.level],
@@ -1276,7 +1295,7 @@ export default function RegisterPage() {
     dob: "", phone: "", email: "", password: "", confirmPassword: "",
     emailVerified: false, phoneVerified: false,
     // Step 2
-    district: "", municipality: "", wardNo: "", schoolName: "", tokenNo: "",
+    district: "", municipality: "", wardNo: "", schoolName: "", schoolEmisCode: "", tokenNo: "",
     subject: "", level: "", grade: "", teacherType: "",
     // Step 3
     appointmentDate: "", promotionDate: "", qualification: "",
@@ -1314,6 +1333,7 @@ export default function RegisterPage() {
     payload.append("municipality", formData.municipality);
     payload.append("wardNo", nepaliToAscii(formData.wardNo));
     payload.append("schoolName", formData.schoolName);
+    payload.append("schoolEmisCode", formData.schoolEmisCode);
     payload.append("tokenNo", formData.tokenNo);
     payload.append("subject", formData.subject);
     payload.append("level", formData.level);

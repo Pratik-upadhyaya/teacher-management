@@ -35,6 +35,8 @@ type TeacherDetail = {
   municipality: string | null;
   wardNo: string | null;
   schoolName: string | null;
+  schoolEmisCode: string | null;
+  school: { id: number; school_name: string; emis_code: string } | null;
   tokenNo: string | null;
   subject: string | null;
   level: string | null;
@@ -332,6 +334,19 @@ export default function TeacherDetailPage() {
             <Field label="Municipality" value={teacher.municipality} />
             <Field label="School Ward No" value={teacher.wardNo} />
             <Field label="School Name" value={teacher.schoolName} />
+            <Field label="School EMIS Code" value={teacher.schoolEmisCode} />
+            <div>
+              <p className="text-xs text-gray-400">School Record</p>
+              {teacher.school ? (
+                <p className="text-sm font-medium text-green-700">
+                  ✓ Matched — {teacher.school.school_name}
+                </p>
+              ) : (
+                <p className="text-sm font-medium text-amber-600">
+                  ⚠ No matching school found
+                </p>
+              )}
+            </div>
             <Field label="Level" value={teacher.level} />
             <Field label="Grade" value={teacher.grade} />
             <Field label="Teacher Type" value={teacher.teacherType} />

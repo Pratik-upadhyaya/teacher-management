@@ -22,6 +22,23 @@ class Teacher(models.Model):
     municipality = models.CharField(max_length=100, blank=True, null=True)
     wardNo = models.CharField(max_length=10, blank=True, null=True)
     schoolName = models.CharField(max_length=255, blank=True, null=True)
+    schoolEmisCode = models.CharField(max_length=50, blank=True, null=True)
+
+    # Soft link to the actual School record, resolved server-side by
+    # matching schoolEmisCode against School.emis_code at registration time
+    # (see teachers/views.py). Nullable/SET_NULL on purpose -- a teacher
+    # can register before their school exists in the system yet, or type
+    # an EMIS code that doesn't match anything (typo, unregistered school).
+    # schoolName/schoolEmisCode above remain the source of truth for what
+    # the applicant actually entered; this FK is a best-effort resolution
+    # of that, not a replacement for it.
+    school = models.ForeignKey(
+        'schools.School',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='teachers',
+    )
     tokenNo = models.CharField(max_length=100, blank=True, null=True)
     subject = models.CharField(max_length=100, blank=True, null=True)
     level = models.CharField(max_length=100, blank=True, null=True)
