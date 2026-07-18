@@ -260,15 +260,7 @@ export default function LeavesPage() {
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {summary.map((row) => {
-            // For career-long (is_lifetime) types like Extraordinary Leave,
-            // the meaningful "quota" is this teacher's own baseline balance
-            // (used_days + remaining_days, computed server-side from their
-            // registration-time entry) -- NOT leave_type.annual_quota_days,
-            // which is just the shared 1095-day absolute cap and would make
-            // an individual teacher's bar look misleadingly empty.
-            const quota = row.leave_type.is_lifetime
-              ? row.used_days + row.remaining_days
-              : row.leave_type.annual_quota_days;
+            const quota = row.leave_type.annual_quota_days;
             const pct = quota > 0 ? Math.min((row.used_days / quota) * 100, 100) : 0;
             const isFull = row.remaining_days <= 0;
             return (

@@ -9,6 +9,10 @@ from teachers.models import Teacher
 from .models import LeaveApplication, LeaveType
 from .serializers import LeaveApplicationSerializer, LeaveTypeSerializer
 
+# Keep in sync with teachers/views.py's registration-time computation of
+# Teacher.extraordinaryLeaveRemaining.
+EXTRAORDINARY_LEAVE_CAP_DAYS = 1095
+
 
 def _teacher_for(request):
     return Teacher.objects.filter(email=request.user.email).first()
@@ -54,22 +58,23 @@ def my_leave_summary(request):
     for leave_type in LeaveType.objects.filter(is_active=True):
         if leave_type.is_lifetime:
             # Career-long types (currently just Extraordinary Leave): the
-            # quota does NOT reset every year, so usage is summed across
-            # every year the teacher has applied through this app. The
-            # actual per-teacher allowance comes from the teacher's own
-            # remaining balance -- set once at registration from whatever
-            # they'd already taken before joining this system (see
-            # teachers/views.py) -- not from this leave type's shared
-            # annual_quota_days, which is just the absolute 1095-day cap.
-            used = sum(
+            # quota does NOT reset every year, so app-tracked usage is
+            # summed across every year. "used" also folds in whatever the
+            # teacher had already taken *before* registering into this
+            # system -- derived from their registration-time
+            # extraordinaryLeaveRemaining (see teachers/views.py) -- so the
+            # figure shown is their real career total, not just what's
+            # been logged through this app since.
+            app_used = sum(
                 leave_type.applications.filter(teacher=teacher).values_list('days_count', flat=True)
             )
-            baseline = (
-                teacher.extraordinaryLeaveRemaining
-                if leave_type.name == "Extraordinary Leave"
-                else leave_type.annual_quota_days
-            )
-            remaining = max(baseline - used, 0)
+            if leave_type.name == "Extraordinary Leave":
+                pre_registration_used = EXTRAORDINARY_LEAVE_CAP_DAYS - teacher.extraordinaryLeaveRemaining
+                used = pre_registration_used + app_used
+                remaining = max(teacher.extraordinaryLeaveRemaining - app_used, 0)
+            else:
+                used = app_used
+                remaining = max(leave_type.annual_quota_days - app_used, 0)
         else:
             used = sum(
                 leave_type.applications.filter(teacher=teacher, year=year).values_list('days_count', flat=True)
