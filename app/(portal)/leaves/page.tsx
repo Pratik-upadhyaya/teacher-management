@@ -46,6 +46,13 @@ type LeaveApplication = {
   created_at: string;
 };
 
+// Leave applications may only report dates from 1 Chaitra 2082 BS onward,
+// up to 6 years after that. Kept in sync with backend/leaves/views.py's
+// MIN_LEAVE_DATE / MAX_LEAVE_DATE -- see that file's comment on why this
+// is a hardcoded AD equivalent rather than a computed BS conversion.
+const MIN_LEAVE_DATE = "2026-03-15"; // 1 Chaitra 2082 BS
+const MAX_LEAVE_DATE = "2032-03-15"; // MIN_LEAVE_DATE + 6 years
+
 function formatDate(iso: string) {
   return new Date(iso + "T00:00:00").toLocaleDateString("en-US", {
     year: "numeric",
@@ -162,6 +169,14 @@ export default function LeavesPage() {
     }
     if (endDate < startDate) {
       setFormError("End date cannot be before start date.");
+      return;
+    }
+    if (startDate < MIN_LEAVE_DATE || endDate < MIN_LEAVE_DATE) {
+      setFormError(`Leave dates must be on or after ${formatDate(MIN_LEAVE_DATE)}.`);
+      return;
+    }
+    if (startDate > MAX_LEAVE_DATE || endDate > MAX_LEAVE_DATE) {
+      setFormError(`Leave dates must be on or before ${formatDate(MAX_LEAVE_DATE)}.`);
       return;
     }
     if (!file) {
@@ -383,6 +398,8 @@ export default function LeavesPage() {
                   <input
                     type="date"
                     value={startDate}
+                    min={MIN_LEAVE_DATE}
+                    max={MAX_LEAVE_DATE}
                     onChange={(e) => setStartDate(e.target.value)}
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#0f2044]"
                   />
@@ -392,11 +409,16 @@ export default function LeavesPage() {
                   <input
                     type="date"
                     value={endDate}
+                    min={MIN_LEAVE_DATE}
+                    max={MAX_LEAVE_DATE}
                     onChange={(e) => setEndDate(e.target.value)}
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#0f2044]"
                   />
                 </div>
               </div>
+              <p className="text-xs text-gray-400">
+                Only dates from {formatDate(MIN_LEAVE_DATE)} onward can be reported.
+              </p>
 
               {selectedDays > 0 && (
                 <p className="text-xs text-gray-400">

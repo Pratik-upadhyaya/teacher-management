@@ -13,6 +13,15 @@ from .serializers import LeaveApplicationSerializer, LeaveTypeSerializer
 # Teacher.extraordinaryLeaveRemaining.
 EXTRAORDINARY_LEAVE_CAP_DAYS = 1095
 
+# Leave applications may only report dates from 1 Chaitra 2082 BS onward
+# (the most recent Chaitra as of this rollout), up to 6 years after that.
+# NOTE: there's no BS<->AD conversion library in this codebase, so this is
+# a hardcoded AD equivalent rather than a computed one. It will need to be
+# manually bumped in a future year if "this year's Chaitra" should mean a
+# later Chaitra by then -- it does NOT auto-advance.
+MIN_LEAVE_DATE = date(2026, 3, 15)   # 1 Chaitra 2082 BS
+MAX_LEAVE_DATE = date(2032, 3, 15)   # MIN_LEAVE_DATE + 6 years
+
 
 def _teacher_for(request):
     return Teacher.objects.filter(email=request.user.email).first()
@@ -126,6 +135,15 @@ def my_leave_applications(request):
 
     if end_date < start_date:
         return Response({"error": "End date cannot be before start date."}, status=400)
+
+    if start_date < MIN_LEAVE_DATE or end_date < MIN_LEAVE_DATE:
+        return Response({
+            "error": f"Leave dates must be on or after {MIN_LEAVE_DATE.isoformat()} (1 Chaitra)."
+        }, status=400)
+    if start_date > MAX_LEAVE_DATE or end_date > MAX_LEAVE_DATE:
+        return Response({
+            "error": f"Leave dates must be on or before {MAX_LEAVE_DATE.isoformat()}."
+        }, status=400)
 
     days_count = (end_date - start_date).days + 1
 
