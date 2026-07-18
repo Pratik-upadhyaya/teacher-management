@@ -437,8 +437,6 @@ function Step1({
       errs.phone = "फोन नम्बर आवश्यक छ";
     else if (!/^(98|97)\d{8}$/.test(asciiPhone))
       errs.phone = "मान्य नेपाली नम्बर (९८/९७XXXXXXXX)";
-    else if (!data.phoneVerified)
-      errs.phone = "कृपया फोन नम्बर प्रमाणित गर्नुहोस् (Please verify your phone number)";
 
     if (!data.email.trim()) {
       errs.email = "इमेल आवश्यक छ";
@@ -446,8 +444,16 @@ function Step1({
       !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email.trim())
     ) {
     errs.email = "मान्य इमेल ठेगाना प्रविष्ट गर्नुहोस्";
-    } else if (!data.emailVerified) {
-      errs.email = "कृपया इमेल प्रमाणित गर्नुहोस् (Please verify your email)";
+    }
+
+    // Only one of email/phone needs to be verified, not both -- an
+    // applicant may not have reliable access to whichever channel isn't
+    // theirs (shared/unused phone, no personal email). Only flag this if
+    // neither is verified yet, and only once both fields are otherwise
+    // valid (no point demanding verification of a malformed number).
+    if (!errs.phone && !errs.email && !data.phoneVerified && !data.emailVerified) {
+      errs.phone = "कृपया फोन वा इमेल मध्ये कम्तीमा एउटा प्रमाणित गर्नुहोस् (Please verify at least one of phone or email)";
+      errs.email = "कृपया फोन वा इमेल मध्ये कम्तीमा एउटा प्रमाणित गर्नुहोस् (Please verify at least one of phone or email)";
     }
 
     if (!data.password)
@@ -586,6 +592,9 @@ function Step1({
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
           Email Address <span className="text-gray-400 font-normal">/ इमेल ठेगाना</span>
+          <span className="text-gray-400 font-normal text-xs ml-2">
+            (verifying phone <em>or</em> email is enough / फोन वा इमेल मध्ये एउटा प्रमाणित गरे पुग्छ)
+          </span>
         </label>
         <div className="flex items-start gap-2">
           <div className="flex-1">

@@ -48,14 +48,15 @@ def teacher_list_create(request):
         # accounts/otp.py) once the applicant confirms the code sent to
         # each. Without this check, someone hitting this endpoint
         # directly could skip verification entirely.
-        if not is_verified("email", email):
+        #
+        # Only one of email/phone needs to be verified, not both --
+        # applicants may not reliably have working access to whichever
+        # channel isn't theirs (e.g. a shared/unused phone number, or no
+        # personal email), so this is an "either" requirement rather than
+        # "and".
+        if not is_verified("email", email) and not is_verified("phone", phone):
             return Response(
-                {"error": "Please verify your email address before submitting."},
-                status=400,
-            )
-        if not is_verified("phone", phone):
-            return Response(
-                {"error": "Please verify your phone number before submitting."},
+                {"error": "Please verify your email address or phone number before submitting."},
                 status=400,
             )
 
