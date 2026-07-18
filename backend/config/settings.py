@@ -71,6 +71,7 @@ INSTALLED_APPS = [
     'schools',
     'teachers',
     'documents',
+    'leaves',
     'dashboard',
     'audit_logs',
     

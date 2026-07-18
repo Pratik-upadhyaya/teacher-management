@@ -53,6 +53,15 @@ class Teacher(models.Model):
     qualification = models.CharField(max_length=100, blank=True, null=True)
     extraordinaryLeave = models.CharField(max_length=20, blank=True, null=True)
     accumulatedLeave = models.CharField(max_length=20, blank=True, null=True)
+
+    # Remaining balance out of the 1095-day (3-year) career cap on
+    # extraordinary leave, computed server-side at registration as
+    # max(1095 - extraordinaryLeave, 0) -- see teachers/views.py. Never
+    # client-writable (see TeacherSerializer's extra_kwargs). Existing
+    # records from before this field existed default to 0 rather than
+    # trying to backfill a number from potentially inconsistent old data;
+    # an admin can correct individual records via Django admin if needed.
+    extraordinaryLeaveRemaining = models.PositiveIntegerField(default=0)
     ageSixtyYear = models.CharField(max_length=20, blank=True, null=True)
     remarks = models.TextField(blank=True, null=True)
 

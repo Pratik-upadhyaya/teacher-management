@@ -10,6 +10,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from accounts.permissions import IsAdminOrPrincipal
+from leaves.models import LeaveApplication
 from teachers.models import Teacher
 from .file_processing import DocumentValidationError, process_document_upload
 from .models import DocumentChangeRequest
@@ -166,8 +167,11 @@ def serve_document(request, path):
     owner_teacher = None
 
     change_request = DocumentChangeRequest.objects.filter(file=path).select_related("teacher").first()
+    leave_application = LeaveApplication.objects.filter(document=path).select_related("teacher").first()
     if change_request:
         owner_teacher = change_request.teacher
+    elif leave_application:
+        owner_teacher = leave_application.teacher
     else:
         for field_name in TEACHER_DOCUMENT_FIELDS:
             match = Teacher.objects.filter(**{field_name: path}).first()

@@ -1002,17 +1002,32 @@ function Step3({
         <FieldError msg={errors.qualification} />
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Extraordinary Leave <span className="text-gray-400 font-normal">/ असाधारण बिदा</span>
-            <span className="text-gray-400 font-normal text-xs ml-1">(days / optional)</span>
+            Extraordinary Leave Taken <span className="text-gray-400 font-normal">/ लिइसकेको असाधारण बिदा</span>
+            <span className="text-gray-400 font-normal text-xs ml-1">(days before this year / optional)</span>
           </label>
           <NepaliNumberInput
             value={data.extraordinaryLeave}
             onChange={(val: string) => onChange("extraordinaryLeave", val)}
             placeholder="०"
             className={ic(errors, "extraordinaryLeave")}
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Extraordinary Leave Remaining <span className="text-gray-400 font-normal">/ बाँकी असाधारण बिदा</span>
+            <span className="text-gray-400 font-normal text-xs ml-1">(auto-calculated, out of 3 years)</span>
+          </label>
+          <input
+            value={toNepaliDigits(
+              String(Math.max(1095 - (parseInt(nepaliToAscii(data.extraordinaryLeave || "0"), 10) || 0), 0))
+            )}
+            readOnly
+            disabled
+            className="w-full border border-gray-200 bg-gray-50 text-gray-500 rounded-lg px-3 py-2 text-sm cursor-not-allowed"
           />
         </div>
 
@@ -1222,7 +1237,13 @@ function Step5({
         ["Appointment Date / नियुक्ती मिति", data.appointmentDate],
         ["Promotion Date / बढुवा मिति", data.promotionDate || "—"],
         ["Qualification / योग्यता", qualLabels[data.qualification] || data.qualification],
-        ["Extraordinary Leave / असाधारण बिदा", data.extraordinaryLeave || "०"],
+        ["Extraordinary Leave Taken / लिइसकेको असाधारण बिदा", data.extraordinaryLeave || "०"],
+        [
+          "Extraordinary Leave Remaining / बाँकी असाधारण बिदा",
+          toNepaliDigits(
+            String(Math.max(1095 - (parseInt(nepaliToAscii(data.extraordinaryLeave || "0"), 10) || 0), 0))
+          ),
+        ],
         ["Accumulated Leave / संचित बि.बि.", data.accumulatedLeave || "०"],
         ["Age 60 Year / ६० वर्ष", data.ageSixtyYear || "—"],
         ["Remarks / कैफियत", data.remarks || "—"],

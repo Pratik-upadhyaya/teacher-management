@@ -21,6 +21,10 @@ class TeacherSerializer(serializers.ModelSerializer):
             # teacher could POST an arbitrary `school` id and claim to
             # belong to any school regardless of their entered EMIS code.
             'school': {'read_only': True},
+            # Server-computed only at registration (1095 minus the entered
+            # extraordinaryLeave value, floored at 0) -- see
+            # teachers/views.py. Never client-writable.
+            'extraordinaryLeaveRemaining': {'read_only': True},
         }
 
     def get_school_detail(self, obj):

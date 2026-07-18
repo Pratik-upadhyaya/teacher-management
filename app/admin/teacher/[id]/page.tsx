@@ -47,6 +47,7 @@ type TeacherDetail = {
   promotionDate: string | null;
   qualification: string | null;
   extraordinaryLeave: string | null;
+  extraordinaryLeaveRemaining: number | null;
   accumulatedLeave: string | null;
   ageSixtyYear: string | null;
 
@@ -357,6 +358,14 @@ export default function TeacherDetailPage() {
             <Field label="Promotion Date" value={teacher.promotionDate} />
             <Field label="Qualification" value={teacher.qualification} />
             <Field label="Extraordinary Leave" value={teacher.extraordinaryLeave} />
+            <Field
+              label="Extraordinary Leave Remaining"
+              value={
+                teacher.extraordinaryLeaveRemaining !== null && teacher.extraordinaryLeaveRemaining !== undefined
+                  ? `${teacher.extraordinaryLeaveRemaining} of 1095 days`
+                  : null
+              }
+            />
             <Field label="Accumulated Leave" value={teacher.accumulatedLeave} />
             <Field label="Age 60 Year" value={teacher.ageSixtyYear} />
           </div>

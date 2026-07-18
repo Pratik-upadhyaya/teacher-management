@@ -10,12 +10,14 @@ import {
   School,
   Menu,
   X,
+  CalendarDays,
 } from "lucide-react";
 import { getAccessToken, logout } from "@/lib/api";
 
 const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/documents", label: "Documents", icon: FileText },
+  { href: "/leaves", label: "Holidays", icon: CalendarDays },
   { href: "/profile", label: "Profile", icon: User },
 ];
 

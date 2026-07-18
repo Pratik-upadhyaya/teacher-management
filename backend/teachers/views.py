@@ -77,6 +77,20 @@ def teacher_list_create(request):
                     teacher.school = matched_school
                     teacher.save(update_fields=["school"])
 
+            # Server-computed remaining balance on the 1095-day (3-year)
+            # career cap for extraordinary leave: 1095 minus whatever the
+            # applicant entered as already taken before this year, floored
+            # at 0. Deliberately recomputed here rather than trusting any
+            # client-sent value -- matches extraordinaryLeaveRemaining
+            # being read-only on the serializer.
+            EXTRAORDINARY_LEAVE_CAP_DAYS = 1095
+            try:
+                taken = int((request.data.get("extraordinaryLeave") or "0").strip() or 0)
+            except (TypeError, ValueError):
+                taken = 0
+            teacher.extraordinaryLeaveRemaining = max(EXTRAORDINARY_LEAVE_CAP_DAYS - taken, 0)
+            teacher.save(update_fields=["extraordinaryLeaveRemaining"])
+
             # Consume the verification so it can't be reused for a second
             # application with the same email/phone.
             clear_verified("email", email)
@@ -246,6 +260,7 @@ def teacher_detail(request, id):
         "promotionDate": teacher.promotionDate,
         "qualification": teacher.qualification,
         "extraordinaryLeave": teacher.extraordinaryLeave,
+        "extraordinaryLeaveRemaining": teacher.extraordinaryLeaveRemaining,
         "accumulatedLeave": teacher.accumulatedLeave,
         "ageSixtyYear": teacher.ageSixtyYear,
 
