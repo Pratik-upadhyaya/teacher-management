@@ -91,8 +91,10 @@ def send_email_otp(email: str, code: str) -> None:
     send_mail(
         subject="Your Teacher Portal verification code",
         message=(
+            f"Hello, new Teacher!\n\n"
             f"Your verification code is: {code}\n\n"
-            f"This code expires in {OTP_TTL_SECONDS // 60} minutes."
+            f"This code expires in {OTP_TTL_SECONDS // 60} minutes.\n\n"
+            f"If you did not request this code, please ignore this email."
         ),
         from_email=settings.DEFAULT_FROM_EMAIL,
         recipient_list=[email],

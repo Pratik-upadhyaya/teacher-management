@@ -50,6 +50,7 @@ EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True') == 'True'
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'noreply@teacherportal.local')
 
 
+
 # =========================
 # APPLICATIONS
 # =========================
