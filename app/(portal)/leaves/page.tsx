@@ -61,6 +61,26 @@ function formatDate(iso: string) {
   });
 }
 
+
+function todayIso() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+// Explicitly picking a default date (rather than leaving the field empty)
+// avoids relying on the browser's own default-highlight behavior in the
+// native date picker, which is inconsistent across browsers/OSes and was
+// showing up as an unexpected date on open.
+function defaultLeaveDate() {
+  const today = todayIso();
+  if (today < MIN_LEAVE_DATE) return MIN_LEAVE_DATE;
+  if (today > MAX_LEAVE_DATE) return MAX_LEAVE_DATE;
+  return today;
+}
+
 export default function LeavesPage() {
   const currentYear = new Date().getFullYear();
 
@@ -111,8 +131,9 @@ export default function LeavesPage() {
   function openModal() {
     setFormError("");
     setLeaveTypeId(summary[0]?.leave_type.id ?? "");
-    setStartDate("");
-    setEndDate("");
+    const initial = defaultLeaveDate();
+    setStartDate(initial);
+    setEndDate(initial);
     setReason("");
     setFile(null);
     setModalOpen(true);
