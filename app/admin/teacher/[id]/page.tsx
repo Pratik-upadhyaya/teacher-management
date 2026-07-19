@@ -21,6 +21,40 @@ type DocKey =
   | "teachingLicense"
   | "appointmentLetter";
 
+type LeaveSummaryRow = {
+  leave_type: {
+    id: number;
+    name: string;
+    name_np: string | null;
+    annual_quota_days: number;
+    is_lifetime: boolean;
+  };
+  used_days: number;
+  remaining_days: number;
+  year: number;
+};
+
+type LeaveApplicationRow = {
+  id: number;
+  leave_type: number;
+  leave_type_detail: LeaveSummaryRow["leave_type"];
+  start_date: string;
+  end_date: string;
+  days_count: number;
+  year: number;
+  reason: string;
+  // Already a ready-to-use "/media/..." path (unlike the Teacher document
+  // fields below, which are raw storage-relative paths) -- can be passed
+  // straight to fetchDocumentBlobUrl.
+  document: string;
+  created_at: string;
+};
+
+type LeaveOverview = {
+  summary: LeaveSummaryRow[];
+  applications: LeaveApplicationRow[];
+};
+
 type TeacherDetail = {
   id: number;
   name: string;
@@ -93,6 +127,11 @@ export default function TeacherDetailPage() {
   const [busyDocKey, setBusyDocKey] = useState<DocKey | null>(null);
   const [docError, setDocError] = useState("");
 
+  const [leaveOverview, setLeaveOverview] = useState<LeaveOverview | null>(null);
+  const [leaveLoading, setLeaveLoading] = useState(true);
+  const [leaveError, setLeaveError] = useState("");
+  const [busyLeaveId, setBusyLeaveId] = useState<number | null>(null);
+
   const [reviewBusy, setReviewBusy] = useState(false);
   const [reviewError, setReviewError] = useState("");
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
@@ -119,9 +158,27 @@ export default function TeacherDetailPage() {
       .catch((err) => setError(err.message || "Failed to load teacher."));
   }
 
+  function fetchLeaveOverview() {
+    if (!id) return;
+    return authFetch(`/api/leaves/teacher/${id}/`)
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to load holiday records.");
+        return res.json();
+      })
+      .then((data) => {
+        setLeaveOverview(data);
+        setLeaveError("");
+      })
+      .catch((err) =>
+        setLeaveError(err.message || "Failed to load holiday records.")
+      );
+  }
+
   useEffect(() => {
     setLoading(true);
     Promise.resolve(fetchTeacher()).finally(() => setLoading(false));
+    setLeaveLoading(true);
+    Promise.resolve(fetchLeaveOverview()).finally(() => setLeaveLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
@@ -199,6 +256,35 @@ export default function TeacherDetailPage() {
     } finally {
       setBusyDocKey(null);
     }
+  }
+
+  // Leave application documents are already full "/media/..." paths (see
+  // LeaveApplicationSerializer), unlike the Teacher document fields above
+  // which are raw storage-relative paths needing a manual "/media/" prefix
+  // -- so this passes straight through instead of calling `/media/${...}`.
+  async function viewLeaveDocument(leaveId: number, mediaPath: string) {
+    if (!mediaPath) return;
+    setLeaveError("");
+    setBusyLeaveId(leaveId);
+    try {
+      const blobUrl = await fetchDocumentBlobUrl(mediaPath);
+      window.open(blobUrl, "_blank", "noopener,noreferrer");
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+    } catch (err) {
+      setLeaveError(
+        err instanceof Error ? err.message : "Could not load this document."
+      );
+    } finally {
+      setBusyLeaveId(null);
+    }
+  }
+
+  function formatLeaveDate(iso: string) {
+    return new Date(iso + "T00:00:00").toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
   }
 
   if (loading) {
@@ -422,6 +508,92 @@ export default function TeacherDetailPage() {
               );
             })}
           </div>
+        </div>
+
+        {/* Holidays Card -- read-only: self-reported leave has no in-app
+            review step by design, this is visibility only for admins. */}
+        <div className="bg-white rounded-2xl shadow p-6 mt-6 print:shadow-none print:border print:border-gray-200 print:mt-4">
+          <h2 className="text-lg font-bold text-[#0f2044] mb-4">Holidays</h2>
+
+          {leaveLoading && (
+            <p className="text-sm text-gray-400">Loading holiday records…</p>
+          )}
+
+          {!leaveLoading && leaveError && (
+            <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-lg px-4 py-3 print:hidden">
+              {leaveError}
+            </div>
+          )}
+
+          {!leaveLoading && !leaveError && leaveOverview && (
+            <>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+                {leaveOverview.summary.map((row) => (
+                  <div
+                    key={row.leave_type.id}
+                    className="bg-[#f7f9fc] rounded-xl p-3 print:border print:border-gray-200"
+                  >
+                    <p className="text-xs text-gray-500 truncate" title={row.leave_type.name}>
+                      {row.leave_type.name}
+                    </p>
+                    <p className="text-sm font-bold text-[#0f2044] mt-0.5">
+                      {row.used_days}{" "}
+                      <span className="font-normal text-gray-400">
+                        of {row.leave_type.annual_quota_days}
+                      </span>
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              {leaveOverview.applications.length === 0 ? (
+                <p className="text-sm text-gray-400">
+                  No leave applications submitted yet.
+                </p>
+              ) : (
+                <div className="divide-y">
+                  {leaveOverview.applications.map((app) => {
+                    const busy = busyLeaveId === app.id;
+                    return (
+                      <div
+                        key={app.id}
+                        className="py-4 flex items-start justify-between gap-4"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-gray-800">
+                            {app.leave_type_detail.name}
+                            {app.leave_type_detail.name_np && (
+                              <span className="text-gray-400 font-normal">
+                                {" "}
+                                / {app.leave_type_detail.name_np}
+                              </span>
+                            )}
+                          </p>
+                          <p className="text-xs text-gray-400 mt-0.5">
+                            {formatLeaveDate(app.start_date)} – {formatLeaveDate(app.end_date)} ·{" "}
+                            {app.days_count} day{app.days_count === 1 ? "" : "s"}
+                          </p>
+                          {app.reason && (
+                            <p className="text-xs text-gray-500 mt-1 truncate" title={app.reason}>
+                              {app.reason}
+                            </p>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => viewLeaveDocument(app.id, app.document)}
+                          disabled={busy}
+                          className="flex items-center gap-1.5 px-3 py-2 bg-gray-50 hover:bg-gray-100 text-[#0f2044] rounded-lg text-xs font-semibold disabled:opacity-60 transition shrink-0 print:hidden"
+                        >
+                          <ExternalLink size={13} />
+                          {busy ? "Opening…" : "View Document"}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          )}
         </div>
       </div>
 

@@ -1,9 +1,11 @@
 from datetime import date
 
+from django.shortcuts import get_object_or_404
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from accounts.permissions import IsAdminOrPrincipal
 from documents.file_processing import DocumentValidationError, process_document_upload
 from teachers.models import Teacher
 from .models import LeaveApplication, LeaveType
@@ -36,33 +38,10 @@ def _parse_date(value, field_label):
         raise ValueError(f"{field_label} must be a valid date (YYYY-MM-DD).")
 
 
-# =========================
-# TEACHER-FACING
-# =========================
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def leave_type_list(request):
-    """Active leave categories a teacher can apply against, e.g. Sick
-    Leave, Home Leave -- each with its annual day quota."""
-    types = LeaveType.objects.filter(is_active=True)
-    return Response(LeaveTypeSerializer(types, many=True).data)
-
-
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def my_leave_summary(request):
-    """Per leave-type quota usage for the requesting teacher, for a given
-    calendar year (?year=2026, defaults to the current year). Used to show
-    'X of Y days used' on the Holidays page before/while applying."""
-    teacher = _teacher_for(request)
-    if not teacher:
-        return Response({"error": "No teacher profile linked to this account."}, status=404)
-
-    try:
-        year = int(request.GET.get('year', date.today().year))
-    except ValueError:
-        return Response({"error": "Invalid year."}, status=400)
-
+def _leave_summary_for_teacher(teacher, year):
+    """Per leave-type quota usage for a given teacher/year. Shared by the
+    teacher-facing my_leave_summary and the admin-facing teacher_leave_overview
+    so the two never drift out of sync."""
     summary = []
     for leave_type in LeaveType.objects.filter(is_active=True):
         if leave_type.is_lifetime:
@@ -96,7 +75,37 @@ def my_leave_summary(request):
             "remaining_days": remaining,
             "year": year,
         })
-    return Response(summary)
+    return summary
+
+
+# =========================
+# TEACHER-FACING
+# =========================
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def leave_type_list(request):
+    """Active leave categories a teacher can apply against, e.g. Sick
+    Leave, Home Leave -- each with its annual day quota."""
+    types = LeaveType.objects.filter(is_active=True)
+    return Response(LeaveTypeSerializer(types, many=True).data)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def my_leave_summary(request):
+    """Per leave-type quota usage for the requesting teacher, for a given
+    calendar year (?year=2026, defaults to the current year). Used to show
+    'X of Y days used' on the Holidays page before/while applying."""
+    teacher = _teacher_for(request)
+    if not teacher:
+        return Response({"error": "No teacher profile linked to this account."}, status=404)
+
+    try:
+        year = int(request.GET.get('year', date.today().year))
+    except ValueError:
+        return Response({"error": "Invalid year."}, status=400)
+
+    return Response(_leave_summary_for_teacher(teacher, year))
 
 
 @api_view(['GET', 'POST'])
@@ -166,3 +175,30 @@ def my_leave_applications(request):
         document=processed_file,
     )
     return Response(LeaveApplicationSerializer(leave).data, status=201)
+
+
+# =========================
+# ADMIN-FACING
+# =========================
+@api_view(['GET'])
+@permission_classes([IsAdminOrPrincipal])
+def teacher_leave_overview(request, teacher_id):
+    """Read-only admin/principal/sub-admin view of a specific teacher's
+    leave quota usage plus their full application history (including the
+    document path for each, served the same auth-gated way as everywhere
+    else -- see documents/views.py's serve_document, which already allows
+    any reviewer role, not just the owning teacher). Used on the teacher
+    profile page. No approve/reject action here -- self-reported leave has
+    no in-app review step by design, this is visibility only."""
+    teacher = get_object_or_404(Teacher, id=teacher_id)
+
+    try:
+        year = int(request.GET.get('year', date.today().year))
+    except ValueError:
+        return Response({"error": "Invalid year."}, status=400)
+
+    applications = teacher.leave_applications.select_related('leave_type').order_by('-start_date')
+    return Response({
+        "summary": _leave_summary_for_teacher(teacher, year),
+        "applications": LeaveApplicationSerializer(applications, many=True).data,
+    })
