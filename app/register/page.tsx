@@ -443,7 +443,7 @@ function Step1({
     const errs: Record<string, string> = {};
 
     validateNepaliOnly(data.name, errs, "name", "शिक्षकको नाम");
-    validateNepaliOnly(data.fatherName, errs, "fatherName", "बाबुको नाम");
+    validateNepaliOnly(data.fatherName, errs, "fatherName", "बुवाको नाम");
 
     if (!data.nameEnglish.trim())
       errs.nameEnglish = "अंग्रेजीमा नाम आवश्यक छ (Name in English is required)";
@@ -485,7 +485,7 @@ function Step1({
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Father's Name <span className="text-gray-400 font-normal">/ बाबुको नाम</span>
+            Father's Name <span className="text-gray-400 font-normal">/ बुवाको नाम</span>
           </label>
           <NepaliInput
             value={data.fatherName}
@@ -1316,9 +1316,9 @@ function Step5({
     {
       title: "Personal Info / व्यक्तिगत",
       rows: [
-        ["Teacher's Name / शिक्षकको नाम", data.name],
+        ["Teacher's Name / शिक्षकको नाम", data.name,
         ["Name (English)", data.nameEnglish],
-        ["Father's Name / बाबुको नाम", data.fatherName],
+        ["Father's Name / बुवाको नाम", data.fatherName],
         ["Gender / लिङ्ग", genderLabels[data.gender] || data.gender],
         ["Permanent Address / स्थायी ठेगाना", data.permanentAddress],
         ["Ward No. / वडा नं (स्थायी)", data.permanentWardNo],

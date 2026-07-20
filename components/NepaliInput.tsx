@@ -8,6 +8,11 @@ function useNepaliInput(
 ) {
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  // Which suggestion is currently highlighted -- moved with Left/Right
+  // arrow keys, committed on Space/Enter/blur. Reset to 0 (the
+  // API's top-ranked suggestion) whenever a fresh suggestion list comes
+  // in or the field goes back to empty.
+  const [selectedIndex, setSelectedIndex] = useState(0);
   const reqRef = useRef<XMLHttpRequest | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -35,6 +40,7 @@ function useNepaliInput(
         reqRef.current, lastWord, "ne-t-i0-und", 6
       ) as [string, string][];
       setSuggestions(results.map(([, word]) => word));
+      setSelectedIndex(0);
       setShowSuggestions(true);
     } catch {
       setSuggestions([]);
@@ -63,6 +69,7 @@ function useNepaliInput(
 
     if (!lastWord) {
       setSuggestions([]);
+      setSelectedIndex(0);
       setShowSuggestions(false);
       return;
     }
@@ -83,12 +90,13 @@ function useNepaliInput(
     }
 
     setSuggestions([]);
+    setSelectedIndex(0);
     setShowSuggestions(false);
   }
 
   // Same as pickSuggestion, but appends a trailing space so typing can
   // continue straight into the next word -- used when the user presses
-  // Enter to commit the current word instead of clicking a suggestion.
+  // Space to commit the current word instead of clicking a suggestion.
   function commitSuggestionAndAdvance(word: string, currentVal: string) {
     const words = currentVal.split(" ");
     const rawWord = words[words.length - 1];
@@ -101,35 +109,58 @@ function useNepaliInput(
     }
 
     setSuggestions([]);
+    setSelectedIndex(0);
     setShowSuggestions(false);
   }
 
-  // Called on Enter. If suggestions are showing for the word just typed,
-  // commit the most common one (suggestions[0]) instead of inserting a
-  // literal space into the raw English text.
+  // Left/Right cycles which suggestion is highlighted (clamped, no
+  // wraparound -- wrapping past either end felt disorienting when
+  // testing since it silently jumps you back to the opposite side).
+  // Only intercepts the arrow keys while suggestions are actually
+  // showing, so normal cursor movement inside typed text is untouched.
+  function handleArrowKeys(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (suggestions.length === 0) return;
+    if (e.key === "ArrowRight") {
+      e.preventDefault();
+      setSelectedIndex((i) => Math.min(i + 1, suggestions.length - 1));
+    } else if (e.key === "ArrowLeft") {
+      e.preventDefault();
+      setSelectedIndex((i) => Math.max(i - 1, 0));
+    }
+  }
+
+  // Space commits the currently-highlighted suggestion (not always
+  // index 0 -- the user may have arrowed to a different one) and moves
+  // on to typing the next word in the same field.
   function handleSpaceKey(e: React.KeyboardEvent<HTMLInputElement>, currentVal: string) {
     if (e.key === " " && suggestions.length > 0) {
       e.preventDefault();
-      commitSuggestionAndAdvance(suggestions[0], currentVal);
+      commitSuggestionAndAdvance(suggestions[selectedIndex], currentVal);
     }
   }
- // Called on Enter. If suggestions are showing for the word just typed,
-  // commit the most common one (suggestions[0]) instead of inserting a
-  // literal space into the raw English text.
+
+  // Enter commits the highlighted suggestion (if one is pending) without
+  // a trailing space -- unlike Space, Enter means "I'm done with this
+  // field", not "keep typing the next word here". Always preventDefault
+  // on Enter (not just when suggestions are showing) so it never falls
+  // through to the browser's default behavior of submitting the
+  // enclosing wizard-step <form>; the actual "move to the next field"
+  // action is handled by the caller (NepaliInput), which has the DOM
+  // node needed to find what's next.
   function handleEnterKey(e: React.KeyboardEvent<HTMLInputElement>, currentVal: string) {
-    if (e.key === "Enter" && suggestions.length > 0) {
-      e.preventDefault();
-      commitSuggestionAndAdvance(suggestions[0], currentVal);
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    if (suggestions.length > 0) {
+      pickSuggestion(suggestions[selectedIndex], currentVal);
     }
   }
   // Called on blur. If suggestions are still showing (meaning the user
   // typed a romanized word but left the field without clicking one of the
-  // options), commit the most common suggestion -- suggestions[0], as
-  // ranked by the transliteration API -- instead of leaving the raw
-  // English text sitting in a Nepali-only field.
+  // options), commit the currently-highlighted suggestion instead of
+  // leaving the raw English text sitting in a Nepali-only field.
   function commitTopSuggestionIfPending(currentVal: string) {
     if (suggestions.length > 0) {
-      pickSuggestion(suggestions[0], currentVal);
+      pickSuggestion(suggestions[selectedIndex], currentVal);
     } else {
       setShowSuggestions(false);
     }
@@ -138,13 +169,35 @@ function useNepaliInput(
   return {
     suggestions,
     showSuggestions,
+    selectedIndex,
     handleChange,
     pickSuggestion,
     setShowSuggestions,
     commitTopSuggestionIfPending,
     handleSpaceKey,
     handleEnterKey,
+    handleArrowKeys,
   };
+}
+
+// Moves focus to the next focusable field within the same <form>,
+// mirroring what Tab would do. Used so Enter inside a NepaliInput acts
+// like "confirm this field, move to the next one" rather than typing a
+// literal newline or (without the preventDefault above) submitting the
+// whole wizard step early.
+function focusNextField(current: HTMLElement | null) {
+  if (!current) return;
+  const form = current.closest("form");
+  if (!form) return;
+  const focusable = Array.from(
+    form.querySelectorAll<HTMLElement>(
+      'input:not([type="hidden"]):not(:disabled), select:not(:disabled), textarea:not(:disabled), button:not(:disabled)'
+    )
+  ).filter((el) => el.tabIndex !== -1 && el.offsetParent !== null);
+  const idx = focusable.indexOf(current);
+  if (idx >= 0 && idx < focusable.length - 1) {
+    focusable[idx + 1].focus();
+  }
 }
 
 export default function NepaliInput({
@@ -164,31 +217,47 @@ export default function NepaliInput({
   const {
     suggestions,
     showSuggestions,
+    selectedIndex,
     handleChange,
     pickSuggestion,
     setShowSuggestions,
     commitTopSuggestionIfPending,
     handleSpaceKey,
     handleEnterKey,
+    handleArrowKeys,
   } = useNepaliInput(onChange, onEnglishChange);
+
+  const inputRef = useRef<HTMLInputElement>(null);
 
   return (
     <div className="relative">
       <input
+        ref={inputRef}
         lang="ne"
         value={value}
         onChange={handleChange}
-        onKeyDown={(e) => handleSpaceKey(e, value)}
-        onKeyUp={(e) => handleEnterKey(e, value)}
+        onKeyDown={(e) => {
+          handleArrowKeys(e);
+          handleSpaceKey(e, value);
+        }}
+        onKeyUp={(e) => {
+          const wasEnter = e.key === "Enter";
+          handleEnterKey(e, value);
+          // Deferred so the suggestion dropdown (which unmounts as part
+          // of the commit above) is actually out of the DOM before we
+          // look for "the next focusable field" -- otherwise its
+          // still-mounted suggestion buttons would be found first.
+          if (wasEnter) {
+            setTimeout(() => focusNextField(inputRef.current), 0);
+          }
+        }}
         onBlur={() =>
           setTimeout(() => commitTopSuggestionIfPending(value), 150)
         }
         placeholder={placeholder}
         className={className}
       />
-      <p className="text-gray-400 text-xs mt-0.5">
-        Type in English — choose among the suggestions in Nepali      </p>
-    {error && (
+      {error && (
       <p className="text-red-500 text-xs mt-1">{error}</p>
     )}
       {showSuggestions && suggestions.length > 0 && (
@@ -200,7 +269,7 @@ export default function NepaliInput({
                 onMouseDown={() => pickSuggestion(s, value)}
                 title={i === 0 ? "Most common — selected automatically if you don't pick one" : undefined}
                 className={`px-3 py-1 text-sm rounded-md transition ${
-                  i === 0
+                  i === selectedIndex
                     ? "bg-[#eaf0fb] border-2 border-[#0f2044] text-[#0f2044] font-semibold"
                     : "bg-gray-50 hover:bg-[#eaf0fb] border border-gray-200 text-gray-800"
                 }`}
