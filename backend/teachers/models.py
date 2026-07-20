@@ -11,12 +11,28 @@ class Teacher(models.Model):
     permanentAddress = models.TextField()
     permanentWardNo = models.CharField(max_length=10)
     dob = models.CharField(max_length=20)
+
+    # Used to build the Mr./Mrs. salutation on the registration OTP email
+    # (see accounts/otp.py's send_email_otp) -- collected in the wizard's
+    # Personal step (Step 1) so it's already known by the time the Account
+    # step (Step 2) sends the OTP. blank=True/default="" so it degrades
+    # gracefully (no salutation) if ever missing.
+    GENDER_CHOICES = [
+        ("male", "Male / पुरुष"),
+        ("female", "Female / महिला"),
+        ("other", "Other / अन्य"),
+    ]
+    gender = models.CharField(max_length=10, choices=GENDER_CHOICES, blank=True, default="")
+
+    # =========================
+    # STEP 2: ACCOUNT
+    # =========================
     phone = models.CharField(max_length=20)
     email = models.EmailField(unique=True)
     password = models.CharField(max_length=255)
 
     # =========================
-    # STEP 2: SCHOOL INFO
+    # STEP 3: SCHOOL INFO
     # =========================
     district = models.CharField(max_length=100, blank=True, null=True)
     municipality = models.CharField(max_length=100, blank=True, null=True)
@@ -46,7 +62,7 @@ class Teacher(models.Model):
     teacherType = models.CharField(max_length=100, blank=True, null=True)
 
     # =========================
-    # STEP 3: SERVICE INFO
+    # STEP 4: SERVICE INFO
     # =========================
     appointmentDate = models.CharField(max_length=20, blank=True, null=True)
     promotionDate = models.CharField(max_length=20, blank=True, null=True)
@@ -65,7 +81,7 @@ class Teacher(models.Model):
     remarks = models.TextField(blank=True, null=True)
 
     # =========================
-    # STEP 4: DOCUMENT UPLOADS
+    # STEP 5: DOCUMENT UPLOADS
     # REAL FILES SAVED IN /media/documents/
     # =========================
     citizenship = models.FileField(

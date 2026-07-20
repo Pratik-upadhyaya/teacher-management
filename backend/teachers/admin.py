@@ -19,7 +19,7 @@ class TeacherAdmin(admin.ModelAdmin):
     # scope for this change.
     fieldsets = (
         ('Personal Info', {'fields': (
-            'name', 'fatherName', 'permanentAddress', 'permanentWardNo',
+            'name', 'fatherName', 'gender', 'permanentAddress', 'permanentWardNo',
             'dob', 'phone', 'email', 'password',
         )}),
         ('School Info', {'fields': (

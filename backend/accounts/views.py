@@ -239,9 +239,17 @@ def send_otp(request):
 
     code = generate_and_store_otp(otp_type, value)
 
+    # Optional: the registration wizard's Personal step now runs before
+    # the Account step that sends this OTP, so it can pass along the
+    # applicant's name/gender to personalize the email greeting (see
+    # accounts/otp.py send_email_otp). Not required -- callers hitting
+    # this endpoint without them (or the phone/SMS path) still work.
+    name = (request.data.get("name") or "").strip()
+    gender = (request.data.get("gender") or "").strip()
+
     try:
         if otp_type == "email":
-            send_email_otp(value, code)
+            send_email_otp(value, code, name=name, gender=gender)
         else:
             send_sms_otp(value, code)
     except Exception:

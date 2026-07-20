@@ -87,14 +87,29 @@ def clear_verified(otp_type: str, value: str) -> None:
     cache.delete(verified_key(otp_type, value))
 
 
-def send_email_otp(email: str, code: str) -> None:
+_SALUTATIONS = {"male": "Mr.", "female": "Mrs."}
+
+
+def _greeting(name: str, gender: str) -> str:
+    # Personalizes the OTP email with the applicant's name, collected in
+    # the registration wizard's Personal step (which now runs before the
+    # Account step that triggers this email -- see app/register/page.tsx).
+    # Falls back to a generic greeting if name is missing (e.g. someone
+    # hitting the API directly rather than through the wizard).
+    name = (name or "").strip()
+    if not name:
+        return "Hello,"
+    title = _SALUTATIONS.get((gender or "").strip().lower())
+    return f"Hello {title} {name}," if title else f"Hello {name},"
+
+
+def send_email_otp(email: str, code: str, name: str = "", gender: str = "") -> None:
     send_mail(
         subject="Your Teacher Portal verification code",
         message=(
-            f"Hello, new Teacher!\n\n"
+            f"{_greeting(name, gender)}\n\n"
             f"Your verification code is: {code}\n\n"
-            f"This code expires in {OTP_TTL_SECONDS // 60} minutes.\n\n"
-            f"If you did not request this code, please ignore this email."
+            f"This code expires in {OTP_TTL_SECONDS // 60} minutes."
         ),
         from_email=settings.DEFAULT_FROM_EMAIL,
         recipient_list=[email],

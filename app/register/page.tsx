@@ -191,10 +191,11 @@ function validateNepaliOnly(
 function StepBar({ current }: { current: number }) {
   const steps = [
     { n: 1, label: "Personal", sub: "व्यक्तिगत" },
-    { n: 2, label: "School", sub: "विद्यालय" },
-    { n: 3, label: "Service", sub: "सेवा" },
-    { n: 4, label: "Documents", sub: "कागजात" },
-    { n: 5, label: "Review", sub: "समीक्षा" },
+    { n: 2, label: "Account", sub: "खाता" },
+    { n: 3, label: "School", sub: "विद्यालय" },
+    { n: 4, label: "Service", sub: "सेवा" },
+    { n: 5, label: "Documents", sub: "कागजात" },
+    { n: 6, label: "Review", sub: "समीक्षा" },
   ];
   return (
     <div className="flex items-center justify-center gap-0 mb-8">
@@ -294,12 +295,20 @@ function OtpVerify({
   verified,
   onVerified,
   disabled,
+  name,
+  gender,
 }: {
   type: "email" | "phone";
   value: string;
   verified: boolean;
   onVerified: () => void;
   disabled?: boolean;
+  // Optional -- only meaningful for type="email". Forwarded to the send
+  // endpoint so the OTP email can open with "Hello Mr./Mrs. {name}," (see
+  // accounts/otp.py). Collected in Step 1 (Personal), which now runs
+  // before this Account-step component, so both are already known.
+  name?: string;
+  gender?: string;
 }) {
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
@@ -314,7 +323,9 @@ function OtpVerify({
       const res = await fetch(`${API_BASE_URL}/api/accounts/otp/send/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type, value }),
+        body: JSON.stringify(
+          type === "email" ? { type, value, name, gender } : { type, value }
+        ),
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.error || "Could not send code.");
@@ -428,43 +439,10 @@ function Step1({
 
     validateNepaliOnly(data.name, errs, "name", "शिक्षकको नाम");
     validateNepaliOnly(data.fatherName, errs, "fatherName", "बाबुको नाम");
+    if (!data.gender) errs.gender = "लिङ्ग छान्नुहोस्";
     validateNepaliOnly(data.permanentAddress, errs, "permanentAddress", "स्थायी ठेगाना");
     validateWardNo(data.permanentWardNo, errs, "permanentWardNo");
     validateNepaliDate(data.dob, errs, "dob", "जन्म मिति");
-
-    const asciiPhone = nepaliToAscii(data.phone.trim());
-    if (!data.phone.trim())
-      errs.phone = "फोन नम्बर आवश्यक छ";
-    else if (!/^(98|97)\d{8}$/.test(asciiPhone))
-      errs.phone = "मान्य नेपाली नम्बर (९८/९७XXXXXXXX)";
-
-    if (!data.email.trim()) {
-      errs.email = "इमेल आवश्यक छ";
-    } else if (
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email.trim())
-    ) {
-    errs.email = "मान्य इमेल ठेगाना प्रविष्ट गर्नुहोस्";
-    }
-
-    // Only one of email/phone needs to be verified, not both -- an
-    // applicant may not have reliable access to whichever channel isn't
-    // theirs (shared/unused phone, no personal email). Only flag this if
-    // neither is verified yet, and only once both fields are otherwise
-    // valid (no point demanding verification of a malformed number).
-    if (!errs.phone && !errs.email && !data.phoneVerified && !data.emailVerified) {
-      errs.phone = "कृपया फोन वा इमेल मध्ये कम्तीमा एउटा प्रमाणित गर्नुहोस् (Please verify at least one of phone or email)";
-      errs.email = "कृपया फोन वा इमेल मध्ये कम्तीमा एउटा प्रमाणित गर्नुहोस् (Please verify at least one of phone or email)";
-    }
-
-    if (!data.password)
-      errs.password = "पासवर्ड आवश्यक छ";
-    else if (!/^(?=.*[A-Za-z])(?=.*\d)\S{8,}$/.test(data.password))
-      errs.password = "कम्तीमा ८ अक्षर, १ letter, १ number र space नहुने पासवर्ड प्रयोग गर्नुहोस्";
-
-    if (!data.confirmPassword)
-      errs.confirmPassword = "पासवर्ड पुन: लेख्नुहोस्";
-    else if (data.password !== data.confirmPassword)
-      errs.confirmPassword = "पासवर्ड मेल खाएन";
 
     if (Object.keys(errs).length > 0) { setErrors(errs); return; }
     setErrors({});
@@ -560,32 +538,123 @@ function Step1({
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Phone Number <span className="text-gray-400 font-normal">/ फोन नम्बर</span>
+            Gender <span className="text-gray-400 font-normal">/ लिङ्ग</span>
           </label>
-          <div className="flex items-start gap-2">
-            <div className="flex-1">
-              <NepaliNumberInput
-                value={data.phone}
-                onChange={(val: string) => {
-                  onChange("phone", val);
-                  setErrors((p) => ({ ...p, phone: "" }));
-                  // Editing the number after verifying invalidates that
-                  // verification -- it was for the old value.
-                  if (data.phoneVerified) onChange("phoneVerified", false);
-                }}
-                placeholder="९८XXXXXXXX"
-                className={ic(errors, "phone")}
-              />
-              <FieldError msg={errors.phone} />
-            </div>
-            <OtpVerify
-              type="phone"
-              value={nepaliToAscii(data.phone.trim())}
-              verified={!!data.phoneVerified}
-              onVerified={() => onChange("phoneVerified", true)}
-              disabled={!/^(98|97)\d{8}$/.test(nepaliToAscii(data.phone.trim()))}
+          <select
+            title="Gender"
+            value={data.gender}
+            onChange={(e) => { onChange("gender", e.target.value); setErrors((p) => ({ ...p, gender: "" })); }}
+            className={ic(errors, "gender")}
+          >
+            <option value="">लिङ्ग छान्नुहोस्</option>
+            <option value="male">Male / पुरुष</option>
+            <option value="female">Female / महिला</option>
+            <option value="other">Other / अन्य</option>
+          </select>
+          <FieldError msg={errors.gender} />
+        </div>
+      </div>
+
+      <div className="flex justify-end pt-2">
+        <button type="submit" className="bg-[#0f2044] text-white px-8 py-2.5 rounded-lg text-sm font-semibold hover:bg-[#1a3260] transition">
+          Next: Account →
+        </button>
+      </div>
+    </form>
+  );
+}
+
+// ── Step 2: Account (phone/email verification + password) ─────────
+function AccountStep({
+  data,
+  onChange,
+  onNext,
+  onBack,
+}: {
+  data: any;
+  onChange: (f: string, v: string | boolean) => void;
+  onNext: () => void;
+  onBack: () => void;
+}) {
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const errs: Record<string, string> = {};
+
+    const asciiPhone = nepaliToAscii(data.phone.trim());
+    if (!data.phone.trim())
+      errs.phone = "फोन नम्बर आवश्यक छ";
+    else if (!/^(98|97)\d{8}$/.test(asciiPhone))
+      errs.phone = "मान्य नेपाली नम्बर (९८/९७XXXXXXXX)";
+
+    if (!data.email.trim()) {
+      errs.email = "इमेल आवश्यक छ";
+    } else if (
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email.trim())
+    ) {
+    errs.email = "मान्य इमेल ठेगाना प्रविष्ट गर्नुहोस्";
+    }
+
+    // Only one of email/phone needs to be verified, not both -- an
+    // applicant may not have reliable access to whichever channel isn't
+    // theirs (shared/unused phone, no personal email). Only flag this if
+    // neither is verified yet, and only once both fields are otherwise
+    // valid (no point demanding verification of a malformed number).
+    if (!errs.phone && !errs.email && !data.phoneVerified && !data.emailVerified) {
+      errs.phone = "कृपया फोन वा इमेल मध्ये कम्तीमा एउटा प्रमाणित गर्नुहोस् (Please verify at least one of phone or email)";
+      errs.email = "कृपया फोन वा इमेल मध्ये कम्तीमा एउटा प्रमाणित गर्नुहोस् (Please verify at least one of phone or email)";
+    }
+
+    if (!data.password)
+      errs.password = "पासवर्ड आवश्यक छ";
+    else if (!/^(?=.*[A-Za-z])(?=.*\d)\S{8,}$/.test(data.password))
+      errs.password = "कम्तीमा ८ अक्षर, १ letter, १ number र space नहुने पासवर्ड प्रयोग गर्नुहोस्";
+
+    if (!data.confirmPassword)
+      errs.confirmPassword = "पासवर्ड पुन: लेख्नुहोस्";
+    else if (data.password !== data.confirmPassword)
+      errs.confirmPassword = "पासवर्ड मेल खाएन";
+
+    if (Object.keys(errs).length > 0) { setErrors(errs); return; }
+    setErrors({});
+    onNext();
+  }
+
+  return (
+    <form onSubmit={handleSubmit} noValidate className="space-y-4">
+      <div>
+        <h2 className="text-lg font-bold text-[#0f2044]">Step 2: Account</h2>
+        <p className="text-sm text-gray-400">खाता सम्बन्धी विवरण भर्नुहोस्</p>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Phone Number <span className="text-gray-400 font-normal">/ फोन नम्बर</span>
+        </label>
+        <div className="flex items-start gap-2">
+          <div className="flex-1">
+            <NepaliNumberInput
+              value={data.phone}
+              onChange={(val: string) => {
+                onChange("phone", val);
+                setErrors((p) => ({ ...p, phone: "" }));
+                // Editing the number after verifying invalidates that
+                // verification -- it was for the old value.
+                if (data.phoneVerified) onChange("phoneVerified", false);
+              }}
+              placeholder="९८XXXXXXXX"
+              className={ic(errors, "phone")}
             />
+            <FieldError msg={errors.phone} />
           </div>
+          <OtpVerify
+            type="phone"
+            value={nepaliToAscii(data.phone.trim())}
+            verified={!!data.phoneVerified}
+            onVerified={() => onChange("phoneVerified", true)}
+            disabled={!/^(98|97)\d{8}$/.test(nepaliToAscii(data.phone.trim()))}
+          />
         </div>
       </div>
 
@@ -617,6 +686,8 @@ function Step1({
             verified={!!data.emailVerified}
             onVerified={() => onChange("emailVerified", true)}
             disabled={!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email.trim())}
+            name={data.name}
+            gender={data.gender}
           />
         </div>
       </div>
@@ -651,7 +722,10 @@ function Step1({
         </div>
       </div>
 
-      <div className="flex justify-end pt-2">
+      <div className="flex justify-between pt-2">
+        <button type="button" onClick={onBack} className="border border-gray-200 text-gray-600 px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-50 transition">
+          ← Back / पछाडि
+        </button>
         <button type="submit" className="bg-[#0f2044] text-white px-8 py-2.5 rounded-lg text-sm font-semibold hover:bg-[#1a3260] transition">
           Next: School Info →
         </button>
@@ -660,7 +734,7 @@ function Step1({
   );
 }
 
-// ── Step 2: School & Position ─────────────────────────────────────
+// ── Step 3: School & Position ─────────────────────────────────────
 function Step2({
   data,
   onChange,
@@ -721,7 +795,7 @@ function Step2({
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-4">
       <div>
-        <h2 className="text-lg font-bold text-[#0f2044]">Step 2: School & Position</h2>
+        <h2 className="text-lg font-bold text-[#0f2044]">Step 3: School & Position</h2>
         <p className="text-sm text-gray-400">विद्यालय तथा पद सम्बन्धी विवरण</p>
       </div>
 
@@ -956,7 +1030,7 @@ function Step3({
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-4">
       <div>
-        <h2 className="text-lg font-bold text-[#0f2044]">Step 3: Service Details</h2>
+        <h2 className="text-lg font-bold text-[#0f2044]">Step 4: Service Details</h2>
         <p className="text-sm text-gray-400">सेवा सम्बन्धी विवरण</p>
       </div>
 
@@ -1108,7 +1182,7 @@ function Step4({
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-lg font-bold text-[#0f2044]">Step 4: Upload Documents</h2>
+        <h2 className="text-lg font-bold text-[#0f2044]">Step 5: Upload Documents</h2>
         <p className="text-sm text-gray-400">कागजातहरू अपलोड गर्नुहोस्</p>
       </div>
 
@@ -1202,12 +1276,19 @@ function Step5({
         })()
       : "—";
 
+  const genderLabels: Record<string, string> = {
+    male: "Male / पुरुष",
+    female: "Female / महिला",
+    other: "Other / अन्य",
+  };
+
   const sections = [
     {
       title: "Personal Info / व्यक्तिगत",
       rows: [
         ["Teacher's Name / शिक्षकको नाम", data.name],
         ["Father's Name / बाबुको नाम", data.fatherName],
+        ["Gender / लिङ्ग", genderLabels[data.gender] || data.gender],
         ["Permanent Address / स्थायी ठेगाना", data.permanentAddress],
         ["Ward No. / वडा नं (स्थायी)", data.permanentWardNo],
         ["Date of Birth / जन्म मिति", data.dob],
@@ -1252,12 +1333,12 @@ function Step5({
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-lg font-bold text-[#0f2044]">Step 5: Review & Submit</h2>
+        <h2 className="text-lg font-bold text-[#0f2044]">Step 6: Review & Submit</h2>
         <p className="text-sm text-gray-400">जानकारी जाँच गर्नुहोस् र पेश गर्नुहोस्</p>
       </div>
 
       {[
-        data.name, data.fatherName, data.permanentAddress, data.permanentWardNo,
+        data.name, data.fatherName, data.gender, data.permanentAddress, data.permanentWardNo,
         data.dob, data.phone, data.email,
         data.district, data.municipality, data.wardNo, data.schoolName,
         data.tokenNo, data.subject, data.level, data.grade,
@@ -1309,17 +1390,19 @@ export default function RegisterPage() {
   const [error, setError] = useState("");
 
   const [formData, setFormData] = useState({
-    // Step 1
-    name: "", fatherName: "", permanentAddress: "", permanentWardNo: "",
-    dob: "", phone: "", email: "", password: "", confirmPassword: "",
+    // Step 1: Personal
+    name: "", fatherName: "", gender: "", permanentAddress: "", permanentWardNo: "",
+    dob: "",
+    // Step 2: Account
+    phone: "", email: "", password: "", confirmPassword: "",
     emailVerified: false, phoneVerified: false,
-    // Step 2
+    // Step 3: School
     district: "", municipality: "", wardNo: "", schoolName: "", schoolEmisCode: "", tokenNo: "",
     subject: "", level: "", grade: "", teacherType: "",
-    // Step 3
+    // Step 4: Service
     appointmentDate: "", promotionDate: "", qualification: "",
     extraordinaryLeave: "", ageSixtyYear: "", remarks: "",
-    // Step 4
+    // Step 5: Documents
     citizenship: "", degree: "", transcript: "", teachingLicense: "", appointmentLetter: "",
   });
 
@@ -1337,17 +1420,20 @@ export default function RegisterPage() {
   try {
     const payload = new FormData();
 
-    // Step 1
+    // Step 1: Personal
     payload.append("name", formData.name);
     payload.append("fatherName", formData.fatherName);
+    payload.append("gender", formData.gender);
     payload.append("permanentAddress", formData.permanentAddress);
     payload.append("permanentWardNo", nepaliToAscii(formData.permanentWardNo));
     payload.append("dob", nepaliToAscii(formData.dob));
+
+    // Step 2: Account
     payload.append("phone", nepaliToAscii(formData.phone));
     payload.append("email", formData.email);
     payload.append("password", formData.password);
 
-    // Step 2
+    // Step 3: School
     payload.append("district", formData.district);
     payload.append("municipality", formData.municipality);
     payload.append("wardNo", nepaliToAscii(formData.wardNo));
@@ -1359,7 +1445,7 @@ export default function RegisterPage() {
     payload.append("grade", formData.grade);
     payload.append("teacherType", formData.teacherType);
 
-    // Step 3
+    // Step 4: Service
     payload.append("appointmentDate", nepaliToAscii(formData.appointmentDate));
     payload.append("promotionDate", nepaliToAscii(formData.promotionDate));
     payload.append("qualification", formData.qualification);
@@ -1367,7 +1453,7 @@ export default function RegisterPage() {
     payload.append("ageSixtyYear", nepaliToAscii(formData.ageSixtyYear));
     payload.append("remarks", formData.remarks);
 
-    // Step 4 FILES
+    // Step 5: Documents (FILES)
     if (formData.citizenship)
       payload.append("citizenship", formData.citizenship as any);
 
@@ -1438,10 +1524,11 @@ export default function RegisterPage() {
 
           <div className="bg-white rounded-2xl shadow-sm p-6 sm:p-8">
             {step === 1 && <Step1 data={formData} onChange={handleChange} onNext={() => setStep(2)} />}
-            {step === 2 && <Step2 data={formData} onChange={handleChange} onNext={() => setStep(3)} onBack={() => setStep(1)} />}
-            {step === 3 && <Step3 data={formData} onChange={handleChange} onNext={() => setStep(4)} onBack={() => setStep(2)} />}
-            {step === 4 && <Step4 data={formData} onChange={handleChange} onNext={() => setStep(5)} onBack={() => setStep(3)} />}
-            {step === 5 && <Step5 data={formData} onBack={() => setStep(4)} onSubmit={handleSubmit} submitting={submitting} />}
+            {step === 2 && <AccountStep data={formData} onChange={handleChange} onNext={() => setStep(3)} onBack={() => setStep(1)} />}
+            {step === 3 && <Step2 data={formData} onChange={handleChange} onNext={() => setStep(4)} onBack={() => setStep(2)} />}
+            {step === 4 && <Step3 data={formData} onChange={handleChange} onNext={() => setStep(5)} onBack={() => setStep(3)} />}
+            {step === 5 && <Step4 data={formData} onChange={handleChange} onNext={() => setStep(6)} onBack={() => setStep(4)} />}
+            {step === 6 && <Step5 data={formData} onBack={() => setStep(5)} onSubmit={handleSubmit} submitting={submitting} />}
           </div>
         </div>
       </div>
