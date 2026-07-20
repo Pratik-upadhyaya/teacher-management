@@ -7,6 +7,15 @@ class Teacher(models.Model):
     # STEP 1: PERSONAL INFO
     # =========================
     name = models.CharField(max_length=255)
+
+    # English/Latin-script version of `name`, entered as a plain text
+    # field (not run through the NepaliInput transliteration widget,
+    # which only ever commits Devanagari and discards the raw English
+    # keystrokes). Exists specifically so the bilingual OTP email's
+    # English paragraph can address the applicant by an actual English
+    # name rather than a lossy reverse-transliteration guess.
+    nameEnglish = models.CharField(max_length=255, blank=True, default="")
+
     fatherName = models.CharField(max_length=255)
     permanentAddress = models.TextField()
     permanentWardNo = models.CharField(max_length=10)

@@ -245,11 +245,12 @@ def send_otp(request):
     # accounts/otp.py send_email_otp). Not required -- callers hitting
     # this endpoint without them (or the phone/SMS path) still work.
     name = (request.data.get("name") or "").strip()
+    name_english = (request.data.get("nameEnglish") or "").strip()
     gender = (request.data.get("gender") or "").strip()
 
     try:
         if otp_type == "email":
-            send_email_otp(value, code, name=name, gender=gender)
+            send_email_otp(value, code, name=name, name_english=name_english, gender=gender)
         else:
             send_sms_otp(value, code)
     except Exception:

@@ -296,6 +296,7 @@ function OtpVerify({
   onVerified,
   disabled,
   name,
+  nameEnglish,
   gender,
 }: {
   type: "email" | "phone";
@@ -304,10 +305,14 @@ function OtpVerify({
   onVerified: () => void;
   disabled?: boolean;
   // Optional -- only meaningful for type="email". Forwarded to the send
-  // endpoint so the OTP email can open with "Hello Mr./Mrs. {name}," (see
-  // accounts/otp.py). Collected in Step 1 (Personal), which now runs
-  // before this Account-step component, so both are already known.
+  // endpoint so the OTP email can open with a bilingual greeting: Nepali
+  // using `name`, English using `nameEnglish` (a dedicated plain-text
+  // field -- NepaliInput only ever commits Devanagari, so `name` alone
+  // can't drive the English paragraph). See accounts/otp.py. Both are
+  // collected in Step 1 (Personal), which now runs before this
+  // Account-step component, so all three are already known.
   name?: string;
+  nameEnglish?: string;
   gender?: string;
 }) {
   const [sending, setSending] = useState(false);
@@ -324,7 +329,7 @@ function OtpVerify({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(
-          type === "email" ? { type, value, name, gender } : { type, value }
+          type === "email" ? { type, value, name, nameEnglish, gender } : { type, value }
         ),
       });
       const body = await res.json().catch(() => ({}));
@@ -439,6 +444,12 @@ function Step1({
 
     validateNepaliOnly(data.name, errs, "name", "शिक्षकको नाम");
     validateNepaliOnly(data.fatherName, errs, "fatherName", "बाबुको नाम");
+
+    if (!data.nameEnglish.trim())
+      errs.nameEnglish = "अंग्रेजीमा नाम आवश्यक छ (Name in English is required)";
+    else if (!/^[A-Za-z][A-Za-z .'-]*$/.test(data.nameEnglish.trim()))
+      errs.nameEnglish = "अंग्रेजी अक्षरमा मात्र लेख्नुहोस् (English letters only)";
+
     if (!data.gender) errs.gender = "लिङ्ग छान्नुहोस्";
     validateNepaliOnly(data.permanentAddress, errs, "permanentAddress", "स्थायी ठेगाना");
     validateWardNo(data.permanentWardNo, errs, "permanentWardNo");
@@ -464,6 +475,7 @@ function Step1({
           <NepaliInput
             value={data.name}
             onChange={(val: string) => { onChange("name", val); setErrors((p) => ({ ...p, name: "" })); }}
+            onEnglishChange={(val: string) => { onChange("nameEnglish", val); setErrors((p) => ({ ...p, nameEnglish: "" })); }}
             placeholder="राम श्रेष्ठ"
             className={ic(errors, "name")}
             error={errors.name}
@@ -483,6 +495,23 @@ function Step1({
           />
           <FieldError msg={errors.fatherName} />
         </div>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Name (English) <span className="text-gray-400 font-normal">/ अंग्रेजीमा नाम</span>
+          <span className="text-gray-400 font-normal text-xs ml-2">
+            (auto-filled as you type your name above — edit here if it needs a fix)
+          </span>
+        </label>
+        <input
+          type="text"
+          value={data.nameEnglish}
+          onChange={(e) => { onChange("nameEnglish", e.target.value); setErrors((p) => ({ ...p, nameEnglish: "" })); }}
+          placeholder="Ram Shrestha"
+          className={ic(errors, "nameEnglish")}
+        />
+        <FieldError msg={errors.nameEnglish} />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -687,6 +716,7 @@ function AccountStep({
             onVerified={() => onChange("emailVerified", true)}
             disabled={!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email.trim())}
             name={data.name}
+            nameEnglish={data.nameEnglish}
             gender={data.gender}
           />
         </div>
@@ -1287,6 +1317,7 @@ function Step5({
       title: "Personal Info / व्यक्तिगत",
       rows: [
         ["Teacher's Name / शिक्षकको नाम", data.name],
+        ["Name (English)", data.nameEnglish],
         ["Father's Name / बाबुको नाम", data.fatherName],
         ["Gender / लिङ्ग", genderLabels[data.gender] || data.gender],
         ["Permanent Address / स्थायी ठेगाना", data.permanentAddress],
@@ -1338,7 +1369,7 @@ function Step5({
       </div>
 
       {[
-        data.name, data.fatherName, data.gender, data.permanentAddress, data.permanentWardNo,
+        data.name, data.nameEnglish, data.fatherName, data.gender, data.permanentAddress, data.permanentWardNo,
         data.dob, data.phone, data.email,
         data.district, data.municipality, data.wardNo, data.schoolName,
         data.tokenNo, data.subject, data.level, data.grade,
@@ -1391,7 +1422,7 @@ export default function RegisterPage() {
 
   const [formData, setFormData] = useState({
     // Step 1: Personal
-    name: "", fatherName: "", gender: "", permanentAddress: "", permanentWardNo: "",
+    name: "", nameEnglish: "", fatherName: "", gender: "", permanentAddress: "", permanentWardNo: "",
     dob: "",
     // Step 2: Account
     phone: "", email: "", password: "", confirmPassword: "",
@@ -1422,6 +1453,7 @@ export default function RegisterPage() {
 
     // Step 1: Personal
     payload.append("name", formData.name);
+    payload.append("nameEnglish", formData.nameEnglish);
     payload.append("fatherName", formData.fatherName);
     payload.append("gender", formData.gender);
     payload.append("permanentAddress", formData.permanentAddress);

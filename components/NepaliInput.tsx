@@ -2,12 +2,25 @@
 import { useState, useRef, useEffect } from "react";
 import googleTransliterate from "input-tool-helper";
 
-function useNepaliInput(onChange: (val: string) => void) {
+function useNepaliInput(
+  onChange: (val: string) => void,
+  onEnglishChange?: (val: string) => void
+) {
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const reqRef = useRef<XMLHttpRequest | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // 
+
+  // Tracks the raw English text for each word that's already been
+  // committed to Devanagari, in order -- e.g. typing "Sandesh Pokhrel"
+  // and picking suggestions for both words leaves this as
+  // ["Sandesh", "Pokhrel"] even though `value` itself now only holds
+  // "संदेश पोखरेल". This is what lets a caller (via onEnglishChange)
+  // reconstruct "what the teacher actually typed in English" rather than
+  // reverse-transliterating the Devanagari after the fact, which is
+  // lossy/ambiguous for proper names.
+  const committedEnglishRef = useRef<string[]>([]);
+
   useEffect(() => {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -32,7 +45,22 @@ function useNepaliInput(onChange: (val: string) => void) {
     const val = e.target.value;
     onChange(val);
 
-    const lastWord = val.split(" ").at(-1) ?? "";
+    const words = val.split(" ");
+    const lastWord = words.at(-1) ?? "";
+
+    if (onEnglishChange) {
+      // Every word but the last is presumed already committed
+      // (Devanagari); trim/pad our tracked raw-word list to match so
+      // backspacing past a committed word self-corrects instead of
+      // leaving stale entries. The last word is still raw English being
+      // typed right now (that's exactly what `val`'s tail holds pre-commit).
+      const committedCount = Math.max(0, words.length - 1);
+      committedEnglishRef.current = committedEnglishRef.current.slice(0, committedCount);
+      onEnglishChange(
+        [...committedEnglishRef.current, lastWord].filter(Boolean).join(" ")
+      );
+    }
+
     if (!lastWord) {
       setSuggestions([]);
       setShowSuggestions(false);
@@ -45,8 +73,15 @@ function useNepaliInput(onChange: (val: string) => void) {
 
   function pickSuggestion(word: string, currentVal: string) {
     const words = currentVal.split(" ");
+    const rawWord = words[words.length - 1];
     words[words.length - 1] = word;
     onChange(words.join(" "));
+
+    if (onEnglishChange) {
+      committedEnglishRef.current = [...committedEnglishRef.current, rawWord];
+      onEnglishChange(committedEnglishRef.current.join(" "));
+    }
+
     setSuggestions([]);
     setShowSuggestions(false);
   }
@@ -56,8 +91,15 @@ function useNepaliInput(onChange: (val: string) => void) {
   // Enter to commit the current word instead of clicking a suggestion.
   function commitSuggestionAndAdvance(word: string, currentVal: string) {
     const words = currentVal.split(" ");
+    const rawWord = words[words.length - 1];
     words[words.length - 1] = word;
     onChange(words.join(" ") + " ");
+
+    if (onEnglishChange) {
+      committedEnglishRef.current = [...committedEnglishRef.current, rawWord];
+      onEnglishChange(committedEnglishRef.current.join(" ") + " ");
+    }
+
     setSuggestions([]);
     setShowSuggestions(false);
   }
@@ -106,13 +148,18 @@ function useNepaliInput(onChange: (val: string) => void) {
 }
 
 export default function NepaliInput({
-  value, onChange, placeholder, className, error,
+  value, onChange, placeholder, className, error, onEnglishChange,
 }: {
   value: string;
   onChange: (val: string) => void;
   placeholder?: string;
   className?: string;
   error?: string;
+  // Optional -- when provided, live-tracks the raw English text as it's
+  // typed and committed word-by-word, so a caller can capture "what the
+  // teacher actually typed in English" alongside the Devanagari result
+  // (see useNepaliInput above for how words are tracked pre-commit).
+  onEnglishChange?: (val: string) => void;
 }) {
   const {
     suggestions,
@@ -123,7 +170,7 @@ export default function NepaliInput({
     commitTopSuggestionIfPending,
     handleSpaceKey,
     handleEnterKey,
-  } = useNepaliInput(onChange);
+  } = useNepaliInput(onChange, onEnglishChange);
 
   return (
     <div className="relative">

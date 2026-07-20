@@ -90,26 +90,41 @@ def clear_verified(otp_type: str, value: str) -> None:
 _SALUTATIONS = {"male": "Mr.", "female": "Mrs."}
 
 
-def _greeting(name: str, gender: str) -> str:
-    # Personalizes the OTP email with the applicant's name, collected in
-    # the registration wizard's Personal step (which now runs before the
-    # Account step that triggers this email -- see app/register/page.tsx).
-    # Falls back to a generic greeting if name is missing (e.g. someone
-    # hitting the API directly rather than through the wizard).
-    name = (name or "").strip()
-    if not name:
+def _greeting_en(name_english: str, gender: str) -> str:
+    # English paragraph's greeting. Deliberately uses `name_english` (a
+    # dedicated plain-text field), not the Devanagari `name` field -- the
+    # registration wizard's NepaliInput widget only ever commits
+    # transliterated Nepali text and discards the raw English keystrokes,
+    # so there's no reliable way to recover an English name from it.
+    name_english = (name_english or "").strip()
+    if not name_english:
         return "Hello,"
     title = _SALUTATIONS.get((gender or "").strip().lower())
-    return f"Hello {title} {name}," if title else f"Hello {name},"
+    return f"Hello {title} {name_english}," if title else f"Hello {name_english},"
 
 
-def send_email_otp(email: str, code: str, name: str = "", gender: str = "") -> None:
+def _greeting_np(name: str) -> str:
+    # Nepali paragraph's greeting, using the wizard's primary (Devanagari)
+    # name field.
+    name = (name or "").strip()
+    return f"नमस्ते {name}," if name else "नमस्ते,"
+
+
+def send_email_otp(
+    email: str, code: str, name: str = "", name_english: str = "", gender: str = ""
+) -> None:
+    minutes = OTP_TTL_SECONDS // 60
     send_mail(
-        subject="Your Teacher Portal verification code",
+        subject="Your Teacher Portal verification code / प्रमाणीकरण कोड",
         message=(
-            f"{_greeting(name, gender)}\n\n"
-            f"Your verification code is: {code}\n\n"
-            f"This code expires in {OTP_TTL_SECONDS // 60} minutes."
+            f"{_greeting_np(name)}\n"
+            f"तपाईंको प्रमाणीकरण कोड : {code}\n"
+            f"यो कोड {minutes} मिनेटमा समाप्त हुनेछ।\n"
+            f"यदि तपाईंले यो कोड अनुरोध गर्नुभएको छैन भने, कृपया यो इमेल बेवास्ता गर्नुहोस्।\n\n"
+            f"{_greeting_en(name_english, gender)}\n"
+            f"Your verification code is: {code}\n"
+            f"This code expires in {minutes} minutes.\n"
+            f"If you did not request this code, please ignore this email."
         ),
         from_email=settings.DEFAULT_FROM_EMAIL,
         recipient_list=[email],
