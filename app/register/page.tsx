@@ -500,9 +500,6 @@ function Step1({
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
           Name (English) <span className="text-gray-400 font-normal">/ अंग्रेजीमा नाम</span>
-          <span className="text-gray-400 font-normal text-xs ml-2">
-            (auto-filled as you type your name above — edit here if it needs a fix)
-          </span>
         </label>
         <input
           type="text"
