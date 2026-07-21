@@ -4,6 +4,14 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { authFetch, fetchDocumentBlobUrl } from "@/lib/api";
 import {
+  SUBJECT_LABELS,
+  LEVEL_LABELS,
+  GRADE_LABELS,
+  TEACHER_TYPE_LABELS,
+  QUALIFICATION_LABELS,
+  formatTeacherField,
+} from "@/lib/teacherLabels";
+import {
   ArrowLeft,
   Check,
   Download,
@@ -359,7 +367,7 @@ export default function TeacherDetailPage() {
                   {teacher.name}
                 </h1>
                 <p className="text-gray-500 text-sm">
-                  Token: {teacher.tokenNo || "—"} · {teacher.subject || "—"}
+                  Token: {teacher.tokenNo || "—"} · {formatTeacherField(SUBJECT_LABELS, teacher.subject)}
                 </p>
               </div>
             </div>
@@ -433,15 +441,15 @@ export default function TeacherDetailPage() {
                 </p>
               )}
             </div>
-            <Field label="Level" value={teacher.level} />
-            <Field label="Grade" value={teacher.grade} />
-            <Field label="Teacher Type" value={teacher.teacherType} />
+            <Field label="Level" value={formatTeacherField(LEVEL_LABELS, teacher.level)} />
+            <Field label="Grade" value={formatTeacherField(GRADE_LABELS, teacher.grade)} />
+            <Field label="Teacher Type" value={formatTeacherField(TEACHER_TYPE_LABELS, teacher.teacherType)} />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 border-t pt-6 mt-6">
             <Field label="Appointment Date" value={teacher.appointmentDate} />
             <Field label="Promotion Date" value={teacher.promotionDate} />
-            <Field label="Qualification" value={teacher.qualification} />
+            <Field label="Qualification" value={formatTeacherField(QUALIFICATION_LABELS, teacher.qualification)} />
             <Field label="Extraordinary Leave" value={teacher.extraordinaryLeave} />
             <Field
               label="Extraordinary Leave Remaining"

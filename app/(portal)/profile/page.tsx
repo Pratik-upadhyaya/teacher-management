@@ -1,6 +1,13 @@
 "use client";
 import { useEffect, useState } from "react";
 import { authFetch } from "@/lib/api";
+import {
+  SUBJECT_LABELS,
+  LEVEL_LABELS,
+  GRADE_LABELS,
+  TEACHER_TYPE_LABELS,
+  formatTeacherField,
+} from "@/lib/teacherLabels";
 
 // ── Validation ──────────────────────────────────────────────────────────────
 // Note: email is intentionally not part of the editable profile form or its
@@ -246,7 +253,7 @@ export default function ProfilePage() {
           </div>
           <p className="font-semibold text-gray-800">{teacher?.name}</p>
           <p className="text-xs text-gray-400">
-            {teacher?.subject} · {teacher?.teacherType}
+            {formatTeacherField(SUBJECT_LABELS, teacher?.subject)} · {formatTeacherField(TEACHER_TYPE_LABELS, teacher?.teacherType)}
           </p>
           <p className="text-xs text-gray-500">{teacher?.schoolName}</p>
           <span
@@ -259,8 +266,13 @@ export default function ProfilePage() {
               ["Token No.", teacher?.tokenNo],
               ["Appointed", teacher?.appointmentDate],
               ["District", teacher?.district],
-              ["Level / Grade", teacher?.level],
-              ["Teacher type", teacher?.teacherType],
+              [
+                "Level / Grade",
+                teacher?.level || teacher?.grade
+                  ? `${formatTeacherField(LEVEL_LABELS, teacher?.level)} · ${formatTeacherField(GRADE_LABELS, teacher?.grade)}`
+                  : null,
+              ],
+              ["Teacher type", formatTeacherField(TEACHER_TYPE_LABELS, teacher?.teacherType)],
               ["Member since", memberSince],
             ].map(([label, value]) => (
               <div key={label} className="flex justify-between pt-2">

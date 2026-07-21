@@ -15,10 +15,10 @@ import {
 import { getAccessToken, logout } from "@/lib/api";
 
 const NAV = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/documents", label: "Documents", icon: FileText },
-  { href: "/leaves", label: "Holidays", icon: CalendarDays },
-  { href: "/profile", label: "Profile", icon: User },
+  { href: "/dashboard", label: "Dashboard", labelNp: "ड्यासबोर्ड", icon: LayoutDashboard },
+  { href: "/documents", label: "Documents", labelNp: "कागजातहरू", icon: FileText },
+  { href: "/leaves", label: "Holidays", labelNp: "बिदा", icon: CalendarDays },
+  { href: "/profile", label: "Profile", labelNp: "प्रोफाइल", icon: User },
 ];
 
 export default function PortalLayout({
@@ -79,7 +79,7 @@ export default function PortalLayout({
             <div className="w-5 h-5 bg-white rounded-sm" />
           </div>
           <div>
-            <p className="text-white font-semibold text-sm">Teacher Portal</p>
+            <p className="text-white font-semibold text-sm">Teacher Portal / शिक्षक पोर्टल</p>
             <p className="text-white/60 text-xs hidden sm:block">
               Gandaki Pradesh · गण्डकी प्रदेश
             </p>
@@ -120,14 +120,14 @@ export default function PortalLayout({
         >
           {/* Close button — mobile only */}
           <div className="flex items-center justify-between px-4 py-3 md:hidden border-b border-gray-100">
-            <p className="text-sm font-semibold text-[#0f2044]">Menu</p>
+            <p className="text-sm font-semibold text-[#0f2044]">Menu / मेनु</p>
             <button onClick={() => setSidebarOpen(false)} className="text-gray-400">
               <X size={18} />
             </button>
           </div>
 
           <nav className="flex-1 p-3 space-y-1 pt-4">
-            {NAV.map(({ href, label, icon: Icon }) => {
+            {NAV.map(({ href, label, labelNp, icon: Icon }) => {
               const active = pathname === href;
               return (
                 <Link
@@ -141,7 +141,13 @@ export default function PortalLayout({
                   }`}
                 >
                   <Icon size={16} />
-                  {label}
+                  <span>
+                    {label}
+                    <span className={active ? "text-white/60" : "text-gray-400"}>
+                      {" "}
+                      / {labelNp}
+                    </span>
+                  </span>
                 </Link>
               );
             })}
@@ -153,7 +159,7 @@ export default function PortalLayout({
               className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-500 hover:bg-red-50 hover:text-red-500 transition w-full"
             >
               <LogOut size={16} />
-              Logout
+              Logout / लगआउट
             </button>
           </div>
         </aside>

@@ -4,6 +4,14 @@ import NepaliNumberInput, { nepaliToAscii, toNepaliDigits } from "@/components/N
 import { useState } from "react";
 import { Check } from "lucide-react";
 import { API_BASE_URL } from "@/lib/api";
+import {
+  QUALIFICATION_LABELS,
+  TEACHER_TYPE_LABELS,
+  LEVEL_LABELS,
+  GENDER_LABELS,
+  SUBJECT_LABELS,
+  GRADE_LABELS,
+} from "@/lib/teacherLabels";
 
 // ── Districts & Municipalities ────────────────────────────────────
 const DISTRICTS: Record<string, { en: string; np: string; municipalities: { en: string; np: string }[] }> = {
@@ -500,6 +508,9 @@ function Step1({
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
           Name (English) <span className="text-gray-400 font-normal">/ अंग्रेजीमा नाम</span>
+          <span className="text-gray-400 font-normal text-xs ml-2">
+            (auto-filled as you type your name above — edit here if it needs a fix)
+          </span>
         </label>
         <input
           type="text"
@@ -1270,28 +1281,6 @@ function Step5({
   onSubmit: () => void;
   submitting: boolean;
 }) {
-  const qualLabels: Record<string, string> = {
-    slc: "SLC / SEE",
-    plus2: "+2 / Intermediate",
-    bachelor: "Bachelor / स्नातक",
-    master: "Master / स्नातकोत्तर",
-    mphil_phd: "M.Phil / PhD",
-  };
-  const typeLabels: Record<string, string> = {
-    permanent: "Permanent / स्थायी",
-    temporary: "Temporary / अस्थायी",
-    grant: "Grant / अनुदान",
-    shi_anudan: "Shi Anudan / शि अनुदान",
-    relief: "Relief / राहत",
-    private: "Private / निजी",
-  };
-  const levelLabels: Record<string, string> = {
-    primary: "Primary / आधारभूत (१–५)",
-    lower_secondary: "Lower Secondary / निम्न माध्यमिक (६–८)",
-    secondary: "Secondary / माध्यमिक (९–१०)",
-    higher_secondary: "Higher Secondary / उच्च माध्यमिक (११–१२)",
-  };
-
   const districtLabel = data.district
     ? `${DISTRICTS[data.district]?.en} / ${DISTRICTS[data.district]?.np}`
     : "—";
@@ -1303,20 +1292,14 @@ function Step5({
         })()
       : "—";
 
-  const genderLabels: Record<string, string> = {
-    male: "Male / पुरुष",
-    female: "Female / महिला",
-    other: "Other / अन्य",
-  };
-
   const sections = [
     {
       title: "Personal Info / व्यक्तिगत",
       rows: [
-        ["Teacher's Name / शिक्षकको नाम", data.name,
+        ["Teacher's Name / शिक्षकको नाम", data.name],
         ["Name (English)", data.nameEnglish],
         ["Father's Name / बुवाको नाम", data.fatherName],
-        ["Gender / लिङ्ग", genderLabels[data.gender] || data.gender],
+        ["Gender / लिङ्ग", GENDER_LABELS[data.gender] || data.gender],
         ["Permanent Address / स्थायी ठेगाना", data.permanentAddress],
         ["Ward No. / वडा नं (स्थायी)", data.permanentWardNo],
         ["Date of Birth / जन्म मिति", data.dob],
@@ -1333,10 +1316,10 @@ function Step5({
         ["School / विद्यालय", data.schoolName],
         ["School EMIS Code / ईमिस कोड", data.schoolEmisCode],
         ["Code No. / संकेत नं", data.tokenNo],
-        ["Subject / विषय", data.subject],
-        ["Level / तह", levelLabels[data.level] || data.level],
-        ["Grade / श्रेणी", data.grade],
-        ["Type / प्रकार", typeLabels[data.teacherType] || data.teacherType],
+        ["Subject / विषय", SUBJECT_LABELS[data.subject] || data.subject],
+        ["Level / तह", LEVEL_LABELS[data.level] || data.level],
+        ["Grade / श्रेणी", GRADE_LABELS[data.grade] || data.grade],
+        ["Type / प्रकार", TEACHER_TYPE_LABELS[data.teacherType] || data.teacherType],
       ],
     },
     {
@@ -1344,7 +1327,7 @@ function Step5({
       rows: [
         ["Appointment Date / नियुक्ती मिति", data.appointmentDate],
         ["Promotion Date / बढुवा मिति", data.promotionDate || "—"],
-        ["Qualification / योग्यता", qualLabels[data.qualification] || data.qualification],
+        ["Qualification / योग्यता", QUALIFICATION_LABELS[data.qualification] || data.qualification],
         ["Extraordinary Leave Taken / लिइसकेको असाधारण बिदा", data.extraordinaryLeave || "०"],
         [
           "Extraordinary Leave Remaining / बाँकी असाधारण बिदा",

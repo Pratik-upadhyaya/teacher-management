@@ -65,7 +65,7 @@ export default function DocumentsPage() {
       setRequests(reqRes.ok ? await reqRes.json() : []);
       setError("");
     } catch {
-      setError("Failed to load your documents.");
+      setError("Failed to load your documents. / कागजातहरू लोड गर्न सकिएन।");
     } finally {
       setLoading(false);
     }
@@ -112,7 +112,7 @@ export default function DocumentsPage() {
       // (so the new "Pending review" badge shows up immediately).
       await fetchAll();
     } catch {
-      setError("Upload failed. Please try again.");
+      setError("Upload failed. Please try again. / अपलोड असफल भयो, फेरि प्रयास गर्नुहोस्।");
     } finally {
       setUploadingKey(null);
     }
@@ -154,9 +154,11 @@ export default function DocumentsPage() {
     <div className="space-y-5">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-[#0f2044]">Documents</h1>
+        <h1 className="text-2xl font-bold text-[#0f2044]">
+          Documents / कागजातहरू
+        </h1>
         <p className="text-sm text-gray-400 mt-0.5">
-          {uploadedCount} of {DOC_TYPES.length} documents on file
+          {uploadedCount} of {DOC_TYPES.length} documents on file · {uploadedCount} मध्ये {DOC_TYPES.length} कागजात दर्ता भएको
         </p>
       </div>
 
@@ -165,6 +167,10 @@ export default function DocumentsPage() {
         <span>
           Uploading a new or replacement document sends it for admin/sub-admin
           review. It only becomes your official document once approved.
+          <br />
+          <span className="text-[#0f2044]/70">
+            नयाँ वा प्रतिस्थापन कागजात अपलोड गरेपछि प्रशासकबाट समीक्षा हुनेछ। स्वीकृत भएपछि मात्र यो तपाईंको आधिकारिक कागजात हुनेछ।
+          </span>
         </span>
       </div>
 
@@ -214,10 +220,10 @@ export default function DocumentsPage() {
                         {d.label}
                       </p>
                       <p className="text-xs text-gray-400 flex items-center gap-1">
-                        {url ? "Uploaded" : "Not uploaded"}
+                        {url ? "Uploaded / अपलोड भयो" : "Not uploaded / अपलोड भएको छैन"}
                         {isPending && (
                           <span className="ml-1.5 inline-flex items-center gap-1 text-amber-600 font-medium">
-                            <Clock size={11} /> Pending review
+                            <Clock size={11} /> Pending review / समीक्षामा
                           </span>
                         )}
                       </p>
@@ -253,14 +259,14 @@ export default function DocumentsPage() {
                     >
                       <Upload size={13} />
                       {isPreparing
-                        ? "Preparing…"
+                        ? "Preparing… / तयार गर्दै…"
                         : isUploading
-                        ? "Uploading…"
+                        ? "Uploading… / अपलोड हुँदै…"
                         : isPending
-                        ? "Replace pending upload"
+                        ? "Replace pending upload / प्रतिस्थापन गर्नुहोस्"
                         : url
-                        ? "Replace"
-                        : "Upload"}
+                        ? "Replace / प्रतिस्थापन"
+                        : "Upload / अपलोड"}
                     </button>
                   </div>
                 </div>
@@ -270,6 +276,11 @@ export default function DocumentsPage() {
                     Your last submission for this document was rejected
                     {latest?.review_note ? `: "${latest.review_note}"` : "."} Please
                     upload a corrected copy.
+                    <br />
+                    <span className="text-red-500/80">
+                      यस कागजातको पछिल्लो पेशी अस्वीकृत भयो
+                      {latest?.review_note ? `: "${latest.review_note}"` : "।"} कृपया सच्याइएको प्रति अपलोड गर्नुहोस्।
+                    </span>
                   </div>
                 )}
               </div>
@@ -313,7 +324,7 @@ export default function DocumentsPage() {
             {/* Modal Body */}
             <div className="flex-1 p-6 bg-gray-50 overflow-auto flex justify-center items-center">
               {previewLoading ? (
-                <p className="text-sm text-gray-400">Loading document…</p>
+                <p className="text-sm text-gray-400">Loading document… / लोड हुँदैछ…</p>
               ) : previewError ? (
                 <p className="text-sm text-red-600">{previewError}</p>
               ) : previewUrl && previewIsPdf ? (

@@ -122,7 +122,7 @@ export default function LeavesPage() {
       setApplications(await appsRes.json());
       setError("");
     } catch {
-      setError("Failed to load your holiday records.");
+      setError("Failed to load your holiday records. / बिदा रेकर्ड लोड गर्न सकिएन।");
     } finally {
       setLoading(false);
     }
@@ -181,27 +181,27 @@ export default function LeavesPage() {
     setFormError("");
 
     if (!leaveTypeId) {
-      setFormError("Please select a leave type.");
+      setFormError("Please select a leave type. / कृपया बिदाको प्रकार छान्नुहोस्।");
       return;
     }
     if (!startDate || !endDate) {
-      setFormError("Please provide both a start and end date.");
+      setFormError("Please provide both a start and end date. / कृपया सुरु र अन्त्य मिति दुवै दिनुहोस्।");
       return;
     }
     if (endDate < startDate) {
-      setFormError("End date cannot be before start date.");
+      setFormError("End date cannot be before start date. / अन्त्य मिति सुरु मितिभन्दा पहिले हुन सक्दैन।");
       return;
     }
     if (startDate < MIN_LEAVE_DATE || endDate < MIN_LEAVE_DATE) {
-      setFormError(`Leave dates must be on or after ${formatDate(MIN_LEAVE_DATE)}.`);
+      setFormError(`Leave dates must be on or after ${formatDate(MIN_LEAVE_DATE)}. / बिदाको मिति ${formatDate(MIN_LEAVE_DATE)} वा पछिको हुनुपर्छ।`);
       return;
     }
     if (startDate > MAX_LEAVE_DATE || endDate > MAX_LEAVE_DATE) {
-      setFormError(`Leave dates must be on or before ${formatDate(MAX_LEAVE_DATE)}.`);
+      setFormError(`Leave dates must be on or before ${formatDate(MAX_LEAVE_DATE)}. / बिदाको मिति ${formatDate(MAX_LEAVE_DATE)} वा पहिलेको हुनुपर्छ।`);
       return;
     }
     if (!file) {
-      setFormError("A ward-stamped supporting document is required.");
+      setFormError("A ward-stamped supporting document is required. / वडाको छाप लागेको कागजात आवश्यक छ।");
       return;
     }
 
@@ -258,7 +258,7 @@ export default function LeavesPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[#0f2044]">Holidays</h1>
+          <h1 className="text-2xl font-bold text-[#0f2044]">Holidays / बिदा</h1>
           <p className="text-sm text-gray-400 mt-0.5">
             Leave taken in {currentYear} / {currentYear} मा लिइएको बिदा
           </p>
@@ -268,7 +268,7 @@ export default function LeavesPage() {
           className="flex items-center gap-1.5 text-sm font-semibold text-white bg-[#0f2044] hover:bg-[#16305f] px-4 py-2.5 rounded-lg transition shrink-0"
         >
           <Plus size={15} />
-          Apply for Leave
+          Apply for Leave / बिदाको लागि आवेदन
         </button>
       </div>
 
@@ -277,6 +277,10 @@ export default function LeavesPage() {
         <span>
           This is a self-reported record of leave already taken. Upload the document stamped
           by your ward as proof — that stamp is the approval; there's no further review here.
+          <br />
+          <span className="text-[#0f2044]/70">
+            यो पहिले नै लिइएको बिदाको स्व-रिपोर्ट गरिएको रेकर्ड हो। तपाईंको वडाबाट छाप लागेको कागजात प्रमाणको रूपमा अपलोड गर्नुहोस् — त्यो छाप नै स्वीकृति हो; यहाँ थप समीक्षा हुँदैन।
+          </span>
         </span>
       </div>
 
@@ -312,8 +316,8 @@ export default function LeavesPage() {
                 </p>
                 <p className="text-xs text-gray-400 mt-1">
                   {row.leave_type.is_lifetime
-                    ? `${row.used_days} of ${quota} days used since registration`
-                    : `${row.used_days} of ${quota} days used`}
+                    ? `${row.used_days} of ${quota} days used since registration / दर्ता भएदेखि ${row.used_days}/${quota} दिन प्रयोग भयो`
+                    : `${row.used_days} of ${quota} days used / ${row.used_days}/${quota} दिन प्रयोग भयो`}
                 </p>
                 <div className="mt-2 h-1.5 rounded-full bg-gray-100 overflow-hidden">
                   <div
@@ -329,7 +333,9 @@ export default function LeavesPage() {
 
       {/* History */}
       <div>
-        <h2 className="text-sm font-semibold text-gray-500 mb-2">Application History</h2>
+        <h2 className="text-sm font-semibold text-gray-500 mb-2">
+          Application History / आवेदन इतिहास
+        </h2>
         {loading ? (
           <div className="space-y-3">
             {[1, 2, 3].map((i) => (
@@ -338,7 +344,7 @@ export default function LeavesPage() {
           </div>
         ) : applications.length === 0 ? (
           <div className="bg-white rounded-xl border border-gray-100 px-5 py-8 text-center text-sm text-gray-400">
-            No holidays applied for yet.
+            No holidays applied for yet. / अहिलेसम्म कुनै बिदाको आवेदन गरिएको छैन।
           </div>
         ) : (
           <div className="bg-white rounded-xl border border-gray-100 divide-y divide-gray-50">
@@ -367,7 +373,7 @@ export default function LeavesPage() {
                   className="flex items-center gap-1.5 text-xs font-semibold text-[#0f2044] bg-gray-50 hover:bg-gray-100 px-3 py-2 rounded-lg transition shrink-0"
                 >
                   <FileText size={13} />
-                  Document
+                  Document / कागजात
                 </button>
               </div>
             ))}
@@ -380,7 +386,9 @@ export default function LeavesPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="relative bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
             <div className="flex justify-between items-center px-6 py-4 border-b border-gray-100">
-              <h3 className="text-lg font-bold text-[#0f2044]">Apply for Leave</h3>
+              <h3 className="text-lg font-bold text-[#0f2044]">
+                Apply for Leave / बिदाको लागि आवेदन
+              </h3>
               <button
                 onClick={closeModal}
                 className="p-1.5 hover:bg-gray-100 text-gray-400 hover:text-gray-600 rounded-lg transition"
@@ -415,7 +423,9 @@ export default function LeavesPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-semibold text-gray-500 mb-1 block">Start Date</label>
+                  <label className="text-xs font-semibold text-gray-500 mb-1 block">
+                    Start Date / सुरु मिति
+                  </label>
                   <input
                     type="date"
                     value={startDate}
@@ -426,7 +436,9 @@ export default function LeavesPage() {
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-gray-500 mb-1 block">End Date</label>
+                  <label className="text-xs font-semibold text-gray-500 mb-1 block">
+                    End Date / अन्त्य मिति
+                  </label>
                   <input
                     type="date"
                     value={endDate}
@@ -438,7 +450,7 @@ export default function LeavesPage() {
                 </div>
               </div>
               <p className="text-xs text-gray-400">
-                Only dates from {formatDate(MIN_LEAVE_DATE)} onward can be reported.
+                Only dates from {formatDate(MIN_LEAVE_DATE)} onward can be reported. / {formatDate(MIN_LEAVE_DATE)} पछिको मिति मात्र रिपोर्ट गर्न सकिन्छ।
               </p>
 
               {selectedDays > 0 && (
@@ -460,7 +472,7 @@ export default function LeavesPage() {
 
               <div>
                 <label className="text-xs font-semibold text-gray-500 mb-1 block">
-                  Reason (optional)
+                  Reason (optional) / कारण (वैकल्पिक)
                 </label>
                 <textarea
                   value={reason}
@@ -472,7 +484,7 @@ export default function LeavesPage() {
 
               <div>
                 <label className="text-xs font-semibold text-gray-500 mb-1 block">
-                  Ward-Stamped Document
+                  Ward-Stamped Document / वडाको छाप लागेको कागजात
                 </label>
                 <input
                   ref={fileInputRef}
@@ -487,7 +499,11 @@ export default function LeavesPage() {
                   className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold text-[#0f2044] bg-gray-50 hover:bg-gray-100 px-3 py-2.5 rounded-lg transition disabled:opacity-50"
                 >
                   <Upload size={13} />
-                  {preparingFile ? "Preparing…" : file ? `Selected: ${file.name}` : "Upload document"}
+                  {preparingFile
+                    ? "Preparing… / तयार गर्दै…"
+                    : file
+                    ? `Selected: ${file.name}`
+                    : "Upload document / कागजात अपलोड गर्नुहोस्"}
                 </button>
               </div>
 
@@ -496,7 +512,7 @@ export default function LeavesPage() {
                 disabled={submitting || preparingFile}
                 className="w-full text-sm font-semibold text-white bg-[#0f2044] hover:bg-[#16305f] px-4 py-2.5 rounded-lg transition disabled:opacity-50"
               >
-                {submitting ? "Submitting…" : "Submit"}
+                {submitting ? "Submitting… / पेश हुँदैछ…" : "Submit / पेश गर्नुहोस्"}
               </button>
             </div>
           </div>

@@ -3,6 +3,14 @@ import { useEffect, useState } from "react";
 import { FileText, School, BookOpen, Calendar } from "lucide-react";
 import Link from "next/link";
 import { authFetch } from "@/lib/api";
+import {
+  SUBJECT_LABELS,
+  LEVEL_LABELS,
+  GRADE_LABELS,
+  TEACHER_TYPE_LABELS,
+  QUALIFICATION_LABELS,
+  formatTeacherField,
+} from "@/lib/teacherLabels";
 
 type Teacher = {
   name?: string;
@@ -31,11 +39,11 @@ type Teacher = {
 };
 
 const DOCUMENT_FIELDS: { key: keyof Teacher; label: string }[] = [
-  { key: "citizenship", label: "Citizenship" },
-  { key: "degree", label: "Degree" },
-  { key: "transcript", label: "Transcript" },
-  { key: "teachingLicense", label: "Teaching License" },
-  { key: "appointmentLetter", label: "Appointment Letter" },
+  { key: "citizenship", label: "Citizenship / नागरिकता" },
+  { key: "degree", label: "Degree / प्रमाणपत्र" },
+  { key: "transcript", label: "Transcript / अंकतालिका" },
+  { key: "teachingLicense", label: "Teaching License / शिक्षण अनुमतिपत्र" },
+  { key: "appointmentLetter", label: "Appointment Letter / नियुक्तिपत्र" },
 ];
 
 export default function DashboardPage() {
@@ -78,21 +86,21 @@ export default function DashboardPage() {
 
   const stats = [
     {
-      label: "School",
+      label: "School / विद्यालय",
       value: teacher?.schoolName ?? "—",
       icon: School,
       color: "text-blue-600",
       bg: "bg-blue-50",
     },
     {
-      label: "Subject",
-      value: teacher?.subject ?? "—",
+      label: "Subject / विषय",
+      value: formatTeacherField(SUBJECT_LABELS, teacher?.subject),
       icon: BookOpen,
       color: "text-green-600",
       bg: "bg-green-50",
     },
     {
-      label: "Documents",
+      label: "Documents / कागजातहरू",
       value: `${uploadedDocs.length} / ${DOCUMENT_FIELDS.length}`,
       icon: FileText,
       color: "text-orange-500",
@@ -100,7 +108,7 @@ export default function DashboardPage() {
       href: "/documents",
     },
     {
-      label: "Member Since",
+      label: "Member Since / देखि सदस्य",
       value: memberSince,
       icon: Calendar,
       color: "text-purple-600",
@@ -108,12 +116,18 @@ export default function DashboardPage() {
     },
   ];
 
+  const hour = new Date().getHours();
+  const greeting =
+    hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+  const greetingNp =
+    hour < 12 ? "शुभ प्रभात" : hour < 17 ? "नमस्ते" : "शुभ साँझ";
+
   const statusLabel =
     teacher?.status === "approved"
-      ? "Approved by Admin"
+      ? "Approved by Admin / प्रशासकद्वारा स्वीकृत"
       : teacher?.status === "rejected"
-      ? "Application Rejected"
-      : "Pending Approval";
+      ? "Application Rejected / आवेदन अस्वीकृत"
+      : "Pending Approval / स्वीकृतिको प्रतीक्षामा";
 
   const statusColor =
     teacher?.status === "approved"
@@ -127,10 +141,10 @@ export default function DashboardPage() {
       {/* Greeting */}
       <div>
         <h1 className="text-2xl font-bold text-[#0f2044]">
-          Good morning, {teacher?.name?.split(" ")[0] ?? "Teacher"} 👋
+          {greeting}, {teacher?.name?.split(" ")[0] ?? "Teacher"} 👋
         </h1>
         <p className="text-gray-400 text-sm mt-0.5">
-          {teacher?.schoolName} · {teacher?.district}
+          {greetingNp} · {teacher?.schoolName} · {teacher?.district}
         </p>
       </div>
 
@@ -168,24 +182,26 @@ export default function DashboardPage() {
 
       {/* Info table */}
       <div className="bg-white rounded-xl border border-gray-100 p-5">
-        <h2 className="font-semibold text-[#0f2044] mb-4">My Information</h2>
+        <h2 className="font-semibold text-[#0f2044] mb-4">
+          My Information / मेरो विवरण
+        </h2>
         <div className="divide-y divide-gray-50">
           {[
-            ["Father's Name", teacher?.fatherName],
-            ["Token No.", teacher?.tokenNo],
-            ["Subject", teacher?.subject],
-            ["Level", teacher?.level],
-            ["Grade", teacher?.grade],
-            ["Teacher Type", teacher?.teacherType],
-            ["Qualification", teacher?.qualification],
-            ["Appointment Date", teacher?.appointmentDate],
-            ["Promotion Date", teacher?.promotionDate],
-            ["School", teacher?.schoolName],
-            ["District", teacher?.district],
-            ["Municipality", teacher?.municipality],
-            ["Ward No.", teacher?.wardNo],
-            ["Phone", teacher?.phone],
-            ["Email", teacher?.email],
+            ["Father's Name / बुबाको नाम", teacher?.fatherName],
+            ["Token No. / टोकन नं.", teacher?.tokenNo],
+            ["Subject / विषय", formatTeacherField(SUBJECT_LABELS, teacher?.subject)],
+            ["Level / तह", formatTeacherField(LEVEL_LABELS, teacher?.level)],
+            ["Grade / कक्षा", formatTeacherField(GRADE_LABELS, teacher?.grade)],
+            ["Teacher Type / शिक्षक प्रकार", formatTeacherField(TEACHER_TYPE_LABELS, teacher?.teacherType)],
+            ["Qualification / योग्यता", formatTeacherField(QUALIFICATION_LABELS, teacher?.qualification)],
+            ["Appointment Date / नियुक्ती मिति", teacher?.appointmentDate],
+            ["Promotion Date / बढुवा मिति", teacher?.promotionDate],
+            ["School / विद्यालय", teacher?.schoolName],
+            ["District / जिल्ला", teacher?.district],
+            ["Municipality / नगरपालिका", teacher?.municipality],
+            ["Ward No. / वडा नं.", teacher?.wardNo],
+            ["Phone / फोन", teacher?.phone],
+            ["Email / इमेल", teacher?.email],
           ].map(([label, value]) => (
             <div key={label} className="flex justify-between py-2.5 text-sm">
               <span className="text-gray-400">{label}</span>

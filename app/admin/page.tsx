@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { authFetch, fetchDocumentBlobUrl, logout } from "@/lib/api";
+import { SUBJECT_LABELS, formatTeacherField } from "@/lib/teacherLabels";
 import { Download, UserPlus, Trash2, X, Check, FileText } from "lucide-react";
 
 type Teacher = {
@@ -53,6 +54,21 @@ export default function AdminPage() {
   const [teacherRejectReason, setTeacherRejectReason] = useState("");
   const [teacherRejectReasonError, setTeacherRejectReasonError] = useState("");
   const [teacherRejectBusy, setTeacherRejectBusy] = useState(false);
+
+  // Toast — replaces raw alert() calls, which look like a browser/system
+  // warning rather than part of the app to someone unfamiliar with
+  // browsers. Auto-dismisses, but can also be closed manually.
+  const [toast, setToast] = useState("");
+  function showToast(msg: string) {
+    setToast(msg);
+    setTimeout(() => setToast(""), 5000);
+  }
+
+  // Remove-sub-admin confirmation — replaces raw confirm(), which is a
+  // native browser dialog with no styling and can look alarming/unfamiliar
+  // rather than an obvious part of the site.
+  const [removeSubAdminTarget, setRemoveSubAdminTarget] = useState<{ id: number; name: string } | null>(null);
+  const [removeSubAdminBusy, setRemoveSubAdminBusy] = useState(false);
 
   const [subAdmins, setSubAdmins] = useState<any[]>([]);
   const [subAdminListError, setSubAdminListError] = useState("");
@@ -136,7 +152,7 @@ export default function AdminPage() {
       if (!res.ok) throw new Error();
       setDocumentRequests((prev) => prev.filter((r) => r.id !== id));
     } catch {
-      alert("Approve failed. Please try again.");
+      showToast("Approve failed. Please try again. / स्वीकृत गर्न असफल भयो, फेरि प्रयास गर्नुहोस्।");
     } finally {
       setDocRequestBusyId(null);
     }
@@ -319,18 +335,29 @@ export default function AdminPage() {
     }
   }
 
-  async function removeSubAdmin(id: number) {
-    if (!confirm("Are you sure you want to remove this sub-admin?")) return;
+  function openRemoveSubAdminModal(id: number, name: string) {
+    setRemoveSubAdminTarget({ id, name });
+  }
 
+  function closeRemoveSubAdminModal() {
+    setRemoveSubAdminTarget(null);
+  }
+
+  async function confirmRemoveSubAdmin() {
+    if (!removeSubAdminTarget) return;
+    setRemoveSubAdminBusy(true);
     try {
-      const res = await authFetch(`/api/accounts/sub-admins/${id}/`, {
+      const res = await authFetch(`/api/accounts/sub-admins/${removeSubAdminTarget.id}/`, {
         method: "DELETE",
       });
       if (!res.ok) throw new Error("Failed to remove sub-admin.");
-      setSubAdmins((prev) => prev.filter((sa) => sa.id !== id));
+      setSubAdmins((prev) => prev.filter((sa) => sa.id !== removeSubAdminTarget.id));
+      setRemoveSubAdminTarget(null);
     } catch (err) {
       console.error(err);
-      alert("Could not remove sub-admin. Please try again.");
+      showToast("Could not remove sub-admin. Please try again. / सब-एडमिन हटाउन सकिएन, फेरि प्रयास गर्नुहोस्।");
+    } finally {
+      setRemoveSubAdminBusy(false);
     }
   }
 
@@ -338,7 +365,7 @@ export default function AdminPage() {
     const res = await authFetch(`/api/${id}/approve/`, { method: "PATCH" });
 
     if (!res.ok) {
-      alert("Approve failed");
+      showToast("Approve failed. / स्वीकृत गर्न असफल भयो।");
       return;
     }
 
@@ -393,6 +420,20 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-[#eef3fb] flex">
+      {/* Toast — replaces alert() */}
+      {toast && (
+        <div className="fixed top-4 right-4 z-[100] max-w-sm bg-white border border-red-200 shadow-lg rounded-xl px-4 py-3 flex items-start gap-3 animate-in fade-in slide-in-from-top-2 duration-150">
+          <div className="w-2 h-2 rounded-full bg-red-500 mt-1.5 shrink-0" />
+          <p className="text-sm text-gray-700 flex-1">{toast}</p>
+          <button
+            onClick={() => setToast("")}
+            className="text-gray-400 hover:text-gray-600 shrink-0"
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
       {/* Sidebar */}
       <div className="w-72 bg-[#0f2044] text-white flex flex-col shadow-xl">
         <div className="p-6 border-b border-blue-900">
@@ -593,7 +634,7 @@ export default function AdminPage() {
                           Token: {teacher.tokenNo}
                         </p>
                         <p className="text-gray-500">
-                          Subject: {teacher.subject}
+                          Subject: {formatTeacherField(SUBJECT_LABELS, teacher.subject)}
                         </p>
                       </div>
 
@@ -642,7 +683,7 @@ export default function AdminPage() {
                 >
                   <div>
                     <p className="font-semibold">{teacher.name}</p>
-                    <p className="text-gray-500">{teacher.subject}</p>
+                    <p className="text-gray-500">{formatTeacherField(SUBJECT_LABELS, teacher.subject)}</p>
                   </div>
 
                   <button
@@ -671,7 +712,7 @@ export default function AdminPage() {
               >
                 <div>
                   <p className="font-semibold">{teacher.name}</p>
-                  <p className="text-gray-500">{teacher.subject}</p>
+                  <p className="text-gray-500">{formatTeacherField(SUBJECT_LABELS, teacher.subject)}</p>
                 </div>
 
                 <button
@@ -699,7 +740,7 @@ export default function AdminPage() {
               >
                 <div>
                   <p className="font-semibold">{teacher.name}</p>
-                  <p className="text-gray-500">{teacher.subject}</p>
+                  <p className="text-gray-500">{formatTeacherField(SUBJECT_LABELS, teacher.subject)}</p>
                 </div>
 
                 <button
@@ -734,7 +775,7 @@ export default function AdminPage() {
                         {teacher.name}
                       </h3>
                       <p className="text-gray-500">Token: {teacher.tokenNo}</p>
-                      <p className="text-gray-500">Subject: {teacher.subject}</p>
+                      <p className="text-gray-500">Subject: {formatTeacherField(SUBJECT_LABELS, teacher.subject)}</p>
                       {teacher.remarks && (
                         <p className="text-red-600 text-sm mt-1">
                           Reason: {teacher.remarks}
@@ -902,7 +943,7 @@ export default function AdminPage() {
                         </td>
                         <td className="py-4 px-4 text-right">
                           <button
-                            onClick={() => removeSubAdmin(admin.id)}
+                            onClick={() => openRemoveSubAdminModal(admin.id, admin.first_name || admin.username)}
                             className="p-1.5 hover:bg-red-50 text-red-500 hover:text-red-700 rounded-lg transition"
                             title="Remove Sub-Admin"
                           >
@@ -1180,6 +1221,44 @@ export default function AdminPage() {
             >
               {teacherRejectBusy ? "Rejecting..." : "Confirm Rejection"}
             </button>
+          </div>
+        </div>
+      )}
+      {/* Remove Sub-Admin Confirmation Modal — replaces confirm() */}
+      {removeSubAdminTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="relative bg-white rounded-2xl w-full max-w-md p-6 sm:p-8 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold text-[#0f2044]">Remove Sub-Admin</h3>
+              <button
+                onClick={closeRemoveSubAdminModal}
+                className="p-1.5 hover:bg-gray-100 text-gray-400 hover:text-gray-600 rounded-lg transition"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <p className="text-sm text-gray-600">
+              Are you sure you want to remove <span className="font-semibold text-gray-800">{removeSubAdminTarget.name}</span> as a sub-admin? They will lose access immediately.
+              <br />
+              <span className="text-gray-400">
+                के तपाईं <span className="font-semibold">{removeSubAdminTarget.name}</span> लाई सब-एडमिनबाट हटाउन चाहनुहुन्छ? उनीहरूको पहुँच तुरुन्तै हट्नेछ।
+              </span>
+            </p>
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={closeRemoveSubAdminModal}
+                className="flex-1 border border-gray-200 text-gray-600 rounded-lg py-2.5 text-sm font-medium hover:bg-gray-50 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmRemoveSubAdmin}
+                disabled={removeSubAdminBusy}
+                className="flex-1 bg-red-500 hover:bg-red-600 text-white rounded-lg py-2.5 text-sm font-semibold transition disabled:opacity-60"
+              >
+                {removeSubAdminBusy ? "Removing..." : "Remove"}
+              </button>
+            </div>
           </div>
         </div>
       )}
