@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "bikram-sambat": "^1.8.1",
     "exceljs": "^4.4.0",
     "heic2any": "^0.0.4",
     "input-tool-helper": "^0.0.2",

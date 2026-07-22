@@ -17,6 +17,8 @@ import {
   UnsupportedFileTypeError,
   prepareDocumentFile,
 } from "@/lib/documentUpload";
+import NepaliNumberInput from "@/components/NepaliNumberInput";
+import { adToBs, bsToAd, todayBs, isCompleteBsDate } from "@/lib/bsDate";
 
 type LeaveType = {
   id: number;
@@ -48,37 +50,30 @@ type LeaveApplication = {
 
 // Leave applications may only report dates from 1 Chaitra 2082 BS onward,
 // up to 6 years after that. Kept in sync with backend/leaves/views.py's
-// MIN_LEAVE_DATE / MAX_LEAVE_DATE -- see that file's comment on why this
-// is a hardcoded AD equivalent rather than a computed BS conversion.
+// MIN_LEAVE_DATE / MAX_LEAVE_DATE -- the backend does its day-counting and
+// range validation in AD (Gregorian), so these stay the source of truth
+// for comparisons/submission. Everything the user actually sees or types
+// is BS -- see lib/bsDate.ts for the conversion layer.
 const MIN_LEAVE_DATE = "2026-03-15"; // 1 Chaitra 2082 BS
 const MAX_LEAVE_DATE = "2032-03-15"; // MIN_LEAVE_DATE + 6 years
+const MIN_LEAVE_DATE_BS = adToBs(MIN_LEAVE_DATE)!; // २०८२/१२/०१
+const MAX_LEAVE_DATE_BS = adToBs(MAX_LEAVE_DATE)!; // २०८८/१२/०२
 
+// Displays an AD ISO date (as returned by the backend) as a BS date in
+// Nepali digits -- the only date format shown anywhere on this page.
 function formatDate(iso: string) {
-  return new Date(iso + "T00:00:00").toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-}
-
-
-function todayIso() {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+  return adToBs(iso) ?? iso;
 }
 
 // Explicitly picking a default date (rather than leaving the field empty)
-// avoids relying on the browser's own default-highlight behavior in the
-// native date picker, which is inconsistent across browsers/OSes and was
-// showing up as an unexpected date on open.
+// avoids an empty/ambiguous starting point. Clamped in AD against the
+// backend's real range, then converted to BS for display -- the teacher
+// only ever sees the BS result.
 function defaultLeaveDate() {
-  const today = todayIso();
-  if (today < MIN_LEAVE_DATE) return MIN_LEAVE_DATE;
-  if (today > MAX_LEAVE_DATE) return MAX_LEAVE_DATE;
-  return today;
+  const today = new Date();
+  const todayIso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  const clamped = todayIso < MIN_LEAVE_DATE ? MIN_LEAVE_DATE : todayIso > MAX_LEAVE_DATE ? MAX_LEAVE_DATE : todayIso;
+  return adToBs(clamped) ?? todayBs();
 }
 
 export default function LeavesPage() {
@@ -161,12 +156,15 @@ export default function LeavesPage() {
     }
   }
 
+  const startDateAd = startDate ? bsToAd(startDate) : null;
+  const endDateAd = endDate ? bsToAd(endDate) : null;
+
   const selectedDays =
-    startDate && endDate
+    startDateAd && endDateAd
       ? Math.max(
           Math.round(
-            (new Date(endDate + "T00:00:00").getTime() -
-              new Date(startDate + "T00:00:00").getTime()) /
+            (new Date(endDateAd + "T00:00:00").getTime() -
+              new Date(startDateAd + "T00:00:00").getTime()) /
               86400000
           ) + 1,
           0
@@ -184,20 +182,26 @@ export default function LeavesPage() {
       setFormError("Please select a leave type. / कृपया बिदाको प्रकार छान्नुहोस्।");
       return;
     }
-    if (!startDate || !endDate) {
+    if (!startDate || !endDate || !isCompleteBsDate(startDate) || !isCompleteBsDate(endDate)) {
       setFormError("Please provide both a start and end date. / कृपया सुरु र अन्त्य मिति दुवै दिनुहोस्।");
       return;
     }
-    if (endDate < startDate) {
+    const startAd = bsToAd(startDate);
+    const endAd = bsToAd(endDate);
+    if (!startAd || !endAd) {
+      setFormError("That doesn't look like a valid date. / यो मिति मान्य देखिँदैन।");
+      return;
+    }
+    if (endAd < startAd) {
       setFormError("End date cannot be before start date. / अन्त्य मिति सुरु मितिभन्दा पहिले हुन सक्दैन।");
       return;
     }
-    if (startDate < MIN_LEAVE_DATE || endDate < MIN_LEAVE_DATE) {
-      setFormError(`Leave dates must be on or after ${formatDate(MIN_LEAVE_DATE)}. / बिदाको मिति ${formatDate(MIN_LEAVE_DATE)} वा पछिको हुनुपर्छ।`);
+    if (startAd < MIN_LEAVE_DATE || endAd < MIN_LEAVE_DATE) {
+      setFormError(`Leave dates must be on or after ${MIN_LEAVE_DATE_BS}. / बिदाको मिति ${MIN_LEAVE_DATE_BS} वा पछिको हुनुपर्छ।`);
       return;
     }
-    if (startDate > MAX_LEAVE_DATE || endDate > MAX_LEAVE_DATE) {
-      setFormError(`Leave dates must be on or before ${formatDate(MAX_LEAVE_DATE)}. / बिदाको मिति ${formatDate(MAX_LEAVE_DATE)} वा पहिलेको हुनुपर्छ।`);
+    if (startAd > MAX_LEAVE_DATE || endAd > MAX_LEAVE_DATE) {
+      setFormError(`Leave dates must be on or before ${MAX_LEAVE_DATE_BS}. / बिदाको मिति ${MAX_LEAVE_DATE_BS} वा पहिलेको हुनुपर्छ।`);
       return;
     }
     if (!file) {
@@ -209,8 +213,8 @@ export default function LeavesPage() {
     try {
       const fd = new FormData();
       fd.append("leave_type", String(leaveTypeId));
-      fd.append("start_date", startDate);
-      fd.append("end_date", endDate);
+      fd.append("start_date", startAd);
+      fd.append("end_date", endAd);
       fd.append("reason", reason);
       fd.append("document", file);
 
@@ -369,7 +373,7 @@ export default function LeavesPage() {
                   </div>
                 </div>
                 <button
-                  onClick={() => openDocument(`${app.leave_type_detail.name} — ${app.start_date}`, app.document)}
+                  onClick={() => openDocument(`${app.leave_type_detail.name} — ${formatDate(app.start_date)}`, app.document)}
                   className="flex items-center gap-1.5 text-xs font-semibold text-[#0f2044] bg-gray-50 hover:bg-gray-100 px-3 py-2 rounded-lg transition shrink-0"
                 >
                   <FileText size={13} />
@@ -424,27 +428,25 @@ export default function LeavesPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-semibold text-gray-500 mb-1 block">
-                    Start Date / सुरु मिति
+                    Start Date (BS) / सुरु मिति
                   </label>
-                  <input
-                    type="date"
+                  <NepaliNumberInput
                     value={startDate}
-                    min={MIN_LEAVE_DATE}
-                    max={MAX_LEAVE_DATE}
-                    onChange={(e) => setStartDate(e.target.value)}
+                    onChange={setStartDate}
+                    mode="date"
+                    placeholder={MIN_LEAVE_DATE_BS}
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#0f2044]"
                   />
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-gray-500 mb-1 block">
-                    End Date / अन्त्य मिति
+                    End Date (BS) / अन्त्य मिति
                   </label>
-                  <input
-                    type="date"
+                  <NepaliNumberInput
                     value={endDate}
-                    min={MIN_LEAVE_DATE}
-                    max={MAX_LEAVE_DATE}
-                    onChange={(e) => setEndDate(e.target.value)}
+                    onChange={setEndDate}
+                    mode="date"
+                    placeholder={MIN_LEAVE_DATE_BS}
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#0f2044]"
                   />
                 </div>

@@ -15,8 +15,6 @@ export const LEVEL_LABELS: Record<string, string> = {
   higher_secondary: "Higher Secondary / उच्च माध्यमिक (११–१२)",
 };
 
-// See NOTE above -- matches what was shown on screen, not a "corrected"
-// mapping of the swapped value/label pairing.
 export const GRADE_LABELS: Record<string, string> = {
   third: "Third / तृतीय",
   second: "Second / द्वितीय",
@@ -46,13 +44,6 @@ export const GENDER_LABELS: Record<string, string> = {
   other: "Other / अन्य",
 };
 
-/**
- * Looks up a raw stored code in the given label map. Falls back to a
- * lightly-formatted version of the raw value (underscores -> spaces,
- * title case) rather than the bare code, in case a value ever exists
- * that isn't in the map (e.g. legacy data, a future new option not yet
- * added here) -- so the UI never shows a literal "lower_secondary".
- */
 export function formatTeacherField(
   map: Record<string, string>,
   value?: string | null
