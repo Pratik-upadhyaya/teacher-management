@@ -33,6 +33,15 @@ export default function AdminPage() {
   const [documentRequests, setDocumentRequests] = useState<any[]>([]);
   const [docRequestError, setDocRequestError] = useState("");
   const [docRequestBusyId, setDocRequestBusyId] = useState<number | null>(null);
+
+  const [transferRequests, setTransferRequests] = useState<any[]>([]);
+  const [transferRequestError, setTransferRequestError] = useState("");
+  const [transferRequestBusyId, setTransferRequestBusyId] = useState<number | null>(null);
+  const [transferRejectModalOpen, setTransferRejectModalOpen] = useState(false);
+  const [transferRejectTargetId, setTransferRejectTargetId] = useState<number | null>(null);
+  const [transferRejectReason, setTransferRejectReason] = useState("");
+  const [transferRejectReasonError, setTransferRejectReasonError] = useState("");
+
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewTitle, setPreviewTitle] = useState("");
@@ -200,6 +209,91 @@ export default function AdminPage() {
     }
   }
 
+  function loadTransferRequests() {
+    authFetch("/api/transfers/requests/?status=pending")
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to load transfer requests.");
+        return res.json();
+      })
+      .then((data) => {
+        setTransferRequests(data);
+        setTransferRequestError("");
+      })
+      .catch((err) => {
+        console.error(err);
+        setTransferRequestError("Could not load pending transfer requests.");
+      });
+  }
+
+  async function approveTransferRequest(id: number) {
+    setTransferRequestBusyId(id);
+    try {
+      const res = await authFetch(`/api/transfers/requests/${id}/approve/`, {
+        method: "PATCH",
+      });
+      if (!res.ok) throw new Error();
+      setTransferRequests((prev) => prev.filter((r) => r.id !== id));
+    } catch {
+      showToast("Approve failed. Please try again. / स्वीकृत गर्न असफल भयो, फेरि प्रयास गर्नुहोस्।");
+    } finally {
+      setTransferRequestBusyId(null);
+    }
+  }
+
+  function openTransferRejectModal(id: number) {
+    setTransferRejectTargetId(id);
+    setTransferRejectReason("");
+    setTransferRejectReasonError("");
+    setTransferRejectModalOpen(true);
+  }
+
+  function closeTransferRejectModal() {
+    setTransferRejectModalOpen(false);
+    setTransferRejectTargetId(null);
+    setTransferRejectReason("");
+    setTransferRejectReasonError("");
+  }
+
+  async function submitRejectTransferRequest() {
+    if (transferRejectTargetId == null) return;
+    const reason = transferRejectReason.trim();
+    if (!reason) {
+      setTransferRejectReasonError("A rejection reason is required.");
+      return;
+    }
+    const id = transferRejectTargetId;
+    setTransferRequestBusyId(id);
+    try {
+      const res = await authFetch(`/api/transfers/requests/${id}/reject/`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: reason }),
+      });
+      if (!res.ok) throw new Error();
+      setTransferRequests((prev) => prev.filter((r) => r.id !== id));
+      closeTransferRejectModal();
+    } catch {
+      setTransferRejectReasonError("Reject failed. Please try again.");
+    } finally {
+      setTransferRequestBusyId(null);
+    }
+  }
+
+  // Transfer documents open in a new tab via a blob URL rather than the
+  // shared document-request preview modal above, since that modal's
+  // Approve/Reject buttons are wired specifically to
+  // approveDocumentRequest/openRejectModal (document-change-request
+  // endpoints) -- reusing it here would risk an admin approving/rejecting
+  // the wrong kind of request from the same-looking dialog.
+  async function viewTransferDocument(path: string) {
+    try {
+      const blobUrl = await fetchDocumentBlobUrl(path);
+      window.open(blobUrl, "_blank", "noopener,noreferrer");
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Could not load this document.");
+    }
+  }
+
   async function previewDocumentFile(id: number, label: string, path?: string | null) {
     if (!path) return;
     setPreviewOpen(true);
@@ -233,6 +327,7 @@ export default function AdminPage() {
   useEffect(() => {
     loadDashboard();
     loadDocumentRequests();
+    loadTransferRequests();
   }, []);
 
   useEffect(() => {
@@ -516,6 +611,22 @@ export default function AdminPage() {
               {documentRequests.length > 0 && (
                 <span className="bg-amber-400 text-[#0f2044] text-xs font-bold px-2 py-0.5 rounded-full">
                   {documentRequests.length}
+                </span>
+              )}
+            </button>
+
+            <button
+              onClick={() => setActiveTab("transfer-requests")}
+              className={`w-full text-left px-4 py-3 rounded-xl transition flex items-center justify-between ${
+                activeTab === "transfer-requests"
+                  ? "bg-white text-[#0f2044] font-semibold"
+                  : "hover:bg-blue-900"
+              }`}
+            >
+              <span>Transfer Requests</span>
+              {transferRequests.length > 0 && (
+                <span className="bg-amber-400 text-[#0f2044] text-xs font-bold px-2 py-0.5 rounded-full">
+                  {transferRequests.length}
                 </span>
               )}
             </button>
@@ -877,6 +988,115 @@ export default function AdminPage() {
           </div>
         )}
 
+        {activeTab === "transfer-requests" && (
+          <div className="bg-white rounded-2xl shadow p-6">
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-[#0f2044]">
+                Pending Transfer Requests
+              </h2>
+              <p className="text-sm text-gray-500">
+                A teacher's school only changes once their transfer request and
+                document are approved here.
+              </p>
+            </div>
+
+            {transferRequestError && (
+              <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-lg px-4 py-3 mb-4">
+                {transferRequestError}
+              </div>
+            )}
+
+            {transferRequests.length === 0 ? (
+              <p className="text-gray-500 py-4">No pending transfer requests.</p>
+            ) : (
+              <div className="space-y-4">
+                {transferRequests.map((r) => {
+                  const busy = transferRequestBusyId === r.id;
+                  return (
+                    <div
+                      key={r.id}
+                      className="border rounded-xl p-5 hover:shadow-md transition"
+                    >
+                      <div className="flex justify-between items-start gap-4 flex-wrap">
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
+                            <FileText size={18} className="text-[#0f2044]" />
+                          </div>
+                          <div>
+                            <h3 className="font-bold text-[#0f2044]">
+                              {r.teacherName}
+                            </h3>
+                            <p className="text-gray-500 text-sm">
+                              {r.old_school_name || "—"} → {r.new_school_name}
+                            </p>
+                            <p className="text-gray-400 text-xs">
+                              Submitted{" "}
+                              {new Date(r.requested_at).toLocaleDateString("en-US", {
+                                year: "numeric",
+                                month: "short",
+                                day: "numeric",
+                              })}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex gap-3">
+                          <button
+                            onClick={() => viewTransferDocument(r.transfer_document)}
+                            className="px-4 py-2 bg-gray-50 text-[#0f2044] rounded-lg hover:bg-gray-100 text-sm font-semibold"
+                          >
+                            View
+                          </button>
+                          <button
+                            onClick={() => approveTransferRequest(r.id)}
+                            disabled={busy}
+                            className="flex items-center gap-1.5 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-60 text-sm font-semibold"
+                          >
+                            <Check size={14} />
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => openTransferRejectModal(r.id)}
+                            disabled={busy}
+                            className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-60 text-sm font-semibold"
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs border-t border-gray-100 pt-3">
+                        <div>
+                          <div className="text-gray-400">New EMIS Code</div>
+                          <div className="text-gray-700 font-medium">{r.new_school_emis_code || "—"}</div>
+                        </div>
+                        <div>
+                          <div className="text-gray-400">New District</div>
+                          <div className="text-gray-700 font-medium">{r.new_district || "—"}</div>
+                        </div>
+                        <div>
+                          <div className="text-gray-400">New Municipality</div>
+                          <div className="text-gray-700 font-medium">{r.new_municipality || "—"}</div>
+                        </div>
+                        <div>
+                          <div className="text-gray-400">Ward No.</div>
+                          <div className="text-gray-700 font-medium">{r.new_ward_no || "—"}</div>
+                        </div>
+                      </div>
+                      {r.reason && (
+                        <div className="mt-3 text-sm text-gray-500 border-t border-gray-100 pt-3">
+                          <span className="text-gray-400">Reason: </span>
+                          {r.reason}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Sub-Admins Tab */}
         {activeTab === "sub-admins" && isAdmin && (
           <div className="bg-white rounded-2xl shadow p-6">
@@ -1169,6 +1389,54 @@ export default function AdminPage() {
               className="w-full mt-4 bg-red-500 hover:bg-red-600 text-white rounded-lg py-3 text-sm font-semibold transition disabled:opacity-60"
             >
               {docRequestBusyId === rejectTargetId ? "Rejecting..." : "Confirm Rejection"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {transferRejectModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="relative bg-white rounded-2xl w-full max-w-md p-6 sm:p-8 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h3 className="text-xl font-bold text-[#0f2044]">Reject Transfer</h3>
+                <p className="text-xs text-gray-400">
+                  A reason is required so the teacher knows what to fix
+                </p>
+              </div>
+              <button
+                onClick={closeTransferRejectModal}
+                className="p-1.5 hover:bg-gray-100 text-gray-400 hover:text-gray-600 rounded-lg transition"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">
+                Reason for rejection
+              </label>
+              <textarea
+                value={transferRejectReason}
+                onChange={(e) => {
+                  setTransferRejectReason(e.target.value);
+                  if (transferRejectReasonError) setTransferRejectReasonError("");
+                }}
+                rows={4}
+                placeholder="e.g. Transfer order does not match the school entered"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#0f2044] focus:ring-1 focus:ring-[#0f2044] transition"
+              />
+              {transferRejectReasonError && (
+                <p className="text-red-600 text-xs mt-1.5">{transferRejectReasonError}</p>
+              )}
+            </div>
+
+            <button
+              onClick={submitRejectTransferRequest}
+              disabled={transferRequestBusyId === transferRejectTargetId}
+              className="w-full mt-4 bg-red-500 hover:bg-red-600 text-white rounded-lg py-3 text-sm font-semibold transition disabled:opacity-60"
+            >
+              {transferRequestBusyId === transferRejectTargetId ? "Rejecting..." : "Confirm Rejection"}
             </button>
           </div>
         </div>

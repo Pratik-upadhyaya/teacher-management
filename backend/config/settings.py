@@ -75,6 +75,7 @@ INSTALLED_APPS = [
     'leaves',
     'dashboard',
     'audit_logs',
+    'transfers',
     
 ]
 

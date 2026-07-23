@@ -11,6 +11,7 @@ import {
   Menu,
   X,
   CalendarDays,
+  ArrowRightLeft,
 } from "lucide-react";
 import { getAccessToken, logout } from "@/lib/api";
 
@@ -18,6 +19,7 @@ const NAV = [
   { href: "/dashboard", label: "Dashboard", labelNp: "ड्यासबोर्ड", icon: LayoutDashboard },
   { href: "/documents", label: "Documents", labelNp: "कागजातहरू", icon: FileText },
   { href: "/leaves", label: "Holidays", labelNp: "बिदा", icon: CalendarDays },
+  { href: "/transfer", label: "Transfer", labelNp: "सरुवा", icon: ArrowRightLeft },
   { href: "/profile", label: "Profile", labelNp: "प्रोफाइल", icon: User },
 ];
 
