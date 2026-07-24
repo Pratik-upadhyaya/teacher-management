@@ -839,9 +839,9 @@ function Step2({
             className={ic(errors, "grade")}
           >
             <option value="">श्रेणी छान्नुहोस्</option>
-            <option value="first">Third / तृतीय</option>
+            <option value="third">Third / तृतीय</option>
             <option value="second">Second / द्वितीय</option>
-            <option value="third">First / प्रथम</option>
+            <option value="first">First / प्रथम</option>
           </select>
           <FieldError msg={errors.grade} />
         </div>
