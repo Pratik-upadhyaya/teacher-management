@@ -67,7 +67,18 @@ class Teacher(models.Model):
     tokenNo = models.CharField(max_length=100, blank=True, null=True)
     subject = models.CharField(max_length=100, blank=True, null=True)
     level = models.CharField(max_length=100, blank=True, null=True)
-    grade = models.CharField(max_length=100, blank=True, null=True)
+
+    # Values/labels must stay in sync with GRADE_LABELS in
+    # frontend/lib/teacherLabels.ts (that file is the display-label source
+    # of truth; this is the validation source of truth). Kept as three
+    # named ranks rather than 1/2/3 to match how the wider civil service
+    # framework refers to them.
+    GRADE_CHOICES = [
+        ("first", "First / प्रथम"),
+        ("second", "Second / द्वितीय"),
+        ("third", "Third / तृतीय"),
+    ]
+    grade = models.CharField(max_length=100, choices=GRADE_CHOICES, blank=True, null=True)
     teacherType = models.CharField(max_length=100, blank=True, null=True)
 
     # =========================
