@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import NepaliInput from "@/components/NepaliInput";
 import NepaliNumberInput, { nepaliToAscii } from "@/components/NepaliNumberInput";
 import { authFetch } from "@/lib/api";
@@ -249,10 +249,8 @@ function Step1({
               <NepaliNumberInput
                 value={data.established_month ?? ""}
                 onChange={(val: string) => {
-                  const ascii = nepaliToAscii(val);
-                  const clamped = ascii === "" ? "" : String(Math.min(12, Math.max(1, Number(ascii))));
-                  onChange("established_month", clamped);
-                  onChange("established_date", `${data.established_year ?? ""}/${clamped}/${data.established_day ?? ""}`);
+                  onChange("established_month", val);
+                  onChange("established_date", `${data.established_year ?? ""}/${val}/${data.established_day ?? ""}`);
                   setErrors((p) => ({ ...p, established_date: "" }));
                 }}
                 placeholder="MM"
@@ -263,10 +261,8 @@ function Step1({
               <NepaliNumberInput
                 value={data.established_day ?? ""}
                 onChange={(val: string) => {
-                  const ascii = nepaliToAscii(val);
-                  const clamped = ascii === "" ? "" : String(Math.min(32, Math.max(1, Number(ascii))));
-                  onChange("established_day", clamped);
-                  onChange("established_date", `${data.established_year ?? ""}/${data.established_month ?? ""}/${clamped}`);
+                  onChange("established_day", val);
+                  onChange("established_date", `${data.established_year ?? ""}/${data.established_month ?? ""}/${val}`);
                   setErrors((p) => ({ ...p, established_date: "" }));
                 }}
                 placeholder="DD"
@@ -274,7 +270,6 @@ function Step1({
               />
             </div>
           </div>
-          <p className="text-xs text-gray-400 mt-1">Year / Month (1–12) / Day (1–32)</p>
           <FieldError msg={errors.established_date} />
         </div>
 
@@ -300,10 +295,8 @@ function Step1({
               <NepaliNumberInput
                 value={data.permission_month ?? ""}
                 onChange={(val: string) => {
-                  const ascii = nepaliToAscii(val);
-                  const clamped = ascii === "" ? "" : String(Math.min(12, Math.max(1, Number(ascii))));
-                  onChange("permission_month", clamped);
-                  onChange("permission_date", `${data.permission_year ?? ""}/${clamped}/${data.permission_day ?? ""}`);
+                  onChange("permission_month", val);
+                  onChange("permission_date", `${data.permission_year ?? ""}/${val}/${data.permission_day ?? ""}`);
                 }}
                 placeholder="MM"
                 className={inputClass}
@@ -313,21 +306,17 @@ function Step1({
               <NepaliNumberInput
                 value={data.permission_day ?? ""}
                 onChange={(val: string) => {
-                  const ascii = nepaliToAscii(val);
-                  const clamped = ascii === "" ? "" : String(Math.min(32, Math.max(1, Number(ascii))));
-                  onChange("permission_day", clamped);
-                  onChange("permission_date", `${data.permission_year ?? ""}/${data.permission_month ?? ""}/${clamped}`);
+                  onChange("permission_day", val);
+                  onChange("permission_date", `${data.permission_year ?? ""}/${data.permission_month ?? ""}/${val}`);
                 }}
                 placeholder="DD"
                 className={inputClass}
               />
             </div>
           </div>
-          <p className="text-xs text-gray-400 mt-1">Year / Month (1–12) / Day (1–32) — optional</p>
         </div>
 
-        </div>
-
+      </div>
       <div className="flex justify-end pt-2">
         <button type="submit"
           className="bg-[#0f2044] text-white px-8 py-2.5 rounded-lg text-sm font-semibold hover:bg-[#1a3260] transition">
@@ -720,11 +709,142 @@ function Step5({
 }
 
 // ── Main page ─────────────────────────────────────────────────────
+// ── Status badge + read-only school status view ────────────────────
+function StatusBadge({ status }: { status: string }) {
+  const styles: Record<string, string> = {
+    pending: "bg-yellow-50 text-yellow-700 border-yellow-200",
+    approved: "bg-green-50 text-green-700 border-green-200",
+    rejected: "bg-red-50 text-red-700 border-red-200",
+  };
+  const labels: Record<string, string> = {
+    pending: "Pending Review / समीक्षामा",
+    approved: "Approved / स्वीकृत",
+    rejected: "Rejected / अस्वीकृत",
+  };
+  return (
+    <span className={`inline-block text-xs font-semibold px-3 py-1 rounded-full border ${styles[status] || ""}`}>
+      {labels[status] || status}
+    </span>
+  );
+}
+
+function SchoolStatusView({
+  school,
+  onEdit,
+}: {
+  school: any;
+  onEdit: () => void;
+}) {
+  return (
+    <div className="max-w-2xl mx-auto space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-[#0f2044]">School Information</h1>
+        <p className="text-gray-400 text-sm mt-0.5">विद्यालयको विवरण</p>
+      </div>
+
+      <div className="bg-white rounded-2xl border border-gray-100 p-8 space-y-4">
+        <div className="flex items-start justify-between">
+          <div>
+            <h2 className="text-lg font-bold text-[#0f2044]">{school.school_name}</h2>
+            <p className="text-sm text-gray-400">EMIS: {school.emis_code}</p>
+          </div>
+          <StatusBadge status={school.status} />
+        </div>
+
+        {school.status === "rejected" && school.remarks && (
+          <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-lg px-4 py-3">
+            <span className="font-semibold">Reviewer note / समीक्षकको टिप्पणी: </span>
+            {school.remarks}
+          </div>
+        )}
+
+        {school.status === "pending" && (
+          <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 text-sm rounded-lg px-4 py-3">
+            Your submission is awaiting admin review. You can still edit it while it's pending.
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm border-t border-gray-100 pt-4">
+          <div><span className="text-gray-400">Address / ठेगाना:</span> <span className="text-gray-700">{school.address}</span></div>
+          <div><span className="text-gray-400">Contact / सम्पर्क:</span> <span className="text-gray-700">{school.contact}</span></div>
+          <div><span className="text-gray-400">Email:</span> <span className="text-gray-700">{school.email || "—"}</span></div>
+          <div><span className="text-gray-400">Established (BS):</span> <span className="text-gray-700">{school.established_bs}</span></div>
+        </div>
+
+        <div className="flex justify-end pt-2">
+          <button
+            type="button"
+            onClick={onEdit}
+            className="bg-[#0f2044] text-white px-6 py-2.5 rounded-lg text-sm font-semibold hover:bg-[#1a3260] transition"
+          >
+            Edit Details / सम्पादन गर्नुहोस्
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Reverse-map School model fields back to wizard field names, for
+// pre-filling the form when a principal edits their existing submission.
+function schoolToFormData(school: any) {
+  const boolStr = (v: any) => (v ? "true" : "false");
+  return {
+    emis_code: school.emis_code || "",
+    school_name: school.school_name || "",
+    address: school.address || "",
+    ward_no: "",
+    contact: school.contact || "",
+    email: school.email || "",
+    established_date: school.established_bs || "",
+    permission_date: school.permission_date_bs || "",
+
+    bal_kaksha_year: school.bal_kaksha || "",
+    primary_1_5_year: school.primary_1_5 || "",
+    lower_sec_6_8_year: school.lower_secondary_6_8 || "",
+    secondary_9_10_year: school.secondary_9_10 || "",
+    secondary_11_12_year: school.secondary_11_12 || "",
+
+    computer_lab: boolStr(school.computer_lab),
+    science_lab: boolStr(school.science_lab),
+    library: boolStr(school.library),
+    book_corner: boolStr(school.book_corner),
+    playground: boolStr(school.playground),
+    land_area: school.land_area ? String(school.land_area) : "",
+    land_unit: school.land_unit || "ropani",
+    num_buildings: school.building_count ? String(school.building_count) : "",
+    num_classrooms: school.classroom_count ? String(school.classroom_count) : "",
+    toilet_female: school.female_toilets ? String(school.female_toilets) : "",
+    toilet_male: school.male_toilets ? String(school.male_toilets) : "",
+  };
+}
+
+const EMPTY_TEACHER_QUOTA_FIELDS = {
+  pre_primary_permanent: "",   pre_primary_contract: "",   pre_primary_grant: "",
+  pre_primary_shi_anudan: "",  pre_primary_private: "",    pre_primary_relief: "",
+  primary_permanent: "",       primary_contract: "",       primary_grant: "",
+  primary_shi_anudan: "",      primary_private: "",        primary_relief: "",
+  lower_sec_permanent: "",     lower_sec_contract: "",     lower_sec_grant: "",
+  lower_sec_shi_anudan: "",    lower_sec_private: "",      lower_sec_relief: "",
+  secondary_9_10_permanent: "", secondary_9_10_contract: "", secondary_9_10_grant: "",
+  secondary_9_10_shi_anudan: "", secondary_9_10_private: "", secondary_9_10_relief: "",
+  secondary_11_12_permanent: "", secondary_11_12_contract: "", secondary_11_12_grant: "",
+  secondary_11_12_shi_anudan: "", secondary_11_12_private: "", secondary_11_12_relief: "",
+};
+
 export default function PrincipalPage() {
+  // "loading": checking whether this principal already has a school on file
+  // "status": read-only view of their existing submission
+  // "form": the wizard, either for a first-time submission or an edit
+  const [view, setView] = useState<"loading" | "status" | "form">("loading");
+  const [mode, setMode] = useState<"create" | "edit">("create");
+  const [existingSchool, setExistingSchool] = useState<any>(null);
+
   const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [loadError, setLoadError] = useState("");
 
   const [formData, setFormData] = useState({
     // Step 1
@@ -755,17 +875,36 @@ export default function PrincipalPage() {
     toilet_female: "",
     toilet_male: "",
     // Step 4 — all 5 levels × 6 types
-    pre_primary_permanent: "",   pre_primary_contract: "",   pre_primary_grant: "",
-    pre_primary_shi_anudan: "",  pre_primary_private: "",    pre_primary_relief: "",
-    primary_permanent: "",       primary_contract: "",       primary_grant: "",
-    primary_shi_anudan: "",      primary_private: "",        primary_relief: "",
-    lower_sec_permanent: "",     lower_sec_contract: "",     lower_sec_grant: "",
-    lower_sec_shi_anudan: "",    lower_sec_private: "",      lower_sec_relief: "",
-    secondary_9_10_permanent: "", secondary_9_10_contract: "", secondary_9_10_grant: "",
-    secondary_9_10_shi_anudan: "", secondary_9_10_private: "", secondary_9_10_relief: "",
-    secondary_11_12_permanent: "", secondary_11_12_contract: "", secondary_11_12_grant: "",
-    secondary_11_12_shi_anudan: "", secondary_11_12_private: "", secondary_11_12_relief: "",
+    ...EMPTY_TEACHER_QUOTA_FIELDS,
   });
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadMySchool() {
+      try {
+        const res = await authFetch("/api/schools/me/");
+        if (res.status === 404) {
+          if (!cancelled) { setMode("create"); setView("form"); }
+          return;
+        }
+        if (!res.ok) throw new Error("Could not load your school information.");
+        const data = await res.json();
+        if (!cancelled) { setExistingSchool(data); setView("status"); }
+      } catch (err: any) {
+        if (!cancelled) { setLoadError(err.message || "Could not load your school information."); setView("form"); setMode("create"); }
+      }
+    }
+    loadMySchool();
+    return () => { cancelled = true; };
+  }, []);
+
+  function startEdit() {
+    if (existingSchool) setFormData((prev) => ({ ...prev, ...schoolToFormData(existingSchool) }));
+    setMode("edit");
+    setStep(1);
+    setSuccess(false);
+    setView("form");
+  }
 
   function handleChange(field: string, value: string) {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -776,16 +915,21 @@ export default function PrincipalPage() {
     setError("");
     try {
       const res = await authFetch(
-        "/api/schools/",
+        "/api/schools/me/",
         {
-          method: "POST",
+          method: mode === "edit" ? "PATCH" : "POST",
           headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify(formData),
         }
       );
-      if (!res.ok) throw new Error("Submission failed. Please try again.");
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Submission failed. Please try again.");
+      }
+      const data = await res.json();
+      setExistingSchool(data);
       setSuccess(true);
     } catch (err: any) {
       setError(err.message);
@@ -794,19 +938,33 @@ export default function PrincipalPage() {
     }
   }
 
+  if (view === "loading") {
+    return <div className="max-w-lg mx-auto mt-16 text-center text-gray-400 text-sm">Loading…</div>;
+  }
+
+  if (view === "status" && existingSchool) {
+    return <SchoolStatusView school={existingSchool} onEdit={startEdit} />;
+  }
+
   if (success) {
     return (
       <div className="max-w-lg mx-auto mt-16 text-center space-y-4">
         <div className="text-5xl">🏫</div>
-        <h2 className="text-2xl font-bold text-[#0f2044]">Submitted Successfully</h2>
+        <h2 className="text-2xl font-bold text-[#0f2044]">
+          {mode === "edit" ? "Updated Successfully" : "Submitted Successfully"}
+        </h2>
         <p className="text-gray-500 text-sm">
-          Your school information has been submitted and is pending admin verification.
-          You will be notified once it is approved.
+          {mode === "edit"
+            ? "Your updated school information has been resubmitted and is pending admin review."
+            : "Your school information has been submitted and is pending admin verification."}
+          {" "}You will be notified once it is approved.
         </p>
-        <a href="/dashboard"
-          className="inline-block bg-[#0f2044] text-white px-6 py-2.5 rounded-lg text-sm font-semibold hover:bg-[#1a3260] transition mt-4">
-          Back to Dashboard
-        </a>
+        <button
+          onClick={() => setView("status")}
+          className="inline-block bg-[#0f2044] text-white px-6 py-2.5 rounded-lg text-sm font-semibold hover:bg-[#1a3260] transition mt-4"
+        >
+          View Status
+        </button>
       </div>
     );
   }
@@ -820,9 +978,9 @@ export default function PrincipalPage() {
         </p>
       </div>
 
-      {error && (
+      {(error || loadError) && (
         <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-lg px-4 py-3">
-          {error}
+          {error || loadError}
         </div>
       )}
 

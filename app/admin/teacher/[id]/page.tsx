@@ -134,6 +134,8 @@ export default function TeacherDetailPage() {
   const [error, setError] = useState("");
   const [busyDocKey, setBusyDocKey] = useState<DocKey | null>(null);
   const [docError, setDocError] = useState("");
+  const [pdfBundleBusy, setPdfBundleBusy] = useState(false);
+  const [pdfBundleError, setPdfBundleError] = useState("");
 
   const [leaveOverview, setLeaveOverview] = useState<LeaveOverview | null>(null);
   const [leaveLoading, setLeaveLoading] = useState(true);
@@ -263,6 +265,32 @@ export default function TeacherDetailPage() {
       );
     } finally {
       setBusyDocKey(null);
+    }
+  }
+
+  async function downloadImagesPdf() {
+    if (!teacher) return;
+    setPdfBundleBusy(true);
+    setPdfBundleError("");
+    try {
+      const res = await authFetch(`/api/documents/teacher/${teacher.id}/pdf/`);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Could not generate the PDF.");
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `${teacher.name || "teacher"}_documents.pdf`.replace(/\s+/g, "_"));
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setPdfBundleError(err instanceof Error ? err.message : "Could not generate the PDF.");
+    } finally {
+      setPdfBundleBusy(false);
     }
   }
 
@@ -471,7 +499,20 @@ export default function TeacherDetailPage() {
 
         {/* Documents Card */}
         <div className="bg-white rounded-2xl shadow p-6 print:shadow-none print:border print:border-gray-200">
-          <h2 className="text-lg font-bold text-[#0f2044] mb-4">Documents</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-bold text-[#0f2044]">Documents</h2>
+            <button
+              onClick={downloadImagesPdf}
+              disabled={pdfBundleBusy}
+              className="flex items-center gap-1.5 text-xs font-semibold text-[#0f2044] border border-gray-200 rounded-lg px-3 py-1.5 hover:bg-gray-50 disabled:opacity-60 print:hidden"
+            >
+              <Download size={13} />
+              {pdfBundleBusy ? "Preparing..." : "Download Images as PDF"}
+            </button>
+          </div>
+          {pdfBundleError && (
+            <p className="text-red-600 text-xs mb-3">{pdfBundleError}</p>
+          )}
           <div className="divide-y">
             {DOC_TYPES.map((d) => {
               const rawPath = teacher[d.key];

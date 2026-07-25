@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { authFetch, fetchDocumentBlobUrl, logout } from "@/lib/api";
 import { SUBJECT_LABELS, formatTeacherField } from "@/lib/teacherLabels";
 import { Download, UserPlus, Trash2, X, Check, FileText } from "lucide-react";
+import ExcelJS from "exceljs";
 
 type Teacher = {
   id: number;
@@ -41,6 +42,14 @@ export default function AdminPage() {
   const [transferRejectTargetId, setTransferRejectTargetId] = useState<number | null>(null);
   const [transferRejectReason, setTransferRejectReason] = useState("");
   const [transferRejectReasonError, setTransferRejectReasonError] = useState("");
+
+  const [schoolRequests, setSchoolRequests] = useState<any[]>([]);
+  const [schoolRequestError, setSchoolRequestError] = useState("");
+  const [schoolRequestBusyId, setSchoolRequestBusyId] = useState<number | null>(null);
+  const [schoolRejectModalOpen, setSchoolRejectModalOpen] = useState(false);
+  const [schoolRejectTargetId, setSchoolRejectTargetId] = useState<number | null>(null);
+  const [schoolRejectReason, setSchoolRejectReason] = useState("");
+  const [schoolRejectReasonError, setSchoolRejectReasonError] = useState("");
 
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -94,9 +103,16 @@ export default function AdminPage() {
   // blocked at the API level (IsAdmin, not IsAdminOrPrincipal), this just
   // keeps the tab/button from showing up for them in the UI.
   const [isAdmin, setIsAdmin] = useState(false);
+  const [userRole, setUserRole] = useState<string>("");
   useEffect(() => {
-    setIsAdmin(localStorage.getItem("user_role") === "admin");
+    const role = localStorage.getItem("user_role") || "";
+    setIsAdmin(role === "admin");
+    setUserRole(role);
   }, []);
+  // Excel export (all data, Teachers + Schools) is Admin/Sub-Admin only --
+  // a principal reviewing their own school shouldn't be exporting every
+  // teacher and school's full record.
+  const canExportData = userRole === "admin" || userRole === "sub-admin";
 
   async function handleLogout() {
     await logout();
@@ -279,6 +295,76 @@ export default function AdminPage() {
     }
   }
 
+  function loadSchoolRequests() {
+    authFetch("/api/schools/?status=pending")
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to load school requests.");
+        return res.json();
+      })
+      .then((data) => {
+        setSchoolRequests(data);
+        setSchoolRequestError("");
+      })
+      .catch((err) => {
+        console.error(err);
+        setSchoolRequestError("Could not load pending school submissions.");
+      });
+  }
+
+  async function approveSchoolRequest(id: number) {
+    setSchoolRequestBusyId(id);
+    try {
+      const res = await authFetch(`/api/schools/${id}/approve/`, {
+        method: "PATCH",
+      });
+      if (!res.ok) throw new Error();
+      setSchoolRequests((prev) => prev.filter((s) => s.id !== id));
+    } catch {
+      showToast("Approve failed. Please try again. / स्वीकृत गर्न असफल भयो, फेरि प्रयास गर्नुहोस्।");
+    } finally {
+      setSchoolRequestBusyId(null);
+    }
+  }
+
+  function openSchoolRejectModal(id: number) {
+    setSchoolRejectTargetId(id);
+    setSchoolRejectReason("");
+    setSchoolRejectReasonError("");
+    setSchoolRejectModalOpen(true);
+  }
+
+  function closeSchoolRejectModal() {
+    setSchoolRejectModalOpen(false);
+    setSchoolRejectTargetId(null);
+    setSchoolRejectReason("");
+    setSchoolRejectReasonError("");
+  }
+
+  async function submitRejectSchoolRequest() {
+    if (schoolRejectTargetId == null) return;
+    const reason = schoolRejectReason.trim();
+    if (!reason) {
+      setSchoolRejectReasonError("A rejection reason is required.");
+      return;
+    }
+    const id = schoolRejectTargetId;
+    setSchoolRequestBusyId(id);
+    try {
+      const res = await authFetch(`/api/schools/${id}/reject/`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: reason }),
+      });
+      if (!res.ok) throw new Error();
+      setSchoolRequests((prev) => prev.filter((s) => s.id !== id));
+      closeSchoolRejectModal();
+    } catch {
+      setSchoolRejectReasonError("Reject failed. Please try again.");
+    } finally {
+      setSchoolRequestBusyId(null);
+    }
+  }
+
   // Transfer documents open in a new tab via a blob URL rather than the
   // shared document-request preview modal above, since that modal's
   // Approve/Reject buttons are wired specifically to
@@ -328,41 +414,140 @@ export default function AdminPage() {
     loadDashboard();
     loadDocumentRequests();
     loadTransferRequests();
+    loadSchoolRequests();
   }, []);
 
   useEffect(() => {
     if (isAdmin) loadSubAdmins();
   }, [isAdmin]);
 
-  function downloadAllTeachersCSV() {
-    const headers = ["ID", "Name", "Token No", "Subject", "Phone", "Email", "Status"];
-    const all = [
-      ...stats.pending_teachers.map(t => ({ ...t, status: "pending" })),
-      ...stats.approved_teachers.map(t => ({ ...t, status: "approved" })),
-      ...stats.rejected_teachers.map(t => ({ ...t, status: "rejected" }))
-    ];
+  const [exportBusy, setExportBusy] = useState(false);
+  const [exportError, setExportError] = useState("");
 
-    const csvContent = [
-      headers.join(","),
-      ...all.map(t => [
-        t.id,
-        `"${t.name?.replace(/"/g, '""') || ""}"`,
-        `"${t.tokenNo || ""}"`,
-        `"${t.subject || ""}"`,
-        `"${t.phone || ""}"`,
-        `"${t.email || ""}"`,
-        t.status
-      ].join(","))
-    ].join("\n");
+  // Document/image fields on Teacher -- deliberately excluded from the
+  // export per the client's "all data excluding images" requirement.
+  // School has no file fields, so nothing to exclude there.
+  const TEACHER_FILE_FIELDS = ["citizenship", "degree", "transcript", "teachingLicense", "appointmentLetter"];
 
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", "teachers_data_export.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  async function downloadExcelExport() {
+    setExportBusy(true);
+    setExportError("");
+    try {
+      const [teachersRes, schoolsRes] = await Promise.all([
+        authFetch("/api/"),
+        authFetch("/api/schools/"),
+      ]);
+      if (!teachersRes.ok || !schoolsRes.ok) {
+        throw new Error("Could not load data for export.");
+      }
+      const teachers = await teachersRes.json();
+      const schools = await schoolsRes.json();
+
+      const workbook = new ExcelJS.Workbook();
+      workbook.creator = "EDCU Kaski Teacher Portal";
+      workbook.created = new Date();
+
+      // ── Teachers sheet ──────────────────────────────────────────
+      const teacherSheet = workbook.addWorksheet("Teachers");
+      teacherSheet.columns = [
+        { header: "ID", key: "id", width: 8 },
+        { header: "Name", key: "name", width: 22 },
+        { header: "Name (English)", key: "nameEnglish", width: 22 },
+        { header: "Father's Name", key: "fatherName", width: 22 },
+        { header: "Gender", key: "gender", width: 10 },
+        { header: "Permanent Address", key: "permanentAddress", width: 28 },
+        { header: "Ward No (Permanent)", key: "permanentWardNo", width: 14 },
+        { header: "Date of Birth", key: "dob", width: 14 },
+        { header: "Phone", key: "phone", width: 14 },
+        { header: "Email", key: "email", width: 26 },
+        { header: "District", key: "district", width: 16 },
+        { header: "Municipality", key: "municipality", width: 18 },
+        { header: "Ward No (School)", key: "wardNo", width: 14 },
+        { header: "School Name", key: "schoolName", width: 26 },
+        { header: "School EMIS Code", key: "schoolEmisCode", width: 16 },
+        { header: "Linked School ID", key: "school", width: 14 },
+        { header: "Code / Token No.", key: "tokenNo", width: 16 },
+        { header: "Subject", key: "subject", width: 16 },
+        { header: "Level", key: "level", width: 16 },
+        { header: "Grade", key: "grade", width: 12 },
+        { header: "Type", key: "teacherType", width: 14 },
+        { header: "Appointment Date", key: "appointmentDate", width: 16 },
+        { header: "Promotion Date", key: "promotionDate", width: 16 },
+        { header: "Qualification", key: "qualification", width: 14 },
+        { header: "Extraordinary Leave Taken", key: "extraordinaryLeave", width: 18 },
+        { header: "Extraordinary Leave Remaining", key: "extraordinaryLeaveRemaining", width: 20 },
+        { header: "Age 60 Year (BS)", key: "ageSixtyYear", width: 16 },
+        { header: "Remarks", key: "remarks", width: 28 },
+        { header: "Status", key: "status", width: 12 },
+        { header: "Created At", key: "created_at", width: 20 },
+        { header: "Reviewed By (User ID)", key: "reviewed_by", width: 16 },
+      ];
+      teacherSheet.getRow(1).font = { bold: true };
+      for (const t of teachers) {
+        const row: Record<string, any> = {};
+        for (const col of teacherSheet.columns) {
+          const key = col.key as string;
+          if (TEACHER_FILE_FIELDS.includes(key)) continue;
+          row[key] = t[key];
+        }
+        teacherSheet.addRow(row);
+      }
+
+      // ── Schools sheet ────────────────────────────────────────────
+      const schoolSheet = workbook.addWorksheet("Schools");
+      schoolSheet.columns = [
+        { header: "ID", key: "id", width: 8 },
+        { header: "School Name", key: "school_name", width: 26 },
+        { header: "EMIS Code", key: "emis_code", width: 16 },
+        { header: "Address", key: "address", width: 26 },
+        { header: "Contact", key: "contact", width: 16 },
+        { header: "Email", key: "email", width: 24 },
+        { header: "Established (BS)", key: "established_bs", width: 16 },
+        { header: "Permission Date (BS)", key: "permission_date_bs", width: 18 },
+        { header: "Bal Kaksha Year", key: "bal_kaksha", width: 14 },
+        { header: "Primary (1-5) Year", key: "primary_1_5", width: 16 },
+        { header: "Lower Sec (6-8) Year", key: "lower_secondary_6_8", width: 18 },
+        { header: "Secondary (9-10) Year", key: "secondary_9_10", width: 18 },
+        { header: "Secondary (11-12) Year", key: "secondary_11_12", width: 18 },
+        { header: "Computer Lab", key: "computer_lab", width: 12 },
+        { header: "Science Lab", key: "science_lab", width: 12 },
+        { header: "Library", key: "library", width: 10 },
+        { header: "Book Corner", key: "book_corner", width: 12 },
+        { header: "Playground", key: "playground", width: 12 },
+        { header: "Land Area", key: "land_area", width: 12 },
+        { header: "Land Unit", key: "land_unit", width: 12 },
+        { header: "Building Count", key: "building_count", width: 14 },
+        { header: "Classroom Count", key: "classroom_count", width: 14 },
+        { header: "Female Toilets", key: "female_toilets", width: 14 },
+        { header: "Male Toilets", key: "male_toilets", width: 14 },
+        { header: "Principal", key: "principalName", width: 20 },
+        { header: "Status", key: "status", width: 12 },
+        { header: "Remarks", key: "remarks", width: 26 },
+        { header: "Reviewed By", key: "reviewedByName", width: 18 },
+        { header: "Reviewed At", key: "reviewed_at", width: 20 },
+        { header: "Created At", key: "created_at", width: 20 },
+      ];
+      schoolSheet.getRow(1).font = { bold: true };
+      for (const s of schools) {
+        schoolSheet.addRow(s);
+      }
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `teacher_portal_export_${new Date().toISOString().slice(0, 10)}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      setExportError(err.message || "Export failed. Please try again.");
+      showToast("Export failed. Please try again. / निर्यात असफल भयो।");
+    } finally {
+      setExportBusy(false);
+    }
   }
 
   async function handleAddSubAdmin(e: React.FormEvent) {
@@ -631,6 +816,22 @@ export default function AdminPage() {
               )}
             </button>
 
+            <button
+              onClick={() => setActiveTab("schools")}
+              className={`w-full text-left px-4 py-3 rounded-xl transition flex items-center justify-between ${
+                activeTab === "schools"
+                  ? "bg-white text-[#0f2044] font-semibold"
+                  : "hover:bg-blue-900"
+              }`}
+            >
+              <span>Schools</span>
+              {schoolRequests.length > 0 && (
+                <span className="bg-amber-400 text-[#0f2044] text-xs font-bold px-2 py-0.5 rounded-full">
+                  {schoolRequests.length}
+                </span>
+              )}
+            </button>
+
             {isAdmin && (
               <button
                 onClick={() => setActiveTab("sub-admins")}
@@ -668,13 +869,16 @@ export default function AdminPage() {
               Manage teacher registrations and approvals
             </p>
           </div>
-          <button
-            onClick={downloadAllTeachersCSV}
-            className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-5 py-3 rounded-xl transition text-sm font-semibold shadow-sm"
-          >
-            <Download size={16} />
-            Export Teachers (CSV)
-          </button>
+          {canExportData && (
+            <button
+              onClick={downloadExcelExport}
+              disabled={exportBusy}
+              className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-5 py-3 rounded-xl transition text-sm font-semibold shadow-sm disabled:opacity-60"
+            >
+              <Download size={16} />
+              {exportBusy ? "Exporting..." : "Export Data (Excel)"}
+            </button>
+          )}
         </div>
 
         {/* Dashboard Tab */}
@@ -1097,6 +1301,103 @@ export default function AdminPage() {
           </div>
         )}
 
+        {activeTab === "schools" && (
+          <div className="bg-white rounded-2xl shadow p-6">
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-[#0f2044]">
+                Pending School Submissions
+              </h2>
+              <p className="text-sm text-gray-500">
+                A principal's school only goes live once reviewed here.
+                Editing an approved or rejected school resets it to pending.
+              </p>
+            </div>
+
+            {schoolRequestError && (
+              <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-lg px-4 py-3 mb-4">
+                {schoolRequestError}
+              </div>
+            )}
+
+            {schoolRequests.length === 0 ? (
+              <p className="text-gray-500 py-4">No pending school submissions.</p>
+            ) : (
+              <div className="space-y-4">
+                {schoolRequests.map((s) => {
+                  const busy = schoolRequestBusyId === s.id;
+                  return (
+                    <div
+                      key={s.id}
+                      className="border rounded-xl p-5 hover:shadow-md transition"
+                    >
+                      <div className="flex justify-between items-start gap-4 flex-wrap">
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
+                            <FileText size={18} className="text-[#0f2044]" />
+                          </div>
+                          <div>
+                            <h3 className="font-bold text-[#0f2044]">
+                              {s.school_name}
+                            </h3>
+                            <p className="text-gray-500 text-sm">
+                              EMIS: {s.emis_code} · Principal: {s.principalName || "—"}
+                            </p>
+                            <p className="text-gray-400 text-xs">
+                              Submitted{" "}
+                              {new Date(s.created_at).toLocaleDateString("en-US", {
+                                year: "numeric",
+                                month: "short",
+                                day: "numeric",
+                              })}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex gap-3">
+                          <button
+                            onClick={() => approveSchoolRequest(s.id)}
+                            disabled={busy}
+                            className="flex items-center gap-1.5 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-60 text-sm font-semibold"
+                          >
+                            <Check size={14} />
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => openSchoolRejectModal(s.id)}
+                            disabled={busy}
+                            className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-60 text-sm font-semibold"
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs border-t border-gray-100 pt-3">
+                        <div>
+                          <div className="text-gray-400">Address</div>
+                          <div className="text-gray-700 font-medium">{s.address || "—"}</div>
+                        </div>
+                        <div>
+                          <div className="text-gray-400">Contact</div>
+                          <div className="text-gray-700 font-medium">{s.contact || "—"}</div>
+                        </div>
+                        <div>
+                          <div className="text-gray-400">Email</div>
+                          <div className="text-gray-700 font-medium">{s.email || "—"}</div>
+                        </div>
+                        <div>
+                          <div className="text-gray-400">Established (BS)</div>
+                          <div className="text-gray-700 font-medium">{s.established_bs || "—"}</div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Sub-Admins Tab */}
         {activeTab === "sub-admins" && isAdmin && (
           <div className="bg-white rounded-2xl shadow p-6">
@@ -1437,6 +1738,54 @@ export default function AdminPage() {
               className="w-full mt-4 bg-red-500 hover:bg-red-600 text-white rounded-lg py-3 text-sm font-semibold transition disabled:opacity-60"
             >
               {transferRequestBusyId === transferRejectTargetId ? "Rejecting..." : "Confirm Rejection"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {schoolRejectModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="relative bg-white rounded-2xl w-full max-w-md p-6 sm:p-8 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h3 className="text-xl font-bold text-[#0f2044]">Reject School</h3>
+                <p className="text-xs text-gray-400">
+                  A reason is required so the principal knows what to fix
+                </p>
+              </div>
+              <button
+                onClick={closeSchoolRejectModal}
+                className="p-1.5 hover:bg-gray-100 text-gray-400 hover:text-gray-600 rounded-lg transition"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">
+                Reason for rejection
+              </label>
+              <textarea
+                value={schoolRejectReason}
+                onChange={(e) => {
+                  setSchoolRejectReason(e.target.value);
+                  if (schoolRejectReasonError) setSchoolRejectReasonError("");
+                }}
+                rows={4}
+                placeholder="e.g. Land area and building count don't match"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#0f2044] focus:ring-1 focus:ring-[#0f2044] transition"
+              />
+              {schoolRejectReasonError && (
+                <p className="text-red-600 text-xs mt-1.5">{schoolRejectReasonError}</p>
+              )}
+            </div>
+
+            <button
+              onClick={submitRejectSchoolRequest}
+              disabled={schoolRequestBusyId === schoolRejectTargetId}
+              className="w-full mt-4 bg-red-500 hover:bg-red-600 text-white rounded-lg py-3 text-sm font-semibold transition disabled:opacity-60"
+            >
+              {schoolRequestBusyId === schoolRejectTargetId ? "Rejecting..." : "Confirm Rejection"}
             </button>
           </div>
         </div>

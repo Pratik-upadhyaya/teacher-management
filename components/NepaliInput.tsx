@@ -53,19 +53,26 @@ function useNepaliInput(
 
     const words = val.split(" ");
     const lastWord = words.at(-1) ?? "";
-
-    if (onEnglishChange) {
-      // Every word but the last is presumed already committed
-      // (Devanagari); trim/pad our tracked raw-word list to match so
-      // backspacing past a committed word self-corrects instead of
-      // leaving stale entries. The last word is still raw English being
-      // typed right now (that's exactly what `val`'s tail holds pre-commit).
-      const committedCount = Math.max(0, words.length - 1);
-      committedEnglishRef.current = committedEnglishRef.current.slice(0, committedCount);
-      onEnglishChange(
-        [...committedEnglishRef.current, lastWord].filter(Boolean).join(" ")
-      );
+    // Entire field is Nepali Unicode (no English letters anywhere).
+    if (!/[A-Za-z]/.test(val)) {
+      committedEnglishRef.current = [];
     }
+    if (onEnglishChange) {
+  const committedCount = Math.max(0, words.length - 1);
+  committedEnglishRef.current = committedEnglishRef.current.slice(0, committedCount);
+
+  // Only mirror text if the user is typing English.
+  if (/[A-Za-z]/.test(lastWord)) {
+    onEnglishChange(
+      [...committedEnglishRef.current, lastWord].filter(Boolean).join(" ")
+    );
+  } else {
+    // User is typing Nepali directly.
+    // Leave the English field empty unless English words
+    // have already been committed.
+    onEnglishChange(committedEnglishRef.current.join(" "));
+  }
+}
 
     if (!lastWord) {
       setSuggestions([]);

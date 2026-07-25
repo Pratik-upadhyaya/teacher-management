@@ -10,6 +10,10 @@ from .serializers import TeacherSerializer
 from schools.models import School
 from accounts.permissions import IsAdminOrPrincipal
 from accounts.otp import is_verified, clear_verified
+from documents.models import TeacherTransferDocument
+from documents.file_processing import DocumentValidationError, process_document_upload
+
+MAX_TRANSFER_DOCUMENTS = 10
 
 
 # =========================
@@ -60,10 +64,33 @@ def teacher_list_create(request):
                 status=400,
             )
 
+        # Old-school transfer documents (Permanent teachers only, up to 10).
+        # Validated up front, before the Teacher row is created, so a bad
+        # file rejects the whole application rather than leaving a teacher
+        # record behind with no matching documents.
+        transfer_files = request.FILES.getlist("transferDocuments")
+        if transfer_files and request.data.get("teacherType") != "permanent":
+            return Response(
+                {"error": "Old-school transfer documents are only applicable to Permanent teachers."},
+                status=400,
+            )
+        if len(transfer_files) > MAX_TRANSFER_DOCUMENTS:
+            return Response(
+                {"error": f"You can upload at most {MAX_TRANSFER_DOCUMENTS} transfer documents."},
+                status=400,
+            )
+        try:
+            processed_transfer_files = [process_document_upload(f) for f in transfer_files]
+        except DocumentValidationError as e:
+            return Response({"error": str(e)}, status=400)
+
         serializer = TeacherSerializer(data=request.data)
 
         if serializer.is_valid():
             teacher = serializer.save()
+
+            for processed_file in processed_transfer_files:
+                TeacherTransferDocument.objects.create(teacher=teacher, file=processed_file)
 
             # Soft-link to an existing School record if the entered EMIS
             # code matches one -- best-effort, not required. A teacher can
@@ -270,6 +297,7 @@ def teacher_detail(request, id):
         "transcript": teacher.transcript.name if teacher.transcript else None,
         "teachingLicense": teacher.teachingLicense.name if teacher.teachingLicense else None,
         "appointmentLetter": teacher.appointmentLetter.name if teacher.appointmentLetter else None,
+        "transferDocuments": [d.file.name for d in teacher.transfer_documents.all()],
 
         # ADMIN
         "status": teacher.status,

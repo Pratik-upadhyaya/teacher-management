@@ -1,10 +1,12 @@
 import os
+import io
 
 from django.conf import settings
 from django.core.files.base import ContentFile
 from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from PIL import Image
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -14,7 +16,7 @@ from leaves.models import LeaveApplication
 from teachers.models import Teacher
 from transfers.models import TeacherTransferRequest
 from .file_processing import DocumentValidationError, process_document_upload
-from .models import DocumentChangeRequest
+from .models import DocumentChangeRequest, TeacherTransferDocument
 from .serializers import DocumentChangeRequestSerializer
 
 VALID_DOCUMENT_TYPES = {choice[0] for choice in DocumentChangeRequest.DOCUMENT_TYPE_CHOICES}
@@ -170,12 +172,15 @@ def serve_document(request, path):
     change_request = DocumentChangeRequest.objects.filter(file=path).select_related("teacher").first()
     leave_application = LeaveApplication.objects.filter(document=path).select_related("teacher").first()
     transfer_request = TeacherTransferRequest.objects.filter(transfer_document=path).select_related("teacher").first()
+    transfer_document = TeacherTransferDocument.objects.filter(file=path).select_related("teacher").first()
     if change_request:
         owner_teacher = change_request.teacher
     elif leave_application:
         owner_teacher = leave_application.teacher
     elif transfer_request:
         owner_teacher = transfer_request.teacher
+    elif transfer_document:
+        owner_teacher = transfer_document.teacher
     else:
         for field_name in TEACHER_DOCUMENT_FIELDS:
             match = Teacher.objects.filter(**{field_name: path}).first()
@@ -202,3 +207,60 @@ def serve_document(request, path):
         raise Http404
 
     return FileResponse(open(full_path, "rb"))
+
+
+# =========================
+# PER-TEACHER IMAGE BUNDLE -> SINGLE PDF
+# =========================
+# Every uploaded image (not PDFs already -- those are a separate document
+# and bundling them in would mean actually merging PDFs, a different
+# problem) is normalized to a .jpg by process_document_upload at upload
+# time, so "is this file an image" is a reliable file-extension check
+# rather than needing to re-sniff content here.
+IMAGE_EXTENSIONS = (".jpg", ".jpeg", ".png")
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def teacher_documents_pdf(request, teacher_id):
+    teacher = get_object_or_404(Teacher, id=teacher_id)
+    user = request.user
+    is_reviewer = getattr(user, "role", None) in ("admin", "principal", "sub-admin")
+    is_owner = teacher.email == user.email
+
+    if not (is_reviewer or is_owner):
+        return Response({"error": "You do not have permission to view this teacher's documents."}, status=403)
+
+    image_files = [
+        getattr(teacher, field_name)
+        for field_name in TEACHER_DOCUMENT_FIELDS
+        if getattr(teacher, field_name) and getattr(teacher, field_name).name.lower().endswith(IMAGE_EXTENSIONS)
+    ]
+    image_files += [
+        td.file
+        for td in teacher.transfer_documents.all()
+        if td.file and td.file.name.lower().endswith(IMAGE_EXTENSIONS)
+    ]
+
+    if not image_files:
+        return Response({"error": "This teacher has no image documents to bundle."}, status=404)
+
+    pages = []
+    for f in image_files:
+        f.open('rb')
+        try:
+            img = Image.open(io.BytesIO(f.read())).convert("RGB")
+            pages.append(img)
+        finally:
+            f.close()
+
+    buffer = io.BytesIO()
+    pages[0].save(buffer, format="PDF", save_all=True, append_images=pages[1:])
+    buffer.seek(0)
+
+    safe_name = "".join(c if c.isalnum() else "_" for c in teacher.name).strip("_") or "teacher"
+    filename = f"{safe_name}_documents.pdf"
+
+    response = FileResponse(buffer, content_type="application/pdf")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response

@@ -56,3 +56,27 @@ class DocumentChangeRequest(models.Model):
 
     def __str__(self):
         return f"{self.teacher.name} - {self.document_type} ({self.status})"
+
+
+class TeacherTransferDocument(models.Model):
+    """One of up to 10 old-school transfer documents a Permanent teacher
+    submits at registration (client requirement: Permanent teachers may
+    have served at multiple prior schools, so a single transfer-letter
+    field isn't enough). Uploaded directly at registration time -- unlike
+    DocumentChangeRequest, there's no approve/reject step here, since these
+    are historical records rather than a live document being replaced.
+    """
+
+    teacher = models.ForeignKey(
+        'teachers.Teacher',
+        on_delete=models.CASCADE,
+        related_name='transfer_documents',
+    )
+    file = models.FileField(upload_to='transfer_documents/')
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['uploaded_at']
+
+    def __str__(self):
+        return f"{self.teacher.name} - transfer doc ({self.uploaded_at:%Y-%m-%d})"

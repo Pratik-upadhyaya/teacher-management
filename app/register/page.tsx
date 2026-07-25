@@ -10,7 +10,7 @@ import {
   TEACHER_TYPE_LABELS,
   LEVEL_LABELS,
   GENDER_LABELS,
-  SUBJECT_LABELS,
+  SUBJECT_LABELS, // still exported from teacherLabels for use elsewhere in the app; unused directly here since Subject is now free text
   GRADE_LABELS,
 } from "@/lib/teacherLabels";
 
@@ -639,6 +639,7 @@ function Step2({
 
   const districtData = data.district ? DISTRICTS[data.district] : null;
   const municipalities = districtData ? districtData.municipalities : [];
+  const isPermanent = data.teacherType === "permanent";
 
   function handleDistrictChange(value: string) {
     onChange("district", value);
@@ -666,15 +667,19 @@ function Step2({
     else if (!/^[a-zA-Z0-9\-]+$/.test(data.schoolEmisCode))
       errs.schoolEmisCode = "अक्षर, अंक र हाइफन मात्र";
 
-    if (!data.tokenNo.trim())
-      errs.tokenNo = "संकेत नं आवश्यक छ";
-    else if (!/^[a-zA-Z0-9\-]+$/.test(data.tokenNo))
-      errs.tokenNo = "अक्षर, अंक र हाइफन मात्र";
-
-    if (!data.subject) errs.subject = "विषय छान्नुहोस्";
-    if (!data.level) errs.level = "तह छान्नुहोस्";
-    if (!data.grade) errs.grade = "श्रेणी छान्नुहोस्";
     if (!data.teacherType) errs.teacherType = "प्रकार छान्नुहोस्";
+
+    if (isPermanent) {
+      if (!data.tokenNo.trim())
+        errs.tokenNo = "संकेत नं आवश्यक छ";
+      else if (!/^[a-zA-Z0-9\-]+$/.test(data.tokenNo))
+        errs.tokenNo = "अक्षर, अंक र हाइफन मात्र";
+
+      if (!data.grade) errs.grade = "श्रेणी छान्नुहोस्";
+    }
+
+    if (!data.subject.trim()) errs.subject = "विषय आवश्यक छ";
+    if (!data.level) errs.level = "तह छान्नुहोस्";
 
     if (Object.keys(errs).length > 0) { setErrors(errs); return; }
     setErrors({});
@@ -774,36 +779,71 @@ function Step2({
 
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          Code / Token No. <span className="text-gray-400 font-normal">/ संकेत नं</span>
+          Type <span className="text-gray-400 font-normal">/ प्रकार</span>
         </label>
-        <input
-          value={data.tokenNo}
-          onChange={(e) => { onChange("tokenNo", e.target.value); setErrors((p) => ({ ...p, tokenNo: "" })); }}
-          placeholder="TSC-2080-04521"
-          className={ic(errors, "tokenNo")}
-        />
-        <FieldError msg={errors.tokenNo} />
+        <select
+          title="Teacher Type"
+          value={data.teacherType}
+          onChange={(e) => { onChange("teacherType", e.target.value); setErrors((p) => ({ ...p, teacherType: "" })); }}
+          className={ic(errors, "teacherType")}
+        >
+          <option value="">प्रकार छान्नुहोस्</option>
+          <option value="permanent">Permanent / स्थायी</option>
+          <option value="temporary">Temporary / अस्थायी</option>
+          <option value="grant">Grant / अनुदान</option>
+          <option value="shi_anudan">Shi Anudan / शि अनुदान</option>
+          <option value="relief">Rahat / राहत</option>
+          <option value="private">Private / निजी</option>
+        </select>
+        <FieldError msg={errors.teacherType} />
       </div>
+
+      {isPermanent && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Code / Token No. <span className="text-gray-400 font-normal">/ संकेत नं</span>
+            </label>
+            <input
+              value={data.tokenNo}
+              onChange={(e) => { onChange("tokenNo", e.target.value); setErrors((p) => ({ ...p, tokenNo: "" })); }}
+              placeholder="TSC-2080-04521"
+              className={ic(errors, "tokenNo")}
+            />
+            <FieldError msg={errors.tokenNo} />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Grade <span className="text-gray-400 font-normal">/ श्रेणी</span>
+            </label>
+            <select
+              title="Grade"
+              value={data.grade}
+              onChange={(e) => { onChange("grade", e.target.value); setErrors((p) => ({ ...p, grade: "" })); }}
+              className={ic(errors, "grade")}
+            >
+              <option value="">श्रेणी छान्नुहोस्</option>
+              <option value="third">Third / तृतीय</option>
+              <option value="second">Second / द्वितीय</option>
+              <option value="first">First / प्रथम</option>
+            </select>
+            <FieldError msg={errors.grade} />
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Subject <span className="text-gray-400 font-normal">/ विषय</span>
           </label>
-          <select
-            title="Subject"
+          <input
             value={data.subject}
             onChange={(e) => { onChange("subject", e.target.value); setErrors((p) => ({ ...p, subject: "" })); }}
+            placeholder="e.g. Science / विज्ञान"
             className={ic(errors, "subject")}
-          >
-            <option value="">विषय छान्नुहोस्</option>
-            <option value="science">Science / विज्ञान</option>
-            <option value="math">Mathematics / गणित</option>
-            <option value="nepali">Nepali / नेपाली</option>
-            <option value="english">English / अंग्रेजी</option>
-            <option value="social">Social Studies / सामाजिक</option>
-            <option value="health">Health / स्वास्थ्य</option>
-          </select>
+          />
           <FieldError msg={errors.subject} />
         </div>
 
@@ -824,47 +864,6 @@ function Step2({
             <option value="higher_secondary">Higher Secondary / उच्च माध्यमिक (११–१२)</option>
           </select>
           <FieldError msg={errors.level} />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Grade <span className="text-gray-400 font-normal">/ श्रेणी</span>
-          </label>
-          <select
-            title="Grade"
-            value={data.grade}
-            onChange={(e) => { onChange("grade", e.target.value); setErrors((p) => ({ ...p, grade: "" })); }}
-            className={ic(errors, "grade")}
-          >
-            <option value="">श्रेणी छान्नुहोस्</option>
-            <option value="third">Third / तृतीय</option>
-            <option value="second">Second / द्वितीय</option>
-            <option value="first">First / प्रथम</option>
-          </select>
-          <FieldError msg={errors.grade} />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Type <span className="text-gray-400 font-normal">/ प्रकार</span>
-          </label>
-          <select
-            title="Teacher Type"
-            value={data.teacherType}
-            onChange={(e) => { onChange("teacherType", e.target.value); setErrors((p) => ({ ...p, teacherType: "" })); }}
-            className={ic(errors, "teacherType")}
-          >
-            <option value="">प्रकार छान्नुहोस्</option>
-            <option value="permanent">Permanent / स्थायी</option>
-            <option value="temporary">Temporary / अस्थायी</option>
-            <option value="grant">Grant / अनुदान</option>
-            <option value="shi_anudan">Shi Anudan / शि अनुदान</option>
-            <option value="relief">Rahat / राहत</option>
-            <option value="private">Private / निजी</option>
-          </select>
-          <FieldError msg={errors.teacherType} />
         </div>
       </div>
 
@@ -894,13 +893,17 @@ function Step3({
 }) {
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  const isPermanent = data.teacherType === "permanent";
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const errs: Record<string, string> = {};
 
     validateNepaliDate(data.appointmentDate, errs, "appointmentDate", "नियुक्ती मिति");
 
-    if (data.promotionDate.trim()) {
+    if (isPermanent) {
+      validateNepaliDate(data.promotionDate, errs, "promotionDate", "बढुवा मिति");
+    } else if (data.promotionDate.trim()) {
       validateNepaliDate(data.promotionDate, errs, "promotionDate", "बढुवा मिति");
     }
 
@@ -941,7 +944,9 @@ function Step3({
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Promotion Date <span className="text-gray-400 font-normal">/ बढुवा मिति</span>
-            <span className="text-gray-400 font-normal text-xs ml-1">(optional)</span>
+            <span className="text-gray-400 font-normal text-xs ml-1">
+              {isPermanent ? "(date made Permanent, if appointed under a different type before)" : "(optional)"}
+            </span>
           </label>
           <NepaliNumberInput
             value={data.promotionDate}
@@ -974,37 +979,37 @@ function Step3({
         <FieldError msg={errors.qualification} />
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Extraordinary Leave Taken <span className="text-gray-400 font-normal">/ लिइसकेको असाधारण बिदा</span>
-            <span className="text-gray-400 font-normal text-xs ml-1">(days before this year / optional)</span>
-          </label>
-          <NepaliNumberInput
-            value={data.extraordinaryLeave}
-            onChange={(val: string) => onChange("extraordinaryLeave", val)}
-            placeholder="०"
-            className={ic(errors, "extraordinaryLeave")}
-          />
-        </div>
+      {isPermanent && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Extraordinary Leave Taken <span className="text-gray-400 font-normal">/ लिइसकेको असाधारण बिदा</span>
+              <span className="text-gray-400 font-normal text-xs ml-1">(days before this year / optional)</span>
+            </label>
+            <NepaliNumberInput
+              value={data.extraordinaryLeave}
+              onChange={(val: string) => onChange("extraordinaryLeave", val)}
+              placeholder="०"
+              className={ic(errors, "extraordinaryLeave")}
+            />
+          </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Extraordinary Leave Remaining <span className="text-gray-400 font-normal">/ बाँकी असाधारण बिदा</span>
-            <span className="text-gray-400 font-normal text-xs ml-1">(auto-calculated, out of 3 years)</span>
-          </label>
-          <input
-            value={toNepaliDigits(
-              String(Math.max(1095 - (parseInt(nepaliToAscii(data.extraordinaryLeave || "0"), 10) || 0), 0))
-            )}
-            readOnly
-            disabled
-            className="w-full border border-gray-200 bg-gray-50 text-gray-500 rounded-lg px-3 py-2 text-sm cursor-not-allowed"
-          />
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Extraordinary Leave Remaining <span className="text-gray-400 font-normal">/ बाँकी असाधारण बिदा</span>
+              <span className="text-gray-400 font-normal text-xs ml-1">(auto-calculated, out of 3 years)</span>
+            </label>
+            <input
+              value={toNepaliDigits(
+                String(Math.max(1095 - (parseInt(nepaliToAscii(data.extraordinaryLeave || "0"), 10) || 0), 0))
+              )}
+              readOnly
+              disabled
+              className="w-full border border-gray-200 bg-gray-50 text-gray-500 rounded-lg px-3 py-2 text-sm cursor-not-allowed"
+            />
+          </div>
         </div>
-
-       
-      </div>
+      )}
 
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1057,17 +1062,35 @@ const DOC_FIELDS = [
   { key: "appointmentLetter", label: "Appointment Letter", sub: "नियुक्तिपत्र" },
 ];
 
+const MAX_TRANSFER_DOCUMENTS = 10;
+
 function Step4({
   data,
   onChange,
+  onTransferDocsChange,
   onNext,
   onBack,
 }: {
   data: any;
   onChange: (f: string, v: string) => void;
+  onTransferDocsChange: (files: File[]) => void;
   onNext: () => void;
   onBack: () => void;
 }) {
+  const isPermanent = data.teacherType === "permanent";
+  const transferDocuments: File[] = data.transferDocuments || [];
+
+  function addTransferDocs(fileList: FileList | null) {
+    if (!fileList) return;
+    const incoming = Array.from(fileList);
+    const combined = [...transferDocuments, ...incoming].slice(0, MAX_TRANSFER_DOCUMENTS);
+    onTransferDocsChange(combined);
+  }
+
+  function removeTransferDoc(index: number) {
+    onTransferDocsChange(transferDocuments.filter((_, i) => i !== index));
+  }
+
   return (
     <div className="space-y-4">
       <div>
@@ -1107,6 +1130,54 @@ function Step4({
           </div>
         ))}
       </div>
+
+      {isPermanent && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Old School Transfer Documents <span className="text-gray-400 font-normal">/ पुरानो विद्यालय सरुवा कागजातहरू</span>
+            <span className="text-gray-400 font-normal text-xs ml-1">
+              (up to {MAX_TRANSFER_DOCUMENTS}, optional — Permanent teachers only)
+            </span>
+          </label>
+
+          <label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-xl p-4 cursor-pointer hover:border-[#0f2044] transition">
+            <input
+              type="file"
+              accept="image/*,.pdf"
+              multiple
+              className="hidden"
+              disabled={transferDocuments.length >= MAX_TRANSFER_DOCUMENTS}
+              onChange={(e) => { addTransferDocs(e.target.files); e.target.value = ""; }}
+            />
+            <div className="text-xl mb-1 text-gray-400">↑</div>
+            <p className="text-xs text-gray-400">
+              {transferDocuments.length >= MAX_TRANSFER_DOCUMENTS
+                ? `Maximum ${MAX_TRANSFER_DOCUMENTS} files reached`
+                : `Click to add files (${transferDocuments.length}/${MAX_TRANSFER_DOCUMENTS})`}
+            </p>
+          </label>
+
+          {transferDocuments.length > 0 && (
+            <ul className="mt-2 space-y-1">
+              {transferDocuments.map((file, i) => (
+                <li
+                  key={`${file.name}-${i}`}
+                  className="flex items-center justify-between text-sm bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5"
+                >
+                  <span className="text-[#0f2044] truncate">✓ {file.name}</span>
+                  <button
+                    type="button"
+                    onClick={() => removeTransferDoc(i)}
+                    className="text-red-500 hover:text-red-600 text-xs font-medium ml-2 shrink-0"
+                  >
+                    Remove
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
       <div className="flex justify-between pt-2">
         <button type="button" onClick={onBack} className="border border-gray-200 text-gray-600 px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-50 transition">
@@ -1166,11 +1237,15 @@ function Step5({
         ["Ward No. / वडा नं (विद्यालय)", data.wardNo],
         ["School / विद्यालय", data.schoolName],
         ["School EMIS Code / ईमिस कोड", data.schoolEmisCode],
-        ["Code No. / संकेत नं", data.tokenNo],
-        ["Subject / विषय", SUBJECT_LABELS[data.subject] || data.subject],
-        ["Level / तह", LEVEL_LABELS[data.level] || data.level],
-        ["Grade / श्रेणी", GRADE_LABELS[data.grade] || data.grade],
         ["Type / प्रकार", TEACHER_TYPE_LABELS[data.teacherType] || data.teacherType],
+        ...(data.teacherType === "permanent"
+          ? ([
+              ["Code No. / संकेत नं", data.tokenNo],
+              ["Grade / श्रेणी", GRADE_LABELS[data.grade] || data.grade],
+            ] as [string, string][])
+          : []),
+        ["Subject / विषय", data.subject],
+        ["Level / तह", LEVEL_LABELS[data.level] || data.level],
       ],
     },
     {
@@ -1179,13 +1254,18 @@ function Step5({
         ["Appointment Date / नियुक्ती मिति", data.appointmentDate],
         ["Promotion Date / बढुवा मिति", data.promotionDate || "—"],
         ["Qualification / योग्यता", QUALIFICATION_LABELS[data.qualification] || data.qualification],
-        ["Extraordinary Leave Taken / लिइसकेको असाधारण बिदा", data.extraordinaryLeave || "०"],
-        [
-          "Extraordinary Leave Remaining / बाँकी असाधारण बिदा",
-          toNepaliDigits(
-            String(Math.max(1095 - (parseInt(nepaliToAscii(data.extraordinaryLeave || "0"), 10) || 0), 0))
-          ),
-        ],
+        ...(data.teacherType === "permanent"
+          ? ([
+              ["Extraordinary Leave Taken / लिइसकेको असाधारण बिदा", data.extraordinaryLeave || "०"],
+              [
+                "Extraordinary Leave Remaining / बाँकी असाधारण बिदा",
+                toNepaliDigits(
+                  String(Math.max(1095 - (parseInt(nepaliToAscii(data.extraordinaryLeave || "0"), 10) || 0), 0))
+                ),
+              ],
+              ["Transfer Documents / सरुवा कागजातहरू", `${(data.transferDocuments || []).length} file(s)`],
+            ] as [string, string][])
+          : []),
         ["Age 60 Year / ६० वर्ष", data.ageSixtyYear || "—"],
         ["Remarks / कैफियत", data.remarks || "—"],
       ],
@@ -1203,8 +1283,10 @@ function Step5({
         data.name, data.nameEnglish, data.fatherName, data.gender, data.permanentAddress, data.permanentWardNo,
         data.dob, data.phone, data.email,
         data.district, data.municipality, data.wardNo, data.schoolName,
-        data.tokenNo, data.subject, data.level, data.grade,
-        data.teacherType, data.appointmentDate, data.qualification,
+        data.subject, data.level, data.teacherType, data.appointmentDate, data.qualification,
+        ...(data.teacherType === "permanent"
+          ? [data.tokenNo, data.grade, data.promotionDate]
+          : []),
       ].some((v) => !v) && (
         <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 text-sm rounded-lg px-4 py-3">
           ⚠️ केही आवश्यक जानकारी भरिएको छैन। कृपया पछाडि फर्केर जाँच गर्नुहोस्।
@@ -1266,10 +1348,15 @@ export default function RegisterPage() {
     extraordinaryLeave: "", ageSixtyYear: "", remarks: "",
     // Step 5: Documents
     citizenship: "", degree: "", transcript: "", teachingLicense: "", appointmentLetter: "",
+    transferDocuments: [] as File[],
   });
 
   function handleChange(field: string, value: string | boolean) {
     setFormData((prev) => ({ ...prev, [field]: value }));
+  }
+
+  function handleTransferDocsChange(files: File[]) {
+    setFormData((prev) => ({ ...prev, transferDocuments: files }));
   }
 
   // ── Single handleSubmit: POSTs full wizard data to /api/ ────────────
@@ -1332,6 +1419,12 @@ export default function RegisterPage() {
     if (formData.appointmentLetter)
       payload.append("appointmentLetter", formData.appointmentLetter as any);
 
+    if (formData.teacherType === "permanent") {
+      formData.transferDocuments.forEach((file) => {
+        payload.append("transferDocuments", file);
+      });
+    }
+
     const res = await fetch(`${API_BASE_URL}/api/`, {
       method: "POST",
       body: payload,
@@ -1390,7 +1483,7 @@ export default function RegisterPage() {
             {step === 2 && <AccountStep data={formData} onChange={handleChange} onNext={() => setStep(3)} onBack={() => setStep(1)} />}
             {step === 3 && <Step2 data={formData} onChange={handleChange} onNext={() => setStep(4)} onBack={() => setStep(2)} />}
             {step === 4 && <Step3 data={formData} onChange={handleChange} onNext={() => setStep(5)} onBack={() => setStep(3)} />}
-            {step === 5 && <Step4 data={formData} onChange={handleChange} onNext={() => setStep(6)} onBack={() => setStep(4)} />}
+            {step === 5 && <Step4 data={formData} onChange={handleChange} onTransferDocsChange={handleTransferDocsChange} onNext={() => setStep(6)} onBack={() => setStep(4)} />}
             {step === 6 && <Step5 data={formData} onBack={() => setStep(5)} onSubmit={handleSubmit} submitting={submitting} />}
           </div>
         </div>

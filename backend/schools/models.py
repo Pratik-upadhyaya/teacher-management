@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 
 
@@ -32,6 +33,42 @@ class School(models.Model):
     male_toilets = models.IntegerField(default=0)
 
     created_at = models.DateTimeField(auto_now_add=True)
+
+    # =========================
+    # PRINCIPAL LINK + ADMIN REVIEW
+    # =========================
+    # One principal account owns (at most) one School submission -- this is
+    # what "my school" means on the principal portal, mirroring how a
+    # Teacher row is looked up by request.user.email in teachers.views.
+    # OneToOne (not FK) since a principal manages exactly one school.
+    principal = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='school',
+    )
+
+    status = models.CharField(
+        max_length=20,
+        default="pending",
+        choices=[
+            ("pending", "Pending"),
+            ("approved", "Approved"),
+            ("rejected", "Rejected"),
+        ],
+    )
+
+    remarks = models.TextField(blank=True, default="")
+
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='reviewed_schools',
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
         return self.school_name

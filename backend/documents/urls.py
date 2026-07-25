@@ -4,6 +4,7 @@ from .views import (
     document_request_list,
     approve_document_request,
     reject_document_request,
+    teacher_documents_pdf,
 )
 
 urlpatterns = [
@@ -11,4 +12,5 @@ urlpatterns = [
     path('change-requests/mine/', my_document_requests),
     path('change-requests/<int:request_id>/approve/', approve_document_request),
     path('change-requests/<int:request_id>/reject/', reject_document_request),
+    path('teacher/<int:teacher_id>/pdf/', teacher_documents_pdf),
 ]
