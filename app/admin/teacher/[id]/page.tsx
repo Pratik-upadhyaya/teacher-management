@@ -25,9 +25,10 @@ import {
 type DocKey =
   | "citizenship"
   | "degree"
-  | "transcript"
+  | "photo"
   | "teachingLicense"
-  | "appointmentLetter";
+  | "appointmentLetter"
+  | "highestQualificationDocument";
 
 type LeaveSummaryRow = {
   leave_type: {
@@ -86,8 +87,12 @@ type TeacherDetail = {
   teacherType: string | null;
 
   appointmentDate: string | null;
+  wasDifferentTypeBeforePermanent: boolean | null;
+  permanentAppointmentDate: string | null;
   promotionDate: string | null;
-  qualification: string | null;
+  promotionDate2: string | null;
+  minQualification: string | null;
+  highestQualification: string | null;
   extraordinaryLeave: string | null;
   extraordinaryLeaveRemaining: number | null;
   ageSixtyYear: string | null;
@@ -98,9 +103,10 @@ type TeacherDetail = {
   // Must prefix with "/media/" before handing to fetchDocumentBlobUrl.
   citizenship: string | null;
   degree: string | null;
-  transcript: string | null;
+  photo: string | null;
   teachingLicense: string | null;
   appointmentLetter: string | null;
+  highestQualificationDocument: string | null;
 
   status: string;
   remarks: string | null;
@@ -110,9 +116,10 @@ type TeacherDetail = {
 const DOC_TYPES: { key: DocKey; label: string }[] = [
   { key: "citizenship", label: "Citizenship / नागरिकता" },
   { key: "degree", label: "Degree Certificate / प्रमाणपत्र" },
-  { key: "transcript", label: "Transcript / अंकतालिका" },
+  { key: "photo", label: "Passport Size Photo / पासपोर्ट साइजको फोटो" },
   { key: "teachingLicense", label: "Teaching License / शिक्षण अनुमतिपत्र" },
   { key: "appointmentLetter", label: "Appointment Letter / नियुक्तिपत्र" },
+  { key: "highestQualificationDocument", label: "Highest Qualification Document / उच्चतम योग्यताको प्रमाणपत्र" },
 ];
 
 function Field({ label, value }: { label: string; value?: string | null }) {
@@ -475,9 +482,40 @@ export default function TeacherDetailPage() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 border-t pt-6 mt-6">
-            <Field label="Appointment Date" value={teacher.appointmentDate} />
-            <Field label="Promotion Date" value={teacher.promotionDate} />
-            <Field label="Qualification" value={formatTeacherField(QUALIFICATION_LABELS, teacher.qualification)} />
+            <Field
+              label={
+                teacher.teacherType === "permanent" && teacher.wasDifferentTypeBeforePermanent
+                  ? "Appointment Date (Original Category)"
+                  : "Appointment Date"
+              }
+              value={teacher.appointmentDate}
+            />
+            {teacher.teacherType === "permanent" && (
+              <Field
+                label="Different Type Before Permanent?"
+                value={
+                  teacher.wasDifferentTypeBeforePermanent === null
+                    ? null
+                    : teacher.wasDifferentTypeBeforePermanent
+                    ? "Yes"
+                    : "No, directly appointed Permanent"
+                }
+              />
+            )}
+            {teacher.teacherType === "permanent" && teacher.wasDifferentTypeBeforePermanent && (
+              <Field label="Appointment Date (as Permanent)" value={teacher.permanentAppointmentDate} />
+            )}
+            {teacher.teacherType !== "permanent" && (
+              <Field label="Promotion Date" value={teacher.promotionDate} />
+            )}
+            {teacher.teacherType === "permanent" && (teacher.grade === "second" || teacher.grade === "first") && (
+              <Field label="Promotion Date (Third → Second)" value={teacher.promotionDate} />
+            )}
+            {teacher.teacherType === "permanent" && teacher.grade === "first" && (
+              <Field label="Promotion Date (Second → First)" value={teacher.promotionDate2} />
+            )}
+            <Field label="Minimum Qualification" value={formatTeacherField(QUALIFICATION_LABELS, teacher.minQualification)} />
+            <Field label="Highest Qualification" value={formatTeacherField(QUALIFICATION_LABELS, teacher.highestQualification)} />
             <Field label="Extraordinary Leave" value={teacher.extraordinaryLeave} />
             <Field
               label="Extraordinary Leave Remaining"
@@ -514,7 +552,12 @@ export default function TeacherDetailPage() {
             <p className="text-red-600 text-xs mb-3">{pdfBundleError}</p>
           )}
           <div className="divide-y">
-            {DOC_TYPES.map((d) => {
+            {DOC_TYPES.filter(
+              (d) =>
+                d.key !== "highestQualificationDocument" ||
+                teacher.highestQualificationDocument ||
+                teacher.minQualification !== teacher.highestQualification
+            ).map((d) => {
               const rawPath = teacher[d.key];
               const busy = busyDocKey === d.key;
               return (

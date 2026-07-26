@@ -907,6 +907,9 @@ function Step3({
   );
 
   const isPermanent = data.teacherType === "permanent";
+  const wasDifferent = data.wasDifferentTypeBeforePermanent === "true";
+  const needsPromotion1 = isPermanent && (data.grade === "second" || data.grade === "first");
+  const needsPromotion2 = isPermanent && data.grade === "first";
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -915,7 +918,22 @@ function Step3({
     validateNepaliDate(data.appointmentDate, errs, "appointmentDate", "नियुक्ती मिति");
 
     if (isPermanent) {
-      validateNepaliDate(data.promotionDate, errs, "promotionDate", "बढुवा मिति");
+      if (!data.wasDifferentTypeBeforePermanent) {
+        errs.wasDifferentTypeBeforePermanent = "यो प्रश्नको जवाफ दिनुहोस्";
+      } else if (wasDifferent) {
+        validateNepaliDate(data.permanentAppointmentDate, errs, "permanentAppointmentDate", "स्थायी नियुक्ती मिति");
+      }
+
+      if (needsPromotion1) {
+        validateNepaliDate(data.promotionDate, errs, "promotionDate", "बढुवा मिति (तृतीय → द्वितीय)");
+      }
+      if (needsPromotion2) {
+        validateNepaliDate(data.promotionDate2, errs, "promotionDate2", "बढुवा मिति (द्वितीय → प्रथम)");
+      }
+
+      if (!data.extraordinaryLeave.trim()) {
+        errs.extraordinaryLeave = "लिइसकेको असाधारण बिदा उल्लेख गर्नुहोस्";
+      }
     } else if (data.promotionDate.trim()) {
       validateNepaliDate(data.promotionDate, errs, "promotionDate", "बढुवा मिति");
     }
@@ -944,7 +962,10 @@ function Step3({
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Appointment Date <span className="text-gray-400 font-normal">/ नियुक्ती मिति</span>
+            Appointment Date {isPermanent && wasDifferent ? "(Original Category)" : ""}
+            <span className="text-gray-400 font-normal">
+              {" "}/ नियुक्ती मिति {isPermanent && wasDifferent ? "(पहिलेको प्रकार)" : ""}
+            </span>
           </label>
           <NepaliNumberInput
             value={data.appointmentDate}
@@ -956,23 +977,102 @@ function Step3({
           <FieldError msg={errors.appointmentDate} />
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Promotion Date <span className="text-gray-400 font-normal">/ बढुवा मिति</span>
-            <span className="text-gray-400 font-normal text-xs ml-1">
-              {isPermanent ? "(date made Permanent, if appointed under a different type before)" : "(optional)"}
-            </span>
-          </label>
-          <NepaliNumberInput
-            value={data.promotionDate}
-            onChange={(val: string) => { onChange("promotionDate", val); setErrors((p) => ({ ...p, promotionDate: "" })); }}
-            placeholder="२०८२/०१/०१"
-            className={ic(errors, "promotionDate")}
-            mode="date"
-          />
-          <FieldError msg={errors.promotionDate} />
-        </div>
+        {!isPermanent && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Promotion Date <span className="text-gray-400 font-normal">/ बढुवा मिति</span>
+              <span className="text-gray-400 font-normal text-xs ml-1">(optional)</span>
+            </label>
+            <NepaliNumberInput
+              value={data.promotionDate}
+              onChange={(val: string) => { onChange("promotionDate", val); setErrors((p) => ({ ...p, promotionDate: "" })); }}
+              placeholder="२०८२/०१/०१"
+              className={ic(errors, "promotionDate")}
+              mode="date"
+            />
+            <FieldError msg={errors.promotionDate} />
+          </div>
+        )}
       </div>
+
+      {isPermanent && (
+        <div className="space-y-4 bg-gray-50 border border-gray-100 rounded-lg p-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Were you appointed under a different type before becoming Permanent?
+              <span className="text-gray-400 font-normal block text-xs mt-0.5">
+                स्थायी हुनुअघि फरक प्रकारमा नियुक्त हुनुभएको थियो?
+              </span>
+            </label>
+            <select
+              title="Was Different Type Before Permanent"
+              value={data.wasDifferentTypeBeforePermanent}
+              onChange={(e) => {
+                onChange("wasDifferentTypeBeforePermanent", e.target.value);
+                setErrors((p) => ({ ...p, wasDifferentTypeBeforePermanent: "", permanentAppointmentDate: "" }));
+              }}
+              className={ic(errors, "wasDifferentTypeBeforePermanent")}
+            >
+              <option value="">छान्नुहोस्</option>
+              <option value="true">Yes / हो</option>
+              <option value="false">No, directly appointed Permanent / होइन, सिधै स्थायी</option>
+            </select>
+            <FieldError msg={errors.wasDifferentTypeBeforePermanent} />
+          </div>
+
+          {wasDifferent && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Appointment Date (as Permanent) <span className="text-gray-400 font-normal">/ स्थायी नियुक्ती मिति</span>
+              </label>
+              <NepaliNumberInput
+                value={data.permanentAppointmentDate}
+                onChange={(val: string) => { onChange("permanentAppointmentDate", val); setErrors((p) => ({ ...p, permanentAppointmentDate: "" })); }}
+                placeholder="२०८२/०१/०१"
+                className={ic(errors, "permanentAppointmentDate")}
+                mode="date"
+              />
+              <FieldError msg={errors.permanentAppointmentDate} />
+            </div>
+          )}
+
+          {(needsPromotion1 || needsPromotion2) && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {needsPromotion1 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Promotion Date (Third → Second) <span className="text-gray-400 font-normal">/ बढुवा मिति (तृतीय → द्वितीय)</span>
+                  </label>
+                  <NepaliNumberInput
+                    value={data.promotionDate}
+                    onChange={(val: string) => { onChange("promotionDate", val); setErrors((p) => ({ ...p, promotionDate: "" })); }}
+                    placeholder="२०८२/०१/०१"
+                    className={ic(errors, "promotionDate")}
+                    mode="date"
+                  />
+                  <FieldError msg={errors.promotionDate} />
+                </div>
+              )}
+
+              {needsPromotion2 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Promotion Date (Second → First) <span className="text-gray-400 font-normal">/ बढुवा मिति (द्वितीय → प्रथम)</span>
+                  </label>
+                  <NepaliNumberInput
+                    value={data.promotionDate2}
+                    onChange={(val: string) => { onChange("promotionDate2", val); setErrors((p) => ({ ...p, promotionDate2: "" })); }}
+                    placeholder="२०८४/०१/०१"
+                    className={ic(errors, "promotionDate2")}
+                    mode="date"
+                  />
+                  <FieldError msg={errors.promotionDate2} />
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
@@ -1048,14 +1148,15 @@ function Step3({
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Extraordinary Leave Taken <span className="text-gray-400 font-normal">/ लिइसकेको असाधारण बिदा</span>
-              <span className="text-gray-400 font-normal text-xs ml-1">(days before this year / optional)</span>
+              <span className="text-gray-400 font-normal text-xs ml-1">(days before this year)</span>
             </label>
             <NepaliNumberInput
               value={data.extraordinaryLeave}
-              onChange={(val: string) => onChange("extraordinaryLeave", val)}
+              onChange={(val: string) => { onChange("extraordinaryLeave", val); setErrors((p) => ({ ...p, extraordinaryLeave: "" })); }}
               placeholder="०"
               className={ic(errors, "extraordinaryLeave")}
             />
+            <FieldError msg={errors.extraordinaryLeave} />
           </div>
 
           <div>
@@ -1143,6 +1244,9 @@ function Step4({
 }) {
   const isPermanent = data.teacherType === "permanent";
   const transferDocuments: File[] = data.transferDocuments || [];
+  const needsHighestQualificationDoc =
+    !!data.highestQualification && data.highestQualification !== data.minQualification;
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   function addTransferDocs(fileList: FileList | null) {
     if (!fileList) return;
@@ -1153,6 +1257,19 @@ function Step4({
 
   function removeTransferDoc(index: number) {
     onTransferDocsChange(transferDocuments.filter((_, i) => i !== index));
+  }
+
+  function handleNext() {
+    const errs: Record<string, string> = {};
+    for (const doc of DOC_FIELDS) {
+      if (!data[doc.key]) errs[doc.key] = `${doc.label} अपलोड गर्नुहोस्`;
+    }
+    if (needsHighestQualificationDoc && !data.highestQualificationDocument) {
+      errs.highestQualificationDocument = "उच्चतम योग्यताको प्रमाणपत्र अपलोड गर्नुहोस्";
+    }
+    if (Object.keys(errs).length > 0) { setErrors(errs); return; }
+    setErrors({});
+    onNext();
   }
 
   return (
@@ -1168,13 +1285,12 @@ function Step4({
             <label className="block text-sm font-medium text-gray-700 mb-1">
               {doc.label} <span className="text-gray-400 font-normal">/ {doc.sub}</span>
             </label>
-            <label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-xl p-4 cursor-pointer hover:border-[#0f2044] transition">
+            <label className={`flex flex-col items-center justify-center border-2 border-dashed rounded-xl p-4 cursor-pointer hover:border-[#0f2044] transition ${errors[doc.key] ? "border-red-300" : "border-gray-200"}`}>
               <input
                 type="file"
                 accept={doc.accept}
                 className="hidden"
-                onChange={(e) => onChange(doc.key, e.target.files?.[0] as any)}
-                //onChange={(e) => onChange(doc.key, e.target.files?.[0]?.name ?? "")}
+                onChange={(e) => { onChange(doc.key, e.target.files?.[0] as any); setErrors((p) => ({ ...p, [doc.key]: "" })); }}
               />
               {data[doc.key] ? (
                 <p className="text-sm text-[#0f2044] font-medium text-center">
@@ -1183,16 +1299,44 @@ function Step4({
         : data[doc.key]}
   </p>
 ) : (
-                //<p className="text-sm text-[#0f2044] font-medium text-center">✓ {data[doc.key]}</p>
-              //) : (
                 <>
                   <div className="text-xl mb-1 text-gray-400">↑</div>
                   <p className="text-xs text-gray-400">Click to upload</p>
                 </>
               )}
             </label>
+            <FieldError msg={errors[doc.key]} />
           </div>
         ))}
+
+        {needsHighestQualificationDoc && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Highest Qualification Document <span className="text-gray-400 font-normal">/ उच्चतम योग्यताको प्रमाणपत्र</span>
+            </label>
+            <label className={`flex flex-col items-center justify-center border-2 border-dashed rounded-xl p-4 cursor-pointer hover:border-[#0f2044] transition ${errors.highestQualificationDocument ? "border-red-300" : "border-gray-200"}`}>
+              <input
+                type="file"
+                accept="image/*,.pdf"
+                className="hidden"
+                onChange={(e) => { onChange("highestQualificationDocument", e.target.files?.[0] as any); setErrors((p) => ({ ...p, highestQualificationDocument: "" })); }}
+              />
+              {data.highestQualificationDocument ? (
+                <p className="text-sm text-[#0f2044] font-medium text-center">
+                  ✓ {typeof data.highestQualificationDocument === "object"
+                    ? data.highestQualificationDocument.name
+                    : data.highestQualificationDocument}
+                </p>
+              ) : (
+                <>
+                  <div className="text-xl mb-1 text-gray-400">↑</div>
+                  <p className="text-xs text-gray-400">Click to upload</p>
+                </>
+              )}
+            </label>
+            <FieldError msg={errors.highestQualificationDocument} />
+          </div>
+        )}
       </div>
 
       {isPermanent && (
@@ -1247,7 +1391,7 @@ function Step4({
         <button type="button" onClick={onBack} className="border border-gray-200 text-gray-600 px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-50 transition">
           ← Back / पछाडि
         </button>
-        <button type="button" onClick={onNext} className="bg-[#0f2044] text-white px-8 py-2.5 rounded-lg text-sm font-semibold hover:bg-[#1a3260] transition">
+        <button type="button" onClick={handleNext} className="bg-[#0f2044] text-white px-8 py-2.5 rounded-lg text-sm font-semibold hover:bg-[#1a3260] transition">
           Next: Review →
         </button>
       </div>
@@ -1315,13 +1459,37 @@ function Step5({
     {
       title: "Service Details / सेवा विवरण",
       rows: [
-        ["Appointment Date / नियुक्ती मिति", data.appointmentDate],
-        ["Promotion Date / बढुवा मिति", data.promotionDate || "—"],
-        ["Minimum Qualification / न्यूनतम योग्यता", QUALIFICATION_LABELS[data.minQualification] || data.minQualification],
-        ["Highest Qualification / उच्चतम योग्यता", QUALIFICATION_LABELS[data.highestQualification] || data.highestQualification],
+        [
+          data.teacherType === "permanent" && data.wasDifferentTypeBeforePermanent === "true"
+            ? "Appointment Date (Original Category) / नियुक्ती मिति (पहिलेको प्रकार)"
+            : "Appointment Date / नियुक्ती मिति",
+          data.appointmentDate,
+        ],
         ...(data.teacherType === "permanent"
           ? ([
-              ["Extraordinary Leave Taken / लिइसकेको असाधारण बिदा", data.extraordinaryLeave || "०"],
+              [
+                "Different type before Permanent? / स्थायी हुनुअघि फरक प्रकार?",
+                data.wasDifferentTypeBeforePermanent === "true" ? "Yes / हो" : data.wasDifferentTypeBeforePermanent === "false" ? "No / होइन" : "—",
+              ],
+              ...(data.wasDifferentTypeBeforePermanent === "true"
+                ? ([["Appointment Date (as Permanent) / स्थायी नियुक्ती मिति", data.permanentAppointmentDate || "—"]] as [string, string][])
+                : []),
+              ...((data.grade === "second" || data.grade === "first")
+                ? ([["Promotion Date (Third → Second) / बढुवा मिति (तृतीय → द्वितीय)", data.promotionDate || "—"]] as [string, string][])
+                : []),
+              ...(data.grade === "first"
+                ? ([["Promotion Date (Second → First) / बढुवा मिति (द्वितीय → प्रथम)", data.promotionDate2 || "—"]] as [string, string][])
+                : []),
+            ] as [string, string][])
+          : ([["Promotion Date / बढुवा मिति", data.promotionDate || "—"]] as [string, string][])),
+        ["Minimum Qualification / न्यूनतम योग्यता", QUALIFICATION_LABELS[data.minQualification] || data.minQualification],
+        ["Highest Qualification / उच्चतम योग्यता", QUALIFICATION_LABELS[data.highestQualification] || data.highestQualification],
+        ...(data.highestQualification && data.highestQualification !== data.minQualification
+          ? ([["Highest Qualification Document / उच्चतम योग्यताको प्रमाणपत्र", data.highestQualificationDocument ? "✓ Uploaded" : "—"]] as [string, string][])
+          : []),
+        ...(data.teacherType === "permanent"
+          ? ([
+              ["Extraordinary Leave Taken / लिइसकेको असाधारण बिदा", data.extraordinaryLeave || "—"],
               [
                 "Extraordinary Leave Remaining / बाँकी असाधारण बिदा",
                 toNepaliDigits(
@@ -1350,8 +1518,17 @@ function Step5({
         data.district, data.municipality, data.wardNo, data.schoolName,
         data.subject, data.level, data.teacherType, data.appointmentDate,
         data.minQualification, data.highestQualification,
+        data.citizenship, data.degree, data.photo, data.teachingLicense, data.appointmentLetter,
         ...(data.teacherType === "permanent"
-          ? [data.tokenNo, data.grade, data.promotionDate]
+          ? [
+              data.tokenNo, data.grade, data.wasDifferentTypeBeforePermanent, data.extraordinaryLeave,
+              ...(data.wasDifferentTypeBeforePermanent === "true" ? [data.permanentAppointmentDate] : []),
+              ...((data.grade === "second" || data.grade === "first") ? [data.promotionDate] : []),
+              ...(data.grade === "first" ? [data.promotionDate2] : []),
+            ]
+          : []),
+        ...(data.highestQualification && data.highestQualification !== data.minQualification
+          ? [data.highestQualificationDocument]
           : []),
       ].some((v) => !v) && (
         <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 text-sm rounded-lg px-4 py-3">
@@ -1412,8 +1589,12 @@ export default function RegisterPage() {
     // Step 4: Service
     appointmentDate: "", promotionDate: "", minQualification: "", highestQualification: "",
     extraordinaryLeave: "", ageSixtyYear: "", remarks: "",
+    // Only relevant when teacherType === "permanent"
+    wasDifferentTypeBeforePermanent: "", permanentAppointmentDate: "", promotionDate2: "",
     // Step 5: Documents
     citizenship: "", degree: "", photo: "", teachingLicense: "", appointmentLetter: "",
+    // Only required when highestQualification differs from minQualification
+    highestQualificationDocument: "",
     transferDocuments: [] as File[],
   });
 
@@ -1470,6 +1651,19 @@ export default function RegisterPage() {
     payload.append("ageSixtyYear", nepaliToAscii(formData.ageSixtyYear));
     payload.append("remarks", formData.remarks);
 
+    // Only meaningful for Permanent teachers -- omitted entirely otherwise
+    // so the backend's tri-state (unanswered vs. explicit No) isn't
+    // muddied by an empty string from a non-Permanent applicant.
+    if (formData.teacherType === "permanent") {
+      payload.append("wasDifferentTypeBeforePermanent", formData.wasDifferentTypeBeforePermanent);
+      if (formData.wasDifferentTypeBeforePermanent === "true") {
+        payload.append("permanentAppointmentDate", nepaliToAscii(formData.permanentAppointmentDate));
+      }
+      if (formData.grade === "first") {
+        payload.append("promotionDate2", nepaliToAscii(formData.promotionDate2));
+      }
+    }
+
     // Step 5: Documents (FILES)
     if (formData.citizenship)
       payload.append("citizenship", formData.citizenship as any);
@@ -1485,6 +1679,9 @@ export default function RegisterPage() {
 
     if (formData.appointmentLetter)
       payload.append("appointmentLetter", formData.appointmentLetter as any);
+
+    if (formData.highestQualification !== formData.minQualification && formData.highestQualificationDocument)
+      payload.append("highestQualificationDocument", formData.highestQualificationDocument as any);
 
     if (formData.teacherType === "permanent") {
       formData.transferDocuments.forEach((file) => {

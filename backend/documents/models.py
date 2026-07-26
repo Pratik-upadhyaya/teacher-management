@@ -15,9 +15,18 @@ class DocumentChangeRequest(models.Model):
     DOCUMENT_TYPE_CHOICES = (
         ('citizenship', 'Citizenship'),
         ('degree', 'Degree Certificate'),
+        # Was 'transcript' -- stale leftover from before Teacher.photo was
+        # repurposed from a transcript field to the passport photo (see
+        # teachers/models.py). views.py's TEACHER_DOCUMENT_FIELDS already
+        # said "photo"; this tuple just never got a matching migration
+        # until now.
         ('photo', 'Passport Size Photo'),
         ('teachingLicense', 'Teaching License'),
         ('appointmentLetter', 'Appointment Letter'),
+        # New -- only relevant when a teacher's highestQualification
+        # differs from their minQualification (see
+        # teachers/models.py's highestQualificationDocument).
+        ('highestQualificationDocument', 'Highest Qualification Document'),
     )
 
     STATUS_CHOICES = (

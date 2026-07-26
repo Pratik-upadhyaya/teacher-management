@@ -25,6 +25,7 @@ VALID_DOCUMENT_TYPES = {choice[0] for choice in DocumentChangeRequest.DOCUMENT_T
 # in serve_document below so a teacher can view their own approved file.
 TEACHER_DOCUMENT_FIELDS = (
     "citizenship", "degree", "photo", "teachingLicense", "appointmentLetter",
+    "highestQualificationDocument",
 )
 
 

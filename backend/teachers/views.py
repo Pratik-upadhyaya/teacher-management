@@ -285,7 +285,10 @@ def teacher_detail(request, id):
 
         # JOB
         "appointmentDate": teacher.appointmentDate,
+        "wasDifferentTypeBeforePermanent": teacher.wasDifferentTypeBeforePermanent,
+        "permanentAppointmentDate": teacher.permanentAppointmentDate,
         "promotionDate": teacher.promotionDate,
+        "promotionDate2": teacher.promotionDate2,
         "minQualification": teacher.minQualification,
         "highestQualification": teacher.highestQualification,
         "extraordinaryLeave": teacher.extraordinaryLeave,
@@ -298,6 +301,7 @@ def teacher_detail(request, id):
         "photo": teacher.photo.name if teacher.photo else None,
         "teachingLicense": teacher.teachingLicense.name if teacher.teachingLicense else None,
         "appointmentLetter": teacher.appointmentLetter.name if teacher.appointmentLetter else None,
+        "highestQualificationDocument": teacher.highestQualificationDocument.name if teacher.highestQualificationDocument else None,
         "transferDocuments": [d.file.name for d in teacher.transfer_documents.all()],
 
         # ADMIN

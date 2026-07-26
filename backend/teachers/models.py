@@ -84,8 +84,43 @@ class Teacher(models.Model):
     # =========================
     # STEP 4: SERVICE INFO
     # =========================
+    # For a non-Permanent teacher, or a Permanent teacher who was directly
+    # appointed Permanent (never served under a different category first),
+    # this is simply their appointment date.
+    #
+    # For a Permanent teacher who *was* appointed under a different
+    # category before becoming Permanent (see
+    # wasDifferentTypeBeforePermanent below), this is the date of that
+    # ORIGINAL appointment -- the date they became Permanent is recorded
+    # separately in permanentAppointmentDate.
     appointmentDate = models.CharField(max_length=20, blank=True, null=True)
+
+    # Only meaningful when teacherType == "permanent". Tri-state
+    # (None/True/False) rather than a plain default=False so an
+    # unanswered wizard step is distinguishable from an explicit "No" --
+    # the registration serializer requires this to be explicitly set for
+    # Permanent applicants (see teachers/serializers.py).
+    wasDifferentTypeBeforePermanent = models.BooleanField(null=True, blank=True)
+
+    # Only collected/required when wasDifferentTypeBeforePermanent is
+    # True -- the date this teacher was made Permanent, distinct from
+    # appointmentDate above (their original appointment under whatever
+    # category they held before).
+    permanentAppointmentDate = models.CharField(max_length=20, blank=True, null=True)
+
+    # Grade-promotion dates (Third -> Second -> First), NOT related to
+    # becoming Permanent -- only applicable when teacherType ==
+    # "permanent", and only for however many promotions this teacher's
+    # current `grade` implies:
+    #   grade == "third"  -> neither field applies (still at entry grade)
+    #   grade == "second" -> promotionDate required (Third -> Second)
+    #   grade == "first"  -> promotionDate AND promotionDate2 required
+    #                        (Third -> Second, then Second -> First)
+    # Required-ness for both is enforced conditionally in
+    # teachers/serializers.py, not at the model level, since it depends
+    # on teacherType and grade together.
     promotionDate = models.CharField(max_length=20, blank=True, null=True)
+    promotionDate2 = models.CharField(max_length=20, blank=True, null=True)
 
     # Split into two so a teacher whose entry qualification (e.g. SLC/SEE)
     # differs from what they've since completed (e.g. Master's) can record
@@ -144,6 +179,18 @@ class Teacher(models.Model):
     )
 
     appointmentLetter = models.FileField(
+        upload_to='documents/',
+        blank=True,
+        null=True
+    )
+
+    # Only collected/required when highestQualification differs from
+    # minQualification -- `degree` above already covers the case where
+    # they're the same (a single certificate proves both). Also plugged
+    # into the DocumentChangeRequest re-upload flow like the other
+    # document fields (see documents/models.py's DOCUMENT_TYPE_CHOICES
+    # and documents/views.py's TEACHER_DOCUMENT_FIELDS).
+    highestQualificationDocument = models.FileField(
         upload_to='documents/',
         blank=True,
         null=True

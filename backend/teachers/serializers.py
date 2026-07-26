@@ -35,3 +35,72 @@ class TeacherSerializer(serializers.ModelSerializer):
                 "emis_code": obj.school.emis_code,
             }
         return None
+
+    # Model fields stay blank=True/null=True (so old rows and partial
+    # profile-edit PATCHes -- see teachers/views.py's teacher_me, which
+    # only ever touches name/phone/permanentAddress -- aren't affected),
+    # so "required on a new application" is enforced here instead of at
+    # the model/extra_kwargs level. Only runs for a full (non-partial)
+    # write, i.e. registration submission -- teacher_me's PATCH always
+    # passes partial=True and never includes any of these fields anyway,
+    # but this guard makes that explicit rather than incidental.
+    def validate(self, attrs):
+        if self.partial:
+            return attrs
+
+        errors = {}
+
+        def require(field, message):
+            if not attrs.get(field):
+                errors[field] = message
+
+        # Document uploads -- compulsory on every application regardless
+        # of teacherType.
+        require("citizenship", "Citizenship document is required.")
+        require("degree", "Degree certificate is required.")
+        require("photo", "Passport size photo is required.")
+        require("teachingLicense", "Teaching license is required.")
+        require("appointmentLetter", "Appointment letter is required.")
+
+        # Only required when the two qualifications actually differ --
+        # if they're the same, `degree` above already covers it.
+        min_q = attrs.get("minQualification")
+        highest_q = attrs.get("highestQualification")
+        if min_q and highest_q and min_q != highest_q:
+            require(
+                "highestQualificationDocument",
+                "Highest Qualification document is required when it differs from Minimum Qualification.",
+            )
+
+        # Appointment Date applies to every teacherType (see
+        # app/register/page.tsx's Step3, which validates it unconditionally).
+        require("appointmentDate", "Appointment Date is required.")
+
+        teacher_type = attrs.get("teacherType")
+        if teacher_type == "permanent":
+            # Extraordinary Leave Taken is only ever shown/collected for
+            # Permanent teachers (see app/register/page.tsx's Step3) --
+            # required for them, not applicable otherwise.
+            require("extraordinaryLeave", "Extraordinary Leave Taken is required for Permanent teachers.")
+
+            was_different = attrs.get("wasDifferentTypeBeforePermanent")
+            if was_different is None:
+                errors["wasDifferentTypeBeforePermanent"] = (
+                    "Please specify whether you were appointed under a different type before becoming Permanent."
+                )
+            elif was_different:
+                require(
+                    "permanentAppointmentDate",
+                    "Appointment Date (as Permanent) is required when you were a different type before.",
+                )
+
+            grade = attrs.get("grade")
+            if grade == "second":
+                require("promotionDate", "Promotion Date is required for Grade Second.")
+            elif grade == "first":
+                require("promotionDate", "Promotion Date (Third → Second) is required for Grade First.")
+                require("promotionDate2", "Promotion Date (Second → First) is required for Grade First.")
+
+        if errors:
+            raise serializers.ValidationError(errors)
+        return attrs
