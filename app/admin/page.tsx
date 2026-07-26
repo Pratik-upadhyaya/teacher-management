@@ -574,6 +574,159 @@ export default function AdminPage() {
         schoolSheet.addRow(s);
       }
 
+      // ── Teacher Summary sheet ───────────────────────────────────
+      // Mirrors school_bibarA_Kaski_2083.xlsx's layout (one row per
+      // school, two-tier merged header: a group column spanning several
+      // sub-columns, with a Total per group) but pivots on teacher Type ×
+      // Level instead of the government file's Class × Gender headcounts
+      // -- this system doesn't track enrolled students, so that half is
+      // intentionally not replicated.
+      //
+      // Counts only status === "approved" teachers -- this sheet is a
+      // staffing headcount, not an application list (the Teachers sheet
+      // above already has every application regardless of status,
+      // including pending/rejected, which shouldn't inflate a school's
+      // "how many teachers does it have" figure).
+      //
+      // A teacher whose `school` FK never resolved (EMIS typo, school not
+      // yet registered, etc.) can't be attributed to any row here; those
+      // are rolled into a trailing "Unlinked" row instead of silently
+      // dropped, so the grand total still reconciles against the full
+      // approved-teacher count.
+      const SUMMARY_LEVELS: { key: string; label: string }[] = [
+        { key: "primary", label: "Primary (1-5)" },
+        { key: "lower_secondary", label: "Lower Sec (6-8)" },
+        { key: "secondary", label: "Secondary (9-10)" },
+        { key: "higher_secondary", label: "Higher Sec (11-12)" },
+        { key: "unspecified", label: "Level Not Specified" },
+      ];
+      const SUMMARY_TYPES: { key: string; label: string }[] = [
+        { key: "permanent", label: "Permanent" },
+        { key: "temporary", label: "Temporary" },
+        { key: "grant", label: "Grant" },
+        { key: "shi_anudan", label: "Shi Anudan" },
+        { key: "relief", label: "Relief" },
+        { key: "private", label: "Private" },
+        { key: "unspecified", label: "Type Not Specified" },
+      ];
+
+      function bumpPivot(
+        bucket: Map<string, Map<string, number>>,
+        level: string,
+        type: string
+      ) {
+        if (!bucket.has(level)) bucket.set(level, new Map());
+        const byType = bucket.get(level)!;
+        byType.set(type, (byType.get(type) || 0) + 1);
+      }
+
+      const approvedTeachers = teachers.filter((t: any) => t.status === "approved");
+      const pivotBySchool = new Map<number, Map<string, Map<string, number>>>();
+      const unlinkedPivot = new Map<string, Map<string, number>>();
+      let unlinkedCount = 0;
+
+      for (const t of approvedTeachers) {
+        const level = SUMMARY_LEVELS.some((l) => l.key === t.level) ? t.level : "unspecified";
+        const type = SUMMARY_TYPES.some((ty) => ty.key === t.teacherType) ? t.teacherType : "unspecified";
+        if (t.school) {
+          if (!pivotBySchool.has(t.school)) pivotBySchool.set(t.school, new Map());
+          bumpPivot(pivotBySchool.get(t.school)!, level, type);
+        } else {
+          unlinkedCount++;
+          bumpPivot(unlinkedPivot, level, type);
+        }
+      }
+
+      const teacherSummarySheet = workbook.addWorksheet("Teacher Summary");
+
+      const identityCols = [
+        { header: "S.N", width: 6 },
+        { header: "School Name", width: 26 },
+        { header: "EMIS Code", width: 16 },
+        { header: "District", width: 14 },
+        { header: "Municipality", width: 24 },
+        { header: "Ward No.", width: 10 },
+      ];
+
+      const summaryHeaderRow1 = teacherSummarySheet.getRow(1);
+      const summaryHeaderRow2 = teacherSummarySheet.getRow(2);
+
+      identityCols.forEach((c, i) => {
+        const col = i + 1;
+        teacherSummarySheet.getColumn(col).width = c.width;
+        teacherSummarySheet.mergeCells(1, col, 2, col);
+        summaryHeaderRow1.getCell(col).value = c.header;
+      });
+
+      let colPtr = identityCols.length + 1;
+      const levelColRanges: { level: string; start: number; end: number }[] = [];
+      for (const lvl of SUMMARY_LEVELS) {
+        const start = colPtr;
+        for (const ty of SUMMARY_TYPES) {
+          teacherSummarySheet.getColumn(colPtr).width = 12;
+          summaryHeaderRow2.getCell(colPtr).value = ty.label;
+          colPtr++;
+        }
+        teacherSummarySheet.getColumn(colPtr).width = 12;
+        summaryHeaderRow2.getCell(colPtr).value = "Total";
+        const end = colPtr;
+        teacherSummarySheet.mergeCells(1, start, 1, end);
+        summaryHeaderRow1.getCell(start).value = lvl.label;
+        levelColRanges.push({ level: lvl.key, start, end });
+        colPtr = end + 1;
+      }
+      teacherSummarySheet.getColumn(colPtr).width = 14;
+      teacherSummarySheet.mergeCells(1, colPtr, 2, colPtr);
+      summaryHeaderRow1.getCell(colPtr).value = "Grand Total";
+      const grandTotalCol = colPtr;
+
+      summaryHeaderRow1.font = { bold: true };
+      summaryHeaderRow2.font = { bold: true };
+      summaryHeaderRow1.alignment = { horizontal: "center", vertical: "middle" };
+      summaryHeaderRow2.alignment = { horizontal: "center", vertical: "middle" };
+
+      let summaryRowPtr = 3;
+      let summarySn = 1;
+      function writeSummaryRow(
+        identity: (string | number)[],
+        byLevelType: Map<string, Map<string, number>>
+      ) {
+        const row = teacherSummarySheet.getRow(summaryRowPtr);
+        identity.forEach((v, i) => {
+          row.getCell(i + 1).value = v;
+        });
+        let grand = 0;
+        for (const { level, start, end } of levelColRanges) {
+          const byType = byLevelType.get(level);
+          let levelTotal = 0;
+          let c = start;
+          for (const ty of SUMMARY_TYPES) {
+            const count = byType?.get(ty.key) || 0;
+            row.getCell(c).value = count;
+            levelTotal += count;
+            c++;
+          }
+          row.getCell(end).value = levelTotal;
+          grand += levelTotal;
+        }
+        row.getCell(grandTotalCol).value = grand;
+        summaryRowPtr++;
+      }
+
+      for (const s of schools) {
+        writeSummaryRow(
+          [summarySn++, s.school_name, s.emis_code, s.district, s.municipality, s.ward_no],
+          pivotBySchool.get(s.id) || new Map()
+        );
+      }
+
+      if (unlinkedCount > 0) {
+        writeSummaryRow(
+          [summarySn++, "— Unlinked (no matched School record) —", "", "", "", ""],
+          unlinkedPivot
+        );
+      }
+
       const buffer = await workbook.xlsx.writeBuffer();
       const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
       const url = URL.createObjectURL(blob);
