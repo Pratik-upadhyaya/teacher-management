@@ -3,7 +3,6 @@ from .views import (
     register_user,
     login_user,
     logout_user,
-    teacher_detail,
     create_staff_user,
     change_password,
     list_sub_admins,
@@ -20,9 +19,6 @@ urlpatterns = [
     path('change-password/', change_password),  # any logged-in user
     path('sub-admins/', list_sub_admins),  # admin-only
     path('sub-admins/<int:id>/', delete_sub_admin),  # admin-only
-
-    # Teacher details for view button
-    path('teacher/<int:id>/', teacher_detail),
 
     # Registration verification (public, throttled -- see accounts/otp.py)
     path('otp/send/', send_otp),

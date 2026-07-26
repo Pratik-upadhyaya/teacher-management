@@ -178,33 +178,6 @@ def delete_sub_admin(request, id):
 
 
 # =========================
-# TEACHER DETAIL API
-# =========================
-@api_view(['GET'])
-@permission_classes([IsAuthenticated, IsAdminOrPrincipal])
-def teacher_detail(request, id):
-    try:
-        teacher = Teacher.objects.get(id=id)
-    except Teacher.DoesNotExist:
-        return Response({"error": "Teacher not found"}, status=404)
-
-    data = {
-        "id": teacher.id,
-        "name": teacher.name,
-        "tokenNo": teacher.tokenNo,
-        "subject": teacher.subject,
-        "phone": teacher.phone,
-        "email": teacher.email,
-        "schoolName": getattr(teacher, "schoolName", ""),
-        "status": teacher.status,
-        "photo": teacher.photo.url if hasattr(teacher, "photo") and teacher.photo else None,
-        "documents": []
-    }
-
-    return Response(data)
-
-
-# =========================
 # REGISTRATION OTP VERIFICATION (email + phone)
 # =========================
 # Public, throttled endpoints used by the teacher self-registration wizard

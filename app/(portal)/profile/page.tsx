@@ -327,46 +327,58 @@ export default function ProfilePage() {
             ✏️ Edit Profile · प्रोफाइल सम्पादन
           </h2>
           <form onSubmit={handleSaveProfile} noValidate className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Full name */}
-<label htmlFor="profile-name" className="block text-sm font-medium text-gray-700 mb-1">
-  Full name <span className="text-gray-400 font-normal">/ पूरा नाम</span>
-</label>
-<input
-  id="profile-name"
-  value={form.name}
-  onChange={(e) => updateForm("name", e.target.value)}
-  placeholder="पूरा नाम"
-  className={fieldClass(!!profileErrors.name)}
-/>
+              <div>
+                <label htmlFor="profile-name" className="block text-sm font-medium text-gray-700 mb-1">
+                  Full name <span className="text-gray-400 font-normal">/ पूरा नाम</span>
+                </label>
+                <input
+                  id="profile-name"
+                  value={form.name}
+                  onChange={(e) => updateForm("name", e.target.value)}
+                  placeholder="पूरा नाम"
+                  className={fieldClass(!!profileErrors.name)}
+                />
+                {profileErrors.name && (
+                  <p className="text-red-500 text-xs mt-1">{profileErrors.name}</p>
+                )}
+              </div>
 
-{/* Phone */}
-<label htmlFor="profile-phone" className="block text-sm font-medium text-gray-700 mb-1">
-  Phone <span className="text-gray-400 font-normal">/ फोन नम्बर</span>
-</label>
-<input
-  id="profile-phone"
-  value={form.phone}
-  onChange={(e) => updateForm("phone", e.target.value)}
-  placeholder="९८XXXXXXXX"
-  className={fieldClass(!!profileErrors.phone)}
-/>
+              {/* Phone */}
+              <div>
+                <label htmlFor="profile-phone" className="block text-sm font-medium text-gray-700 mb-1">
+                  Phone <span className="text-gray-400 font-normal">/ फोन नम्बर</span>
+                </label>
+                <input
+                  id="profile-phone"
+                  value={form.phone}
+                  onChange={(e) => updateForm("phone", e.target.value)}
+                  placeholder="९८XXXXXXXX"
+                  className={fieldClass(!!profileErrors.phone)}
+                />
+                {profileErrors.phone && (
+                  <p className="text-red-500 text-xs mt-1">{profileErrors.phone}</p>
+                )}
+              </div>
 
-{/* Email (read-only) */}
-<label htmlFor="profile-email" className="block text-sm font-medium text-gray-700 mb-1">
-  Email address <span className="text-gray-400 font-normal">/ इमेल</span>
-</label>
-<input
-  id="profile-email"
-  type="email"
-  value={teacher?.email ?? ""}
-  disabled
-  className="w-full border rounded-lg px-3 py-2.5 text-sm bg-gray-50 text-gray-500 cursor-not-allowed border-gray-200"
-/>
-<p className="text-xs text-gray-400 mt-1">
-  Your email is your login ID and can&apos;t be changed here — contact an
-  admin if it needs to be updated.
-</p>
+              {/* Email (read-only) */}
+              <div className="md:col-span-2">
+                <label htmlFor="profile-email" className="block text-sm font-medium text-gray-700 mb-1">
+                  Email address <span className="text-gray-400 font-normal">/ इमेल</span>
+                </label>
+                <input
+                  id="profile-email"
+                  type="email"
+                  value={teacher?.email ?? ""}
+                  disabled
+                  className="w-full border rounded-lg px-3 py-2.5 text-sm bg-gray-50 text-gray-500 cursor-not-allowed border-gray-200"
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  Your email is your login ID and can&apos;t be changed here — contact an
+                  admin if it needs to be updated.
+                </p>
+              </div>
             </div>
             <div>
               <label htmlFor="profile-address" className="block text-sm font-medium text-gray-700 mb-1">

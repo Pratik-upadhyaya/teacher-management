@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { Lock, Mail } from "lucide-react";
-import { setTokens } from "@/lib/api";
+import { setTokens, API_BASE_URL } from "@/lib/api";
 
 // ── Validation ─────────────────────────────────────────────────────────────
 
@@ -63,7 +63,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/token/`,
+        `${API_BASE_URL}/api/token/`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -78,7 +78,7 @@ export default function LoginPage() {
       localStorage.setItem("user_role", data.role || "teacher");
 
       const meRes = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/teachers/me/`,
+        `${API_BASE_URL}/api/teachers/me/`,
         { headers: { Authorization: `Bearer ${data.access}` } }
       );
       if (meRes.ok) {
