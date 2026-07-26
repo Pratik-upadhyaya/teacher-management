@@ -260,7 +260,7 @@ export default function LeavesPage() {
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-[#0f2044]">Holidays / बिदा</h1>
           <p className="text-sm text-gray-400 mt-0.5">
@@ -269,7 +269,7 @@ export default function LeavesPage() {
         </div>
         <button
           onClick={openModal}
-          className="flex items-center gap-1.5 text-sm font-semibold text-white bg-[#0f2044] hover:bg-[#16305f] px-4 py-2.5 rounded-lg transition shrink-0"
+          className="flex items-center gap-1.5 text-sm font-semibold text-white bg-[#0f2044] hover:bg-[#16305f] px-4 py-2.5 rounded-lg transition shrink-0 self-start sm:self-auto"
         >
           <Plus size={15} />
           Apply for Leave / बिदाको लागि आवेदन
@@ -353,7 +353,7 @@ export default function LeavesPage() {
         ) : (
           <div className="bg-white rounded-xl border border-gray-100 divide-y divide-gray-50">
             {applications.map((app) => (
-              <div key={app.id} className="px-5 py-4 flex items-center justify-between gap-3">
+              <div key={app.id} className="px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-4 min-w-0">
                   <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
                     <CalendarDays size={16} className="text-[#0f2044]" />
@@ -374,7 +374,7 @@ export default function LeavesPage() {
                 </div>
                 <button
                   onClick={() => openDocument(`${app.leave_type_detail.name} — ${formatDate(app.start_date)}`, app.document)}
-                  className="flex items-center gap-1.5 text-xs font-semibold text-[#0f2044] bg-gray-50 hover:bg-gray-100 px-3 py-2 rounded-lg transition shrink-0"
+                  className="flex items-center gap-1.5 text-xs font-semibold text-[#0f2044] bg-gray-50 hover:bg-gray-100 px-3 py-2 rounded-lg transition shrink-0 self-end sm:self-auto"
                 >
                   <FileText size={13} />
                   Document / कागजात

@@ -207,7 +207,7 @@ export default function DocumentsPage() {
 
             return (
               <div key={d.key} className="px-5 py-4">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
                   <div className="flex items-center gap-4">
                     <div
                       className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
@@ -234,7 +234,7 @@ export default function DocumentsPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1.5 self-end sm:self-auto">
                     {url && (
                       <button
                         onClick={() => openDocument(d.label, url)}
