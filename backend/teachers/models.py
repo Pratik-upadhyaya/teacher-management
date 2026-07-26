@@ -1,5 +1,8 @@
 from django.db import models
+from django.db.models import Q
 from django.conf import settings
+from django.core.exceptions import ValidationError
+from .validation import get_teacher_required_field_errors
 
 
 class Teacher(models.Model):
@@ -226,7 +229,105 @@ class Teacher(models.Model):
     )
 
     # =========================
+    # DB-LEVEL CONSTRAINTS
+    # =========================
+    # A second, independent enforcement layer beneath Teacher.clean() and
+    # TeacherSerializer.validate() -- these fire on every INSERT/UPDATE
+    # regardless of code path (API, Django admin, a future script, a
+    # data migration), which neither of those two can guarantee alone.
+    #
+    # Only fields verified against the actual committed data as having
+    # ZERO current violations are constrained here (checked via a
+    # one-off audit script against db.sqlite3's 11 real teacher rows --
+    # see chat history for the full breakdown). Adding a CheckConstraint
+    # for a column that any existing row already violates would make
+    # Django's SQLite table-rebuild migration fail outright, since
+    # SQLite has no ALTER TABLE ADD CONSTRAINT -- Django works around
+    # that by copying every row into a freshly-constrained table.
+    #
+    # Deliberately NOT constrained here despite being "required" at the
+    # application layer, because current data violates them:
+    #   - photo: missing on every existing row (predates this field
+    #     being repurposed from the old `transcript` field -- nobody's
+    #     actual photo was ever backfilled).
+    #   - wasDifferentTypeBeforePermanent: unset on all existing
+    #     Permanent rows (the question didn't exist before this
+    #     feature).
+    #   - promotionDate / promotionDate2 (grade-conditional): missing on
+    #     a handful of existing Permanent/Grade-First rows for the same
+    #     reason.
+    # Also deliberately NOT constrained: highestQualificationDocument's
+    # "required only if minQualification != highestQualification" rule
+    # needs a cross-field F() comparison, which is more fragile as a raw
+    # SQL CHECK than it's worth given it's already trivially satisfied
+    # by today's data (no row has differing qualifications yet) and
+    # already enforced at the application layer.
+    #
+    # Revisit once the above gaps are backfilled -- these constraints
+    # can be widened incrementally without touching the ones already here.
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(citizenship__isnull=False) & ~Q(citizenship=""),
+                name="teacher_citizenship_required",
+            ),
+            models.CheckConstraint(
+                condition=Q(degree__isnull=False) & ~Q(degree=""),
+                name="teacher_degree_required",
+            ),
+            models.CheckConstraint(
+                condition=Q(teachingLicense__isnull=False) & ~Q(teachingLicense=""),
+                name="teacher_teachingLicense_required",
+            ),
+            models.CheckConstraint(
+                condition=Q(appointmentLetter__isnull=False) & ~Q(appointmentLetter=""),
+                name="teacher_appointmentLetter_required",
+            ),
+            models.CheckConstraint(
+                condition=Q(appointmentDate__isnull=False) & ~Q(appointmentDate=""),
+                name="teacher_appointmentDate_required",
+            ),
+            # extraordinaryLeave required only for Permanent teachers.
+            models.CheckConstraint(
+                condition=~Q(teacherType="permanent")
+                | (Q(extraordinaryLeave__isnull=False) & ~Q(extraordinaryLeave="")),
+                name="teacher_extraordinaryLeave_required_if_permanent",
+            ),
+            # permanentAppointmentDate required only when a Permanent
+            # teacher indicated they were a different type before.
+            models.CheckConstraint(
+                condition=~Q(teacherType="permanent")
+                | ~Q(wasDifferentTypeBeforePermanent=True)
+                | (Q(permanentAppointmentDate__isnull=False) & ~Q(permanentAppointmentDate="")),
+                name="teacher_permanentAppointmentDate_required_if_was_different",
+            ),
+        ]
+
+    # =========================
     # STRING DISPLAY
     # =========================
     def __str__(self):
         return self.name
+
+    # =========================
+    # VALIDATION (ModelForm paths only, e.g. Django's built-in /admin/
+    # site's "Add Teacher" form -- NOT called automatically by .save(),
+    # so this doesn't affect the DRF API path (already enforced
+    # separately by TeacherSerializer.validate()) or any other plain
+    # .save() caller such as the document-approval flow.
+    # =========================
+    def clean(self):
+        super().clean()
+        # Deliberately scoped to brand-new records only (self.pk is
+        # None). These required-field rules didn't exist when older
+        # Teacher rows were created, and TeacherAdmin's
+        # list_editable = ('status', 'extraordinaryLeaveRemaining')
+        # depends on being able to save an *existing* row -- e.g.
+        # approving a legacy application -- without every one of these
+        # fields being backfilled first. Enforcing on edits would
+        # silently block reviewing old applications.
+        if self.pk is not None:
+            return
+        errors = get_teacher_required_field_errors(lambda f: getattr(self, f, None))
+        if errors:
+            raise ValidationError(errors)
