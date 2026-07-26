@@ -28,12 +28,12 @@ class TeacherAdmin(admin.ModelAdmin):
             'grade', 'teacherType',
         )}),
         ('Service Info', {'fields': (
-            'appointmentDate', 'promotionDate', 'qualification',
+            'appointmentDate', 'promotionDate', 'minQualification', 'highestQualification',
             'extraordinaryLeave', 'extraordinaryLeaveRemaining',
             'ageSixtyYear', 'remarks',
         )}),
         ('Documents', {'fields': (
-            'citizenship', 'degree', 'transcript', 'teachingLicense',
+            'citizenship', 'degree', 'photo', 'teachingLicense',
             'appointmentLetter',
         )}),
         ('Review Status', {'fields': ('status', 'reviewed_by', 'created_at')}),

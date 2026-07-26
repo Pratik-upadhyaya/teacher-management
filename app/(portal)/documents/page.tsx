@@ -12,7 +12,7 @@ import {
 type DocKey =
   | "citizenship"
   | "degree"
-  | "transcript"
+  | "photo"
   | "teachingLicense"
   | "appointmentLetter";
 
@@ -30,7 +30,7 @@ type ChangeRequest = {
 const DOC_TYPES: { key: DocKey; label: string }[] = [
   { key: "citizenship", label: "Citizenship / नागरिकता" },
   { key: "degree", label: "Degree Certificate / प्रमाणपत्र" },
-  { key: "transcript", label: "Transcript / अंकतालिका" },
+  { key: "photo", label: "Passport Size Photo / पासपोर्ट साइजको फोटो" },
   { key: "teachingLicense", label: "Teaching License / शिक्षण अनुमतिपत्र" },
   { key: "appointmentLetter", label: "Appointment Letter / नियुक्तिपत्र" },
 ];
@@ -127,7 +127,11 @@ export default function DocumentsPage() {
     setPreviewLoading(true);
     setPreviewUrl(null);
     try {
-      const blobUrl = await fetchDocumentBlobUrl(path);
+      // Raw storage-relative path (e.g. "documents/xyz.jpg") from teacher_me,
+      // same as the admin teacher detail page's Teacher type -- needs the
+      // "/media/" prefix before handing to fetchDocumentBlobUrl, or it
+      // resolves to a malformed URL.
+      const blobUrl = await fetchDocumentBlobUrl(`/media/${path}`);
       setPreviewUrl(blobUrl);
     } catch (err) {
       setPreviewError(

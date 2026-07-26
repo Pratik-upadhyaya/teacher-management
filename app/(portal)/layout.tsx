@@ -20,6 +20,7 @@ const NAV = [
   { href: "/documents", label: "Documents", labelNp: "कागजातहरू", icon: FileText },
   { href: "/leaves", label: "Holidays", labelNp: "बिदा", icon: CalendarDays },
   { href: "/transfer", label: "Transfer", labelNp: "सरुवा", icon: ArrowRightLeft },
+  { href: "/principal", label: "School Info", labelNp: "विद्यालय विवरण", icon: School },
   { href: "/profile", label: "Profile", labelNp: "प्रोफाइल", icon: User },
 ];
 

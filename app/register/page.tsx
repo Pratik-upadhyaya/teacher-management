@@ -892,6 +892,9 @@ function Step3({
   onBack: () => void;
 }) {
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [sameAsMin, setSameAsMin] = useState(
+    !!data.minQualification && data.minQualification === data.highestQualification
+  );
 
   const isPermanent = data.teacherType === "permanent";
 
@@ -911,8 +914,10 @@ function Step3({
       validateNepaliDate(data.ageSixtyYear, errs, "ageSixtyYear", "६० वर्ष पुग्ने मिति");
     }
 
-    if (!data.qualification)
-      errs.qualification = "शैक्षिक योग्यता छान्नुहोस्";
+    if (!data.minQualification)
+      errs.minQualification = "न्यूनतम शैक्षिक योग्यता छान्नुहोस्";
+    if (!data.highestQualification)
+      errs.highestQualification = "उच्चतम शैक्षिक योग्यता छान्नुहोस्";
 
     if (Object.keys(errs).length > 0) { setErrors(errs); return; }
     setErrors({});
@@ -959,24 +964,73 @@ function Step3({
         </div>
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Educational Qualification <span className="text-gray-400 font-normal">/ शैक्षिक योग्यता</span>
-        </label>
-        <select
-          title="Educational Qualification"
-          value={data.qualification}
-          onChange={(e) => { onChange("qualification", e.target.value); setErrors((p) => ({ ...p, qualification: "" })); }}
-          className={ic(errors, "qualification")}
-        >
-          <option value="">योग्यता छान्नुहोस्</option>
-          <option value="slc">SLC / SEE</option>
-          <option value="plus2">+2 / Intermediate / उच्च माध्यमिक</option>
-          <option value="bachelor">Bachelor / स्नातक</option>
-          <option value="master">Master / स्नातकोत्तर</option>
-          <option value="mphil_phd">M.Phil / PhD / विध्याबारिधी</option>
-        </select>
-        <FieldError msg={errors.qualification} />
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Minimum Qualification <span className="text-gray-400 font-normal">/ न्यूनतम योग्यता</span>
+          </label>
+          <select
+            title="Minimum Qualification"
+            value={data.minQualification}
+            onChange={(e) => {
+              const val = e.target.value;
+              onChange("minQualification", val);
+              setErrors((p) => ({ ...p, minQualification: "" }));
+              if (sameAsMin) {
+                onChange("highestQualification", val);
+                setErrors((p) => ({ ...p, highestQualification: "" }));
+              }
+            }}
+            className={ic(errors, "minQualification")}
+          >
+            <option value="">योग्यता छान्नुहोस्</option>
+            <option value="slc">SLC / SEE</option>
+            <option value="plus2">+2 / Intermediate / उच्च माध्यमिक</option>
+            <option value="bachelor">Bachelor / स्नातक</option>
+            <option value="master">Master / स्नातकोत्तर</option>
+            <option value="mphil_phd">M.Phil / PhD / विध्याबारिधी</option>
+          </select>
+          <FieldError msg={errors.minQualification} />
+        </div>
+
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <label className="block text-sm font-medium text-gray-700">
+              Highest Qualification <span className="text-gray-400 font-normal">/ उच्चतम योग्यता</span>
+            </label>
+            <label className="flex items-center gap-1.5 text-xs text-gray-500 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={sameAsMin}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  setSameAsMin(checked);
+                  if (checked) {
+                    onChange("highestQualification", data.minQualification);
+                    setErrors((p) => ({ ...p, highestQualification: "" }));
+                  }
+                }}
+                className="accent-[#0f2044]"
+              />
+              same as minimum
+            </label>
+          </div>
+          <select
+            title="Highest Qualification"
+            value={data.highestQualification}
+            disabled={sameAsMin}
+            onChange={(e) => { onChange("highestQualification", e.target.value); setErrors((p) => ({ ...p, highestQualification: "" })); }}
+            className={ic(errors, "highestQualification") + (sameAsMin ? " opacity-50 cursor-not-allowed" : "")}
+          >
+            <option value="">योग्यता छान्नुहोस्</option>
+            <option value="slc">SLC / SEE</option>
+            <option value="plus2">+2 / Intermediate / उच्च माध्यमिक</option>
+            <option value="bachelor">Bachelor / स्नातक</option>
+            <option value="master">Master / स्नातकोत्तर</option>
+            <option value="mphil_phd">M.Phil / PhD / विध्याबारिधी</option>
+          </select>
+          <FieldError msg={errors.highestQualification} />
+        </div>
       </div>
 
       {isPermanent && (
@@ -1055,11 +1109,11 @@ function Step3({
 
 // ── Step 4: Documents ─────────────────────────────────────────────
 const DOC_FIELDS = [
-  { key: "citizenship", label: "Citizenship", sub: "नागरिकता" },
-  { key: "degree", label: "Degree Certificate", sub: "प्रमाणपत्र" },
-  { key: "transcript", label: "Transcript", sub: "अंकतालिका" },
-  { key: "teachingLicense", label: "Teaching License", sub: "शिक्षण अनुमतिपत्र" },
-  { key: "appointmentLetter", label: "Appointment Letter", sub: "नियुक्तिपत्र" },
+  { key: "citizenship", label: "Citizenship", sub: "नागरिकता", accept: "image/*,.pdf" },
+  { key: "degree", label: "Degree Certificate", sub: "प्रमाणपत्र", accept: "image/*,.pdf" },
+  { key: "photo", label: "Passport Size Photo", sub: "पासपोर्ट साइजको फोटो", accept: "image/*" },
+  { key: "teachingLicense", label: "Teaching License", sub: "शिक्षण अनुमतिपत्र", accept: "image/*,.pdf" },
+  { key: "appointmentLetter", label: "Appointment Letter", sub: "नियुक्तिपत्र", accept: "image/*,.pdf" },
 ];
 
 const MAX_TRANSFER_DOCUMENTS = 10;
@@ -1107,7 +1161,7 @@ function Step4({
             <label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-xl p-4 cursor-pointer hover:border-[#0f2044] transition">
               <input
                 type="file"
-                accept="image/*,.pdf"
+                accept={doc.accept}
                 className="hidden"
                 onChange={(e) => onChange(doc.key, e.target.files?.[0] as any)}
                 //onChange={(e) => onChange(doc.key, e.target.files?.[0]?.name ?? "")}
@@ -1253,7 +1307,8 @@ function Step5({
       rows: [
         ["Appointment Date / नियुक्ती मिति", data.appointmentDate],
         ["Promotion Date / बढुवा मिति", data.promotionDate || "—"],
-        ["Qualification / योग्यता", QUALIFICATION_LABELS[data.qualification] || data.qualification],
+        ["Minimum Qualification / न्यूनतम योग्यता", QUALIFICATION_LABELS[data.minQualification] || data.minQualification],
+        ["Highest Qualification / उच्चतम योग्यता", QUALIFICATION_LABELS[data.highestQualification] || data.highestQualification],
         ...(data.teacherType === "permanent"
           ? ([
               ["Extraordinary Leave Taken / लिइसकेको असाधारण बिदा", data.extraordinaryLeave || "०"],
@@ -1283,7 +1338,8 @@ function Step5({
         data.name, data.nameEnglish, data.fatherName, data.gender, data.permanentAddress, data.permanentWardNo,
         data.dob, data.phone, data.email,
         data.district, data.municipality, data.wardNo, data.schoolName,
-        data.subject, data.level, data.teacherType, data.appointmentDate, data.qualification,
+        data.subject, data.level, data.teacherType, data.appointmentDate,
+        data.minQualification, data.highestQualification,
         ...(data.teacherType === "permanent"
           ? [data.tokenNo, data.grade, data.promotionDate]
           : []),
@@ -1344,10 +1400,10 @@ export default function RegisterPage() {
     district: "", municipality: "", wardNo: "", schoolName: "", schoolEmisCode: "", tokenNo: "",
     subject: "", level: "", grade: "", teacherType: "",
     // Step 4: Service
-    appointmentDate: "", promotionDate: "", qualification: "",
+    appointmentDate: "", promotionDate: "", minQualification: "", highestQualification: "",
     extraordinaryLeave: "", ageSixtyYear: "", remarks: "",
     // Step 5: Documents
-    citizenship: "", degree: "", transcript: "", teachingLicense: "", appointmentLetter: "",
+    citizenship: "", degree: "", photo: "", teachingLicense: "", appointmentLetter: "",
     transferDocuments: [] as File[],
   });
 
@@ -1398,7 +1454,8 @@ export default function RegisterPage() {
     // Step 4: Service
     payload.append("appointmentDate", nepaliToAscii(formData.appointmentDate));
     payload.append("promotionDate", nepaliToAscii(formData.promotionDate));
-    payload.append("qualification", formData.qualification);
+    payload.append("minQualification", formData.minQualification);
+    payload.append("highestQualification", formData.highestQualification);
     payload.append("extraordinaryLeave", nepaliToAscii(formData.extraordinaryLeave));
     payload.append("ageSixtyYear", nepaliToAscii(formData.ageSixtyYear));
     payload.append("remarks", formData.remarks);
@@ -1410,8 +1467,8 @@ export default function RegisterPage() {
     if (formData.degree)
       payload.append("degree", formData.degree as any);
 
-    if (formData.transcript)
-      payload.append("transcript", formData.transcript as any);
+    if (formData.photo)
+      payload.append("photo", formData.photo as any);
 
     if (formData.teachingLicense)
       payload.append("teachingLicense", formData.teachingLicense as any);

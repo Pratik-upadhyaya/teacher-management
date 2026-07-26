@@ -137,7 +137,7 @@ def teacher_list_create(request):
 # comment below), password, status, and every school/service field, which
 # only admins/principals should be able to change.
 #
-# Document fields (citizenship, degree, transcript, teachingLicense,
+# Document fields (citizenship, degree, photo, teachingLicense,
 # appointmentLetter) are also deliberately excluded here -- a teacher can
 # no longer overwrite a live document by PATCHing this endpoint. Uploads
 # now go through documents.views.my_document_requests as a change request,
@@ -286,7 +286,8 @@ def teacher_detail(request, id):
         # JOB
         "appointmentDate": teacher.appointmentDate,
         "promotionDate": teacher.promotionDate,
-        "qualification": teacher.qualification,
+        "minQualification": teacher.minQualification,
+        "highestQualification": teacher.highestQualification,
         "extraordinaryLeave": teacher.extraordinaryLeave,
         "extraordinaryLeaveRemaining": teacher.extraordinaryLeaveRemaining,
         "ageSixtyYear": teacher.ageSixtyYear,
@@ -294,7 +295,7 @@ def teacher_detail(request, id):
         # DOCUMENTS (IMPORTANT: use .name)
         "citizenship": teacher.citizenship.name if teacher.citizenship else None,
         "degree": teacher.degree.name if teacher.degree else None,
-        "transcript": teacher.transcript.name if teacher.transcript else None,
+        "photo": teacher.photo.name if teacher.photo else None,
         "teachingLicense": teacher.teachingLicense.name if teacher.teachingLicense else None,
         "appointmentLetter": teacher.appointmentLetter.name if teacher.appointmentLetter else None,
         "transferDocuments": [d.file.name for d in teacher.transfer_documents.all()],

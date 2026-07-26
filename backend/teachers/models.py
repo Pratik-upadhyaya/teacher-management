@@ -86,7 +86,16 @@ class Teacher(models.Model):
     # =========================
     appointmentDate = models.CharField(max_length=20, blank=True, null=True)
     promotionDate = models.CharField(max_length=20, blank=True, null=True)
-    qualification = models.CharField(max_length=100, blank=True, null=True)
+
+    # Split into two so a teacher whose entry qualification (e.g. SLC/SEE)
+    # differs from what they've since completed (e.g. Master's) can record
+    # both -- the two are commonly, but not always, the same value, so the
+    # frontend offers a "same as minimum" convenience toggle rather than
+    # forcing them apart. Same QUALIFICATION_LABELS choices for both (see
+    # lib/teacherLabels.ts).
+    minQualification = models.CharField(max_length=100, blank=True, null=True)
+    highestQualification = models.CharField(max_length=100, blank=True, null=True)
+
     extraordinaryLeave = models.CharField(max_length=20, blank=True, null=True)
     
     # Remaining balance out of the 1095-day (3-year) career cap on
@@ -116,7 +125,13 @@ class Teacher(models.Model):
         null=True
     )
 
-    transcript = models.FileField(
+    # Passport size photo -- shown as the teacher's avatar on their own
+    # profile page (app/(portal)/profile/page.tsx), not just a document
+    # in the Documents list, so it goes through the same upload path as
+    # the other 4 document fields but is treated specially on the
+    # frontend for display. Was "transcript" (an academic mark-sheet)
+    # before this field was repurposed.
+    photo = models.FileField(
         upload_to='documents/',
         blank=True,
         null=True

@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { authFetch } from "@/lib/api";
+import { authFetch, fetchDocumentBlobUrl } from "@/lib/api";
 import {
   SUBJECT_LABELS,
   LEVEL_LABELS,
@@ -97,6 +97,7 @@ export default function ProfilePage() {
     newPass: "",
     confirm: "",
   });
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchMe() {
@@ -118,6 +119,19 @@ export default function ProfilePage() {
     }
     fetchMe();
   }, []);
+
+  // Passport photo as the profile avatar. teacher.photo is a raw storage-
+  // relative path (from TeacherSerializer, fields='__all__'), so it needs
+  // the authenticated /media/ fetch, same as the Documents page and the
+  // admin teacher detail page use for previewing this teacher's own files.
+  useEffect(() => {
+    if (!teacher?.photo) { setPhotoUrl(null); return; }
+    let cancelled = false;
+    fetchDocumentBlobUrl(`/media/${teacher.photo}`)
+      .then((url) => { if (!cancelled) setPhotoUrl(url); })
+      .catch(() => { if (!cancelled) setPhotoUrl(null); });
+    return () => { cancelled = true; };
+  }, [teacher?.photo]);
 
   // Clear individual field errors on change
   function updateForm(field: keyof typeof form, value: string) {
@@ -248,9 +262,17 @@ export default function ProfilePage() {
       {/* Left sidebar card */}
       <div className="w-full lg:w-56 shrink-0">
         <div className="bg-white rounded-xl border border-gray-100 p-5 text-center space-y-2">
-          <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center text-[#0f2044] font-bold text-xl mx-auto">
-            {initials.toUpperCase()}
-          </div>
+          {photoUrl ? (
+            <img
+              src={photoUrl}
+              alt="Passport size photo"
+              className="w-16 h-16 rounded-full object-cover mx-auto ring-1 ring-gray-100"
+            />
+          ) : (
+            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center text-[#0f2044] font-bold text-xl mx-auto">
+              {initials.toUpperCase()}
+            </div>
+          )}
           <p className="font-semibold text-gray-800">{teacher?.name}</p>
           <p className="text-xs text-gray-400">
             {formatTeacherField(SUBJECT_LABELS, teacher?.subject)} · {formatTeacherField(TEACHER_TYPE_LABELS, teacher?.teacherType)}
@@ -460,10 +482,10 @@ export default function ProfilePage() {
           <div className="flex items-center justify-between">
             <div>
               <h2 className="font-semibold text-[#0f2044]">
-                🏫 School Principal
+                🏫 School Information
               </h2>
               <p className="text-sm text-gray-400 mt-0.5">
-                Are you also the principal of your school?
+                Any teacher can submit their school's information for admin approval.
               </p>
             </div>
             <a

@@ -427,7 +427,7 @@ export default function AdminPage() {
   // Document/image fields on Teacher -- deliberately excluded from the
   // export per the client's "all data excluding images" requirement.
   // School has no file fields, so nothing to exclude there.
-  const TEACHER_FILE_FIELDS = ["citizenship", "degree", "transcript", "teachingLicense", "appointmentLetter"];
+  const TEACHER_FILE_FIELDS = ["citizenship", "degree", "photo", "teachingLicense", "appointmentLetter"];
 
   async function downloadExcelExport() {
     setExportBusy(true);
@@ -473,7 +473,8 @@ export default function AdminPage() {
         { header: "Type", key: "teacherType", width: 14 },
         { header: "Appointment Date", key: "appointmentDate", width: 16 },
         { header: "Promotion Date", key: "promotionDate", width: 16 },
-        { header: "Qualification", key: "qualification", width: 14 },
+        { header: "Min. Qualification", key: "minQualification", width: 16 },
+        { header: "Highest Qualification", key: "highestQualification", width: 18 },
         { header: "Extraordinary Leave Taken", key: "extraordinaryLeave", width: 18 },
         { header: "Extraordinary Leave Remaining", key: "extraordinaryLeaveRemaining", width: 20 },
         { header: "Age 60 Year (BS)", key: "ageSixtyYear", width: 16 },
@@ -500,6 +501,9 @@ export default function AdminPage() {
         { header: "School Name", key: "school_name", width: 26 },
         { header: "EMIS Code", key: "emis_code", width: 16 },
         { header: "Address", key: "address", width: 26 },
+        { header: "District", key: "district", width: 14 },
+        { header: "Municipality", key: "municipality", width: 26 },
+        { header: "Ward No.", key: "ward_no", width: 10 },
         { header: "Contact", key: "contact", width: 16 },
         { header: "Email", key: "email", width: 24 },
         { header: "Established (BS)", key: "established_bs", width: 16 },
@@ -514,8 +518,15 @@ export default function AdminPage() {
         { header: "Library", key: "library", width: 10 },
         { header: "Book Corner", key: "book_corner", width: 12 },
         { header: "Playground", key: "playground", width: 12 },
-        { header: "Land Area", key: "land_area", width: 12 },
-        { header: "Land Unit", key: "land_unit", width: 12 },
+        { header: "Land Unit System", key: "land_unit_system", width: 16 },
+        { header: "Land (Sq. Meter)", key: "land_sqm", width: 14 },
+        { header: "Land (Ropani)", key: "land_ropani", width: 12 },
+        { header: "Land (Aana)", key: "land_aana", width: 12 },
+        { header: "Land (Paisa)", key: "land_paisa", width: 12 },
+        { header: "Land (Daan)", key: "land_daan", width: 12 },
+        { header: "Land (Bigha)", key: "land_bigha", width: 12 },
+        { header: "Land (Kattha)", key: "land_kattha", width: 12 },
+        { header: "Land (Dhur)", key: "land_dhur", width: 12 },
         { header: "Building Count", key: "building_count", width: 14 },
         { header: "Classroom Count", key: "classroom_count", width: 14 },
         { header: "Female Toilets", key: "female_toilets", width: 14 },

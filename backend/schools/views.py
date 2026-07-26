@@ -11,15 +11,37 @@ from accounts.permissions import IsAdminOrSubAdmin
 from teachers.models import Teacher
 
 
+# Combines the structured district/municipality/ward_no picker (mirroring
+# the one teachers use, see lib/districts.tsx) into a single display string
+# for the address field, so existing consumers (admin Schools table, bulk
+# Excel export, report_export.py's A3 cell) keep working without changes.
+def _build_address(district, municipality, ward_no):
+    parts = []
+    if municipality:
+        parts.append(f"{municipality}-{ward_no}" if ward_no else municipality)
+    elif ward_no:
+        parts.append(f"Ward {ward_no}")
+    if district:
+        parts.append(district)
+    return ", ".join(parts)
+
+
 # Raw wizard field names (as sent by both the principal portal and any
 # admin-side manual entry) mapped to the actual School model fields.
 # Shared by my_school (create/edit) and the admin manual-add path below,
 # so the mapping only lives in one place.
 def _map_school_payload(data):
+    district = data.get("district")
+    municipality = data.get("municipality")
+    ward_no = data.get("ward_no")
+
     return {
         "emis_code": data.get("emis_code"),
         "school_name": data.get("school_name"),
-        "address": data.get("address"),
+        "district": district,
+        "municipality": municipality,
+        "ward_no": ward_no,
+        "address": _build_address(district, municipality, ward_no),
         "contact": data.get("contact"),
         "email": data.get("email"),
         "established_bs": data.get("established_date"),
@@ -39,8 +61,19 @@ def _map_school_payload(data):
         "book_corner": data.get("book_corner") == "true",
         "playground": data.get("playground") == "true",
 
-        "land_area": data.get("land_area") or 0,
-        "land_unit": data.get("land_unit"),
+        # Land area -- one of three Nepal-specific measurement systems,
+        # see School.LAND_SYSTEM_CHOICES. Only the fields matching
+        # land_unit_system carry meaning; the rest are sent as 0.
+        "land_unit_system": data.get("land_unit_system"),
+        "land_sqm": data.get("land_sqm") or 0,
+        "land_ropani": data.get("land_ropani") or 0,
+        "land_aana": data.get("land_aana") or 0,
+        "land_paisa": data.get("land_paisa") or 0,
+        "land_daan": data.get("land_daan") or 0,
+        "land_bigha": data.get("land_bigha") or 0,
+        "land_kattha": data.get("land_kattha") or 0,
+        "land_dhur": data.get("land_dhur") or 0,
+
         "building_count": data.get("num_buildings") or 0,
         "classroom_count": data.get("num_classrooms") or 0,
         "female_toilets": data.get("toilet_female") or 0,
@@ -89,12 +122,23 @@ def school_list_create(request):
 @api_view(['GET', 'POST', 'PATCH'])
 @permission_classes([IsAuthenticated])
 def my_school(request):
-    """GET: this principal's own school submission (or null if none yet).
+    """GET: this account's own school submission (or null if none yet).
     POST: first-time submission. PATCH: edit/resubmit at any time -- every
     edit puts the school back to 'pending' so it goes through review again,
-    the same way a teacher's application is reviewed."""
-    if getattr(request.user, "role", None) != "principal":
-        return Response({"error": "Only principal accounts have a school profile."}, status=403)
+    the same way a teacher's application is reviewed.
+
+    Open to any teacher account (role 'teacher' or 'principal'), not just
+    accounts explicitly designated 'principal' -- any teacher at a school
+    may be the one filling this out, and it's approved by an admin/sub-admin
+    either way (see IsAdminOrSubAdmin below). Admin/sub-admin accounts are
+    excluded since they aren't attached to a single school and already have
+    the separate manual-add path in school_list_create.
+    """
+    if getattr(request.user, "role", None) not in ("teacher", "principal"):
+        return Response(
+            {"error": "Only teacher or principal accounts can submit school information."},
+            status=403,
+        )
 
     school = School.objects.filter(principal=request.user).first()
 

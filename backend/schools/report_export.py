@@ -104,7 +104,7 @@ def build_school_report(school, teachers):
     ws["L9"] = "छ" if school.library else "छैन"
     ws["M9"] = "छ" if school.book_corner else "छैन"
     ws["N9"] = "छ" if school.playground else "छैन"
-    ws["O9"] = school.land_area or ""
+    ws["O9"] = school.land_area_display()
     ws["P9"] = school.building_count or ""
     ws["Q9"] = school.classroom_count or ""
     ws["R9"] = school.female_toilets or ""
@@ -169,7 +169,10 @@ def build_school_report(school, teachers):
         else:
             ws[f"K{row}"] = t.appointmentDate or ""
 
-        ws[f"N{row}"] = t.qualification or ""
+        # Government roster template only has one qualification column --
+        # highest completed is the more informative credential to show
+        # there, falling back to minimum if only that was recorded.
+        ws[f"N{row}"] = t.highestQualification or t.minQualification or ""
         ws[f"O{row}"] = t.promotionDate or ""
         ws[f"P{row}"] = t.extraordinaryLeave or ""
         ws[f"Q{row}"] = t.ageSixtyYear or ""

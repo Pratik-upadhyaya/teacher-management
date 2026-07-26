@@ -1,8 +1,9 @@
 "use client";
 import { useState, useEffect } from "react";
 import NepaliInput from "@/components/NepaliInput";
-import NepaliNumberInput, { nepaliToAscii } from "@/components/NepaliNumberInput";
+import NepaliNumberInput, { nepaliToAscii, toNepaliDigits } from "@/components/NepaliNumberInput";
 import { authFetch } from "@/lib/api";
+import { DISTRICTS } from "@/lib/districts";
 
 // ── Step indicator ────────────────────────────────────────────────
 function StepBar({ current }: { current: number }) {
@@ -99,6 +100,34 @@ function validateNepaliOnly(
   }
 }
 
+// ── BS date validator (format + range check) ──────────────────────
+// Mirrors validateNepaliDate in app/register/page.tsx so the masked
+// single-field date entry (NepaliNumberInput mode="date") gets the same
+// required + format + range validation as Date of Birth there.
+function validateNepaliDate(
+  value: string,
+  errs: Record<string, string>,
+  field: string,
+  label: string
+) {
+  const ascii = nepaliToAscii(value.trim());
+  const match = ascii.match(/^(\d{4})[\/\-](\d{2})[\/\-](\d{2})$/);
+
+  if (!value.trim()) {
+    errs[field] = `${label} आवश्यक छ`;
+  } else if (!match) {
+    errs[field] = "ढाँचा: YYYY/MM/DD (जस्तै २०८०/०३/१५)";
+  } else {
+    const month = Number(match[2]);
+    const day = Number(match[3]);
+    if (month < 1 || month > 12) {
+      errs[field] = "महिना १ देखि १२ भित्र हुनुपर्छ";
+    } else if (day < 1 || day > 32) {
+      errs[field] = `दिन १ देखि ${toNepaliDigits("32")} भित्र हुनुपर्छ`;
+    }
+  }
+}
+
 // ── Ward No. validator ────────────────────────────────────────────
 function validateWardNo(
   value: string,
@@ -127,15 +156,35 @@ function Step1({
 }) {
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  const districtData = data.district ? DISTRICTS[data.district] : null;
+  const municipalities = districtData ? districtData.municipalities : [];
+
+  function handleDistrictChange(value: string) {
+    onChange("district", value);
+    onChange("municipality", "");
+    onChange("ward_no", "");
+  }
+
+  function handleMunicipalityChange(value: string) {
+    onChange("municipality", value);
+    onChange("ward_no", "");
+  }
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const errs: Record<string, string> = {};
 
     if (!data.emis_code.trim()) errs.emis_code = "EMIS कोड आवश्यक छ";
     validateNepaliOnly(data.school_name, errs, "school_name", "विद्यालयको नाम");
-    validateNepaliOnly(data.address, errs, "address", "ठेगाना");
-    validateWardNo(data.ward_no, errs, "ward_no");
-    if (!data.established_date.trim()) errs.established_date = "स्थापना मिति आवश्यक छ";
+
+    if (!data.district) errs.district = "जिल्ला छान्नुहोस्";
+    if (!data.municipality) errs.municipality = "नगरपालिका छान्नुहोस्";
+    if (data.municipality) validateWardNo(data.ward_no, errs, "ward_no");
+
+    if (!data.contact.trim()) errs.contact = "सम्पर्क नं आवश्यक छ";
+
+    validateNepaliDate(data.established_date, errs, "established_date", "स्थापना मिति");
+    validateNepaliDate(data.permission_date, errs, "permission_date", "अनुमति मिति");
 
     if (Object.keys(errs).length > 0) { setErrors(errs); return; }
     setErrors({});
@@ -174,26 +223,60 @@ function Step1({
         </div>
       </div>
 
-      {/* Address + Ward No. */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="sm:col-span-2">
-          <Field label="Address" sub="ठेगाना">
-            <NepaliInput
-              value={data.address}
-              onChange={(val: string) => { onChange("address", val); setErrors((p) => ({ ...p, address: "" })); }}
-              placeholder="नगरपालिका, जिल्ला"
-              className={icErr(errors, "address")}
-            />
-          </Field>
-          <FieldError msg={errors.address} />
-        </div>
+      {/* District + Municipality + Ward No. — same structured picker as
+          teacher registration (lib/districts.tsx), instead of freeform
+          address text. */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            District <span className="text-gray-400 font-normal">/ जिल्ला</span>
+          </label>
+          <select
+            title="District"
+            value={data.district}
+            onChange={(e) => { handleDistrictChange(e.target.value); setErrors((p) => ({ ...p, district: "" })); }}
+            className={icErr(errors, "district")}
+          >
+            <option value="">जिल्ला छान्नुहोस्</option>
+            {Object.entries(DISTRICTS).map(([key, d]) => (
+              <option key={key} value={key}>
+                {d.en} / {d.np}
+              </option>
+            ))}
+          </select>
+          <FieldError msg={errors.district} />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Municipality <span className="text-gray-400 font-normal">/ नगरपालिका</span>
+          </label>
+          <select
+            title="Municipality"
+            value={data.municipality}
+            onChange={(e) => { handleMunicipalityChange(e.target.value); setErrors((p) => ({ ...p, municipality: "", ward_no: "" })); }}
+            disabled={!data.district}
+            className={icErr(errors, "municipality") + (!data.district ? " opacity-50 cursor-not-allowed" : "")}
+          >
+            <option value="">{data.district ? "नगरपालिका छान्नुहोस्" : "पहिले जिल्ला छान्नुहोस्"}</option>
+            {municipalities.map((m) => (
+              <option key={m.en} value={m.en}>
+                {m.en} / {m.np}
+              </option>
+            ))}
+          </select>
+          <FieldError msg={errors.municipality} />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="sm:col-start-2">
           <Field label="Ward No." sub="वडा नं">
             <NepaliNumberInput
               value={data.ward_no}
               onChange={(val: string) => { onChange("ward_no", val); setErrors((p) => ({ ...p, ward_no: "" })); }}
               placeholder="१"
-              className={icErr(errors, "ward_no")}
+              className={icErr(errors, "ward_no") + (!data.municipality ? " opacity-50 cursor-not-allowed" : "")}
             />
           </Field>
           <FieldError msg={errors.ward_no} />
@@ -205,11 +288,12 @@ function Step1({
           <Field label="Contact No." sub="सम्पर्क नं">
             <NepaliNumberInput
               value={data.contact}
-              onChange={(val: string) => onChange("contact", val)}
+              onChange={(val: string) => { onChange("contact", val); setErrors((p) => ({ ...p, contact: "" })); }}
               placeholder="०६१-XXXXXX"
-              className={inputClass}
+              className={icErr(errors, "contact")}
             />
           </Field>
+          <FieldError msg={errors.contact} />
         </div>
         <div>
           <Field label="Email" sub="इमेल">
@@ -226,94 +310,39 @@ function Step1({
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
-        {/* Established Date */}
+        {/* Established Date — single masked field (mode="date"), same
+            entry pattern as Date of Birth on the teacher registration
+            form, instead of three separate YYYY/MM/DD boxes. */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Establishment Date (BS){" "}
             <span className="text-gray-400 font-normal">/ स्थापना मिति</span>
           </label>
-          <div className="flex gap-2">
-            <div className="flex-[2]">
-              <NepaliNumberInput
-                value={data.established_year ?? ""}
-                onChange={(val: string) => {
-                  onChange("established_year", val);
-                  onChange("established_date", `${val}/${data.established_month ?? ""}/${data.established_day ?? ""}`);
-                  setErrors((p) => ({ ...p, established_date: "" }));
-                }}
-                placeholder="YYYY"
-                className={icErr(errors, "established_date")}
-              />
-            </div>
-            <div className="flex-1">
-              <NepaliNumberInput
-                value={data.established_month ?? ""}
-                onChange={(val: string) => {
-                  onChange("established_month", val);
-                  onChange("established_date", `${data.established_year ?? ""}/${val}/${data.established_day ?? ""}`);
-                  setErrors((p) => ({ ...p, established_date: "" }));
-                }}
-                placeholder="MM"
-                className={icErr(errors, "established_date")}
-              />
-            </div>
-            <div className="flex-1">
-              <NepaliNumberInput
-                value={data.established_day ?? ""}
-                onChange={(val: string) => {
-                  onChange("established_day", val);
-                  onChange("established_date", `${data.established_year ?? ""}/${data.established_month ?? ""}/${val}`);
-                  setErrors((p) => ({ ...p, established_date: "" }));
-                }}
-                placeholder="DD"
-                className={icErr(errors, "established_date")}
-              />
-            </div>
-          </div>
+          <NepaliNumberInput
+            value={data.established_date}
+            onChange={(val: string) => { onChange("established_date", val); setErrors((p) => ({ ...p, established_date: "" })); }}
+            placeholder="२०४०/०५/१५"
+            className={icErr(errors, "established_date")}
+            mode="date"
+          />
           <FieldError msg={errors.established_date} />
         </div>
 
-        {/* Permission Date */}
+        {/* Permission Date — now required (formal government permission
+            date), same single masked field pattern. */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Permission Date (BS){" "}
             <span className="text-gray-400 font-normal">/ अनुमति मिति</span>
           </label>
-          <div className="flex gap-2">
-            <div className="flex-[2]">
-              <NepaliNumberInput
-                value={data.permission_year ?? ""}
-                onChange={(val: string) => {
-                  onChange("permission_year", val);
-                  onChange("permission_date", `${val}/${data.permission_month ?? ""}/${data.permission_day ?? ""}`);
-                }}
-                placeholder="YYYY"
-                className={inputClass}
-              />
-            </div>
-            <div className="flex-1">
-              <NepaliNumberInput
-                value={data.permission_month ?? ""}
-                onChange={(val: string) => {
-                  onChange("permission_month", val);
-                  onChange("permission_date", `${data.permission_year ?? ""}/${val}/${data.permission_day ?? ""}`);
-                }}
-                placeholder="MM"
-                className={inputClass}
-              />
-            </div>
-            <div className="flex-1">
-              <NepaliNumberInput
-                value={data.permission_day ?? ""}
-                onChange={(val: string) => {
-                  onChange("permission_day", val);
-                  onChange("permission_date", `${data.permission_year ?? ""}/${data.permission_month ?? ""}/${val}`);
-                }}
-                placeholder="DD"
-                className={inputClass}
-              />
-            </div>
-          </div>
+          <NepaliNumberInput
+            value={data.permission_date}
+            onChange={(val: string) => { onChange("permission_date", val); setErrors((p) => ({ ...p, permission_date: "" })); }}
+            placeholder="२०४०/०५/१५"
+            className={icErr(errors, "permission_date")}
+            mode="date"
+          />
+          <FieldError msg={errors.permission_date} />
         </div>
 
       </div>
@@ -396,6 +425,42 @@ const FACILITIES = [
   { key: "playground", label: "Playground", sub: "खेलमैदान" },
 ];
 
+// Nepal's three land measurement systems -- a Ropani isn't a fixed
+// multiple of a Bigha, so rather than one field + a unit dropdown, the
+// principal (or teacher filling this in) picks which system applies and
+// fills in that system's own component units.
+const LAND_SYSTEMS: { key: string; label: string; sub: string }[] = [
+  { key: "metric", label: "Square Meter", sub: "वर्ग मिटर" },
+  { key: "ropani", label: "Ropani-Aana-Paisa-Daan", sub: "रोपनी-आना-पैसा-दाम" },
+  { key: "bigha", label: "Bigha-Kattha-Dhur", sub: "बिघा-कट्ठा-धुर" },
+];
+
+function hasValue(v: string | undefined): boolean {
+  return !!v && Number(nepaliToAscii(v)) > 0;
+}
+
+// Mirrors School.land_area_display() on the backend, for showing a single
+// formatted line in the review step / status view without waiting on a
+// server round-trip.
+function landAreaDisplay(data: any): string {
+  if (data.land_unit_system === "metric") {
+    return hasValue(data.land_sqm) ? `${data.land_sqm} वर्ग मिटर (Sq. Meter)` : "";
+  }
+  if (data.land_unit_system === "ropani") {
+    if (hasValue(data.land_ropani) || hasValue(data.land_aana) || hasValue(data.land_paisa) || hasValue(data.land_daan)) {
+      return `${data.land_ropani || 0}-${data.land_aana || 0}-${data.land_paisa || 0}-${data.land_daan || 0} (Ropani-Aana-Paisa-Daan)`;
+    }
+    return "";
+  }
+  if (data.land_unit_system === "bigha") {
+    if (hasValue(data.land_bigha) || hasValue(data.land_kattha) || hasValue(data.land_dhur)) {
+      return `${data.land_bigha || 0}-${data.land_kattha || 0}-${data.land_dhur || 0} (Bigha-Kattha-Dhur)`;
+    }
+    return "";
+  }
+  return "";
+}
+
 function Step3({
   data,
   onChange,
@@ -407,8 +472,47 @@ function Step3({
   onNext: () => void;
   onBack: () => void;
 }) {
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const smallInputClass =
+    "w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-center focus:outline-none focus:border-[#0f2044] focus:ring-1 focus:ring-[#0f2044]";
+
+  function selectLandSystem(system: string) {
+    onChange("land_unit_system", system);
+    setErrors((p) => ({ ...p, land_area: "" }));
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const errs: Record<string, string> = {};
+
+    if (!data.land_unit_system) {
+      errs.land_area = "जग्गाको नाप प्रणाली छान्नुहोस्";
+    } else if (data.land_unit_system === "metric" && !hasValue(data.land_sqm)) {
+      errs.land_area = "वर्ग मिटरमा क्षेत्रफल भर्नुहोस्";
+    } else if (
+      data.land_unit_system === "ropani" &&
+      !(hasValue(data.land_ropani) || hasValue(data.land_aana) || hasValue(data.land_paisa) || hasValue(data.land_daan))
+    ) {
+      errs.land_area = "रोपनी, आना, पैसा वा दाम मध्ये कुनै एक भर्नुहोस्";
+    } else if (
+      data.land_unit_system === "bigha" &&
+      !(hasValue(data.land_bigha) || hasValue(data.land_kattha) || hasValue(data.land_dhur))
+    ) {
+      errs.land_area = "बिघा, कट्ठा वा धुर मध्ये कुनै एक भर्नुहोस्";
+    }
+
+    if (!data.num_buildings.trim()) errs.num_buildings = "भवन संख्या आवश्यक छ";
+    if (!data.num_classrooms.trim()) errs.num_classrooms = "कक्षाकोठा संख्या आवश्यक छ";
+    if (!data.toilet_female.trim()) errs.toilet_female = "आवश्यक छ";
+    if (!data.toilet_male.trim()) errs.toilet_male = "आवश्यक छ";
+
+    if (Object.keys(errs).length > 0) { setErrors(errs); return; }
+    setErrors({});
+    onNext();
+  }
+
   return (
-    <form onSubmit={(e) => { e.preventDefault(); onNext(); }} className="space-y-5">
+    <form onSubmit={handleSubmit} noValidate className="space-y-5">
       <div>
         <h2 className="text-lg font-bold text-[#0f2044]">Step 3: Physical Infrastructure</h2>
         <p className="text-sm text-gray-400">भौतिक विवरण</p>
@@ -435,52 +539,103 @@ function Step3({
         </div>
       </div>
 
+      {/* Land Area — three Nepal-specific measurement systems. Pick one,
+          then fill in that system's own component units. */}
       <div>
         <p className="text-sm font-medium text-gray-700 mb-2">
           Land Area <span className="text-gray-400 font-normal">/ जग्गाको क्षेत्रफल</span>
         </p>
-        <div className="flex gap-3">
-          <div className="flex-1">
-            <NepaliNumberInput
-              value={data.land_area}
-              onChange={(val: string) => onChange("land_area", val)}
-              placeholder="e.g. 25"
-              className={inputClass}
-            />
-          </div>
-          <select
-            aria-label="Land unit"
-            value={data.land_unit}
-            onChange={(e) => onChange("land_unit", e.target.value)}
-            className="border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-[#0f2044] bg-white"
-          >
-            <option value="ropani">Ropani / रोपनी</option>
-            <option value="aana">Aana / आना</option>
-            <option value="sqft">Sq. Ft.</option>
-            <option value="sqm">Sq. Meter</option>
-            <option value="bigha">Bigha / बिघा</option>
-            <option value="kattha">Kattha / कट्ठा</option>
-          </select>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-3">
+          {LAND_SYSTEMS.map((sys) => (
+            <button
+              key={sys.key}
+              type="button"
+              onClick={() => selectLandSystem(sys.key)}
+              className={`text-left border rounded-lg px-3 py-2.5 transition ${
+                data.land_unit_system === sys.key
+                  ? "bg-[#0f2044] border-[#0f2044] text-white"
+                  : "border-gray-200 text-gray-600 hover:border-[#0f2044]"
+              }`}
+            >
+              <p className="text-sm font-medium">{sys.label}</p>
+              <p className={`text-xs ${data.land_unit_system === sys.key ? "text-white/60" : "text-gray-400"}`}>
+                {sys.sub}
+              </p>
+            </button>
+          ))}
         </div>
+
+        {data.land_unit_system === "metric" && (
+          <div className="max-w-xs">
+            <Field label="Square Meter" sub="वर्ग मिटर">
+              <NepaliNumberInput
+                value={data.land_sqm}
+                onChange={(val: string) => onChange("land_sqm", val)}
+                placeholder="e.g. 500"
+                className={inputClass}
+              />
+            </Field>
+          </div>
+        )}
+
+        {data.land_unit_system === "ropani" && (
+          <div className="grid grid-cols-4 gap-2">
+            <Field label="Ropani" sub="रोपनी">
+              <NepaliNumberInput value={data.land_ropani} onChange={(v: string) => onChange("land_ropani", v)} placeholder="0" className={smallInputClass} />
+            </Field>
+            <Field label="Aana" sub="आना">
+              <NepaliNumberInput value={data.land_aana} onChange={(v: string) => onChange("land_aana", v)} placeholder="0" className={smallInputClass} />
+            </Field>
+            <Field label="Paisa" sub="पैसा">
+              <NepaliNumberInput value={data.land_paisa} onChange={(v: string) => onChange("land_paisa", v)} placeholder="0" className={smallInputClass} />
+            </Field>
+            <Field label="Daan" sub="दाम">
+              <NepaliNumberInput value={data.land_daan} onChange={(v: string) => onChange("land_daan", v)} placeholder="0" className={smallInputClass} />
+            </Field>
+          </div>
+        )}
+
+        {data.land_unit_system === "bigha" && (
+          <div className="grid grid-cols-3 gap-2">
+            <Field label="Bigha" sub="बिघा">
+              <NepaliNumberInput value={data.land_bigha} onChange={(v: string) => onChange("land_bigha", v)} placeholder="0" className={smallInputClass} />
+            </Field>
+            <Field label="Kattha" sub="कट्ठा">
+              <NepaliNumberInput value={data.land_kattha} onChange={(v: string) => onChange("land_kattha", v)} placeholder="0" className={smallInputClass} />
+            </Field>
+            <Field label="Dhur" sub="धुर">
+              <NepaliNumberInput value={data.land_dhur} onChange={(v: string) => onChange("land_dhur", v)} placeholder="0" className={smallInputClass} />
+            </Field>
+          </div>
+        )}
+
+        <FieldError msg={errors.land_area} />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Field label="Number of Buildings" sub="भवन संख्या">
-          <NepaliNumberInput
-            value={data.num_buildings}
-            onChange={(val: string) => onChange("num_buildings", val)}
-            placeholder="e.g. 3"
-            className={inputClass}
-          />
-        </Field>
-        <Field label="Number of Classrooms" sub="कक्षाकोठा संख्या">
-          <NepaliNumberInput
-            value={data.num_classrooms}
-            onChange={(val: string) => onChange("num_classrooms", val)}
-            placeholder="e.g. 12"
-            className={inputClass}
-          />
-        </Field>
+        <div>
+          <Field label="Number of Buildings" sub="भवन संख्या">
+            <NepaliNumberInput
+              value={data.num_buildings}
+              onChange={(val: string) => { onChange("num_buildings", val); setErrors((p) => ({ ...p, num_buildings: "" })); }}
+              placeholder="e.g. 3"
+              className={icErr(errors, "num_buildings")}
+            />
+          </Field>
+          <FieldError msg={errors.num_buildings} />
+        </div>
+        <div>
+          <Field label="Number of Classrooms" sub="कक्षाकोठा संख्या">
+            <NepaliNumberInput
+              value={data.num_classrooms}
+              onChange={(val: string) => { onChange("num_classrooms", val); setErrors((p) => ({ ...p, num_classrooms: "" })); }}
+              placeholder="e.g. 12"
+              className={icErr(errors, "num_classrooms")}
+            />
+          </Field>
+          <FieldError msg={errors.num_classrooms} />
+        </div>
       </div>
 
       <div>
@@ -488,22 +643,28 @@ function Step3({
           Toilets <span className="text-gray-400 font-normal">/ शौचालय संख्या</span>
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Field label="Female" sub="महिला">
-            <NepaliNumberInput
-              value={data.toilet_female}
-              onChange={(val: string) => onChange("toilet_female", val)}
-              placeholder="e.g. 4"
-              className={inputClass}
-            />
-          </Field>
-          <Field label="Male" sub="पुरुष">
-            <NepaliNumberInput
-              value={data.toilet_male}
-              onChange={(val: string) => onChange("toilet_male", val)}
-              placeholder="e.g. 4"
-              className={inputClass}
-            />
-          </Field>
+          <div>
+            <Field label="Female" sub="महिला">
+              <NepaliNumberInput
+                value={data.toilet_female}
+                onChange={(val: string) => { onChange("toilet_female", val); setErrors((p) => ({ ...p, toilet_female: "" })); }}
+                placeholder="e.g. 4"
+                className={icErr(errors, "toilet_female")}
+              />
+            </Field>
+            <FieldError msg={errors.toilet_female} />
+          </div>
+          <div>
+            <Field label="Male" sub="पुरुष">
+              <NepaliNumberInput
+                value={data.toilet_male}
+                onChange={(val: string) => { onChange("toilet_male", val); setErrors((p) => ({ ...p, toilet_male: "" })); }}
+                placeholder="e.g. 4"
+                className={icErr(errors, "toilet_male")}
+              />
+            </Field>
+            <FieldError msg={errors.toilet_male} />
+          </div>
         </div>
       </div>
 
@@ -628,10 +789,22 @@ function Step5({
   onSubmit: () => void;
   submitting: boolean;
 }) {
+  const districtLabel = data.district
+    ? `${DISTRICTS[data.district]?.en} / ${DISTRICTS[data.district]?.np}`
+    : "—";
+  const municipalityLabel =
+    data.district && data.municipality
+      ? (() => {
+          const m = DISTRICTS[data.district]?.municipalities.find((m) => m.en === data.municipality);
+          return m ? `${m.en} / ${m.np}` : data.municipality;
+        })()
+      : "—";
+
   const basicRows = [
     ["EMIS Code", data.emis_code],
     ["School Name / विद्यालयको नाम", data.school_name],
-    ["Address / ठेगाना", data.address],
+    ["District / जिल्ला", districtLabel],
+    ["Municipality / नगरपालिका", municipalityLabel],
     ["Ward No. / वडा नं", data.ward_no],
     ["Contact", data.contact],
     ["Email", data.email],
@@ -647,7 +820,7 @@ function Step5({
   ]);
 
   const infraRows = [
-    ["Land Area", data.land_area ? `${data.land_area} ${data.land_unit}` : "—"],
+    ["Land Area", landAreaDisplay(data) || "—"],
     ["Buildings", data.num_buildings || "—"],
     ["Classrooms", data.num_classrooms || "—"],
     ["Toilets (Female)", data.toilet_female || "—"],
@@ -670,6 +843,12 @@ function Step5({
     );
   }
 
+  const missingRequired =
+    !data.emis_code || !data.school_name || !data.district || !data.municipality ||
+    !data.ward_no || !data.contact || !data.established_date || !data.permission_date ||
+    !data.land_unit_system || !data.num_buildings || !data.num_classrooms ||
+    !data.toilet_female || !data.toilet_male;
+
   return (
     <div className="space-y-5">
       <div>
@@ -677,7 +856,7 @@ function Step5({
         <p className="text-sm text-gray-400">जानकारी जाँच गरी पेश गर्नुहोस्</p>
       </div>
 
-      {(!data.emis_code || !data.school_name || !data.address || !data.ward_no || !data.established_date) && (
+      {missingRequired && (
         <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 text-sm rounded-lg px-4 py-3">
           ⚠️ केही आवश्यक जानकारी भरिएको छैन। कृपया पछाडि फर्केर जाँच गर्नुहोस्।
           (Some required fields are missing. Please go back and review.)
@@ -769,6 +948,8 @@ function SchoolStatusView({
           <div><span className="text-gray-400">Contact / सम्पर्क:</span> <span className="text-gray-700">{school.contact}</span></div>
           <div><span className="text-gray-400">Email:</span> <span className="text-gray-700">{school.email || "—"}</span></div>
           <div><span className="text-gray-400">Established (BS):</span> <span className="text-gray-700">{school.established_bs}</span></div>
+          <div><span className="text-gray-400">Permission Date (BS):</span> <span className="text-gray-700">{school.permission_date_bs || "—"}</span></div>
+          <div><span className="text-gray-400">Land Area:</span> <span className="text-gray-700">{landAreaDisplay(schoolToFormData(school)) || "—"}</span></div>
         </div>
 
         <div className="flex justify-end pt-2">
@@ -786,14 +967,15 @@ function SchoolStatusView({
 }
 
 // ── Reverse-map School model fields back to wizard field names, for
-// pre-filling the form when a principal edits their existing submission.
+// pre-filling the form when editing an existing submission.
 function schoolToFormData(school: any) {
   const boolStr = (v: any) => (v ? "true" : "false");
   return {
     emis_code: school.emis_code || "",
     school_name: school.school_name || "",
-    address: school.address || "",
-    ward_no: "",
+    district: school.district || "",
+    municipality: school.municipality || "",
+    ward_no: school.ward_no || "",
     contact: school.contact || "",
     email: school.email || "",
     established_date: school.established_bs || "",
@@ -810,8 +992,17 @@ function schoolToFormData(school: any) {
     library: boolStr(school.library),
     book_corner: boolStr(school.book_corner),
     playground: boolStr(school.playground),
-    land_area: school.land_area ? String(school.land_area) : "",
-    land_unit: school.land_unit || "ropani",
+
+    land_unit_system: school.land_unit_system || "",
+    land_sqm: school.land_sqm ? String(school.land_sqm) : "",
+    land_ropani: school.land_ropani ? String(school.land_ropani) : "",
+    land_aana: school.land_aana ? String(school.land_aana) : "",
+    land_paisa: school.land_paisa ? String(school.land_paisa) : "",
+    land_daan: school.land_daan ? String(school.land_daan) : "",
+    land_bigha: school.land_bigha ? String(school.land_bigha) : "",
+    land_kattha: school.land_kattha ? String(school.land_kattha) : "",
+    land_dhur: school.land_dhur ? String(school.land_dhur) : "",
+
     num_buildings: school.building_count ? String(school.building_count) : "",
     num_classrooms: school.classroom_count ? String(school.classroom_count) : "",
     toilet_female: school.female_toilets ? String(school.female_toilets) : "",
@@ -850,7 +1041,8 @@ export default function PrincipalPage() {
     // Step 1
     emis_code: "",
     school_name: "",
-    address: "",
+    district: "",
+    municipality: "",
     ward_no: "",
     contact: "",
     email: "",
@@ -868,8 +1060,15 @@ export default function PrincipalPage() {
     library: "false",
     book_corner: "false",
     playground: "false",
-    land_area: "",
-    land_unit: "ropani",
+    land_unit_system: "",
+    land_sqm: "",
+    land_ropani: "",
+    land_aana: "",
+    land_paisa: "",
+    land_daan: "",
+    land_bigha: "",
+    land_kattha: "",
+    land_dhur: "",
     num_buildings: "",
     num_classrooms: "",
     toilet_female: "",

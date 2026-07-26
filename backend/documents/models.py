@@ -15,7 +15,7 @@ class DocumentChangeRequest(models.Model):
     DOCUMENT_TYPE_CHOICES = (
         ('citizenship', 'Citizenship'),
         ('degree', 'Degree Certificate'),
-        ('transcript', 'Transcript'),
+        ('photo', 'Passport Size Photo'),
         ('teachingLicense', 'Teaching License'),
         ('appointmentLetter', 'Appointment Letter'),
     )

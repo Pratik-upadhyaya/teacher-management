@@ -28,12 +28,13 @@ type Teacher = {
   teacherType?: string;
   appointmentDate?: string;
   promotionDate?: string;
-  qualification?: string;
+  minQualification?: string;
+  highestQualification?: string;
   status?: "pending" | "approved" | "rejected";
   created_at?: string;
   citizenship?: string | null;
   degree?: string | null;
-  transcript?: string | null;
+  photo?: string | null;
   teachingLicense?: string | null;
   appointmentLetter?: string | null;
 };
@@ -41,7 +42,7 @@ type Teacher = {
 const DOCUMENT_FIELDS: { key: keyof Teacher; label: string }[] = [
   { key: "citizenship", label: "Citizenship / नागरिकता" },
   { key: "degree", label: "Degree / प्रमाणपत्र" },
-  { key: "transcript", label: "Transcript / अंकतालिका" },
+  { key: "photo", label: "Passport Size Photo / पासपोर्ट साइजको फोटो" },
   { key: "teachingLicense", label: "Teaching License / शिक्षण अनुमतिपत्र" },
   { key: "appointmentLetter", label: "Appointment Letter / नियुक्तिपत्र" },
 ];
@@ -193,7 +194,8 @@ export default function DashboardPage() {
             ["Level / तह", formatTeacherField(LEVEL_LABELS, teacher?.level)],
             ["Grade / कक्षा", formatTeacherField(GRADE_LABELS, teacher?.grade)],
             ["Teacher Type / शिक्षक प्रकार", formatTeacherField(TEACHER_TYPE_LABELS, teacher?.teacherType)],
-            ["Qualification / योग्यता", formatTeacherField(QUALIFICATION_LABELS, teacher?.qualification)],
+            ["Minimum Qualification / न्यूनतम योग्यता", formatTeacherField(QUALIFICATION_LABELS, teacher?.minQualification)],
+            ["Highest Qualification / उच्चतम योग्यता", formatTeacherField(QUALIFICATION_LABELS, teacher?.highestQualification)],
             ["Appointment Date / नियुक्ती मिति", teacher?.appointmentDate],
             ["Promotion Date / बढुवा मिति", teacher?.promotionDate],
             ["School / विद्यालय", teacher?.schoolName],

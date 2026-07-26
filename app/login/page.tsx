@@ -245,7 +245,7 @@ export default function LoginPage() {
             </button>
 
             <p className="text-center text-sm text-gray-400">
-              Are you a principal?{" "}
+              Need to submit your school's information?{" "}
               <a href="/principal" className="text-[#2563eb] hover:underline font-medium">
                 Fill School Information →
               </a>
