@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import NepaliInput from "@/components/NepaliInput";
 import NepaliNumberInput, { nepaliToAscii, toNepaliDigits } from "@/components/NepaliNumberInput";
+import EmisAutocomplete, { PublicSchoolMatch } from "@/components/EmisAutocomplete";
 import { authFetch } from "@/lib/api";
 import { DISTRICTS } from "@/lib/districts";
 
@@ -201,9 +202,18 @@ function Step1({
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <Field label="EMIS Code" sub="ईमिस कोड">
-            <input
+            <EmisAutocomplete
               value={data.emis_code}
-              onChange={(e) => { onChange("emis_code", e.target.value); setErrors((p) => ({ ...p, emis_code: "" })); }}
+              onChange={(val) => { onChange("emis_code", val); setErrors((p) => ({ ...p, emis_code: "" })); }}
+              onSelectMatch={(m) => {
+                // Autofill district/municipality/ward from the matched
+                // Public school -- but NOT school name, which is
+                // Nepali-only here (see EmisAutocomplete's docstring).
+                onChange("district", m.district);
+                onChange("municipality", m.municipality);
+                onChange("ward_no", toNepaliDigits(m.ward_no));
+                setErrors((p) => ({ ...p, district: "", municipality: "", ward_no: "" }));
+              }}
               placeholder="e.g. 27401001"
               className={icErr(errors, "emis_code")}
             />

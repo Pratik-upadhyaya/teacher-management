@@ -51,6 +51,13 @@ export default function AdminPage() {
   const [schoolRejectReason, setSchoolRejectReason] = useState("");
   const [schoolRejectReasonError, setSchoolRejectReasonError] = useState("");
 
+  // Approved Schools tab -- separate from schoolRequests above (which is
+  // the pending review queue). Admin/Sub-Admin only, same as the full
+  // data export -- see canExportData.
+  const [approvedSchools, setApprovedSchools] = useState<any[]>([]);
+  const [approvedSchoolsError, setApprovedSchoolsError] = useState("");
+  const [approvedSchoolsExportBusy, setApprovedSchoolsExportBusy] = useState(false);
+
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewTitle, setPreviewTitle] = useState("");
@@ -126,6 +133,10 @@ export default function AdminPage() {
   useEffect(() => {
     if (!isAdmin && activeTab === "sub-admins") setActiveTab("dashboard");
   }, [isAdmin, activeTab]);
+
+  useEffect(() => {
+    if (!canExportData && activeTab === "approved-schools") setActiveTab("dashboard");
+  }, [canExportData, activeTab]);
 
   function loadDashboard() {
     authFetch("/api/dashboard/stats/")
@@ -311,6 +322,22 @@ export default function AdminPage() {
       });
   }
 
+  function loadApprovedSchools() {
+    authFetch("/api/schools/?status=approved")
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to load approved schools.");
+        return res.json();
+      })
+      .then((data) => {
+        setApprovedSchools(data);
+        setApprovedSchoolsError("");
+      })
+      .catch((err) => {
+        console.error(err);
+        setApprovedSchoolsError("Could not load approved schools.");
+      });
+  }
+
   async function approveSchoolRequest(id: number) {
     setSchoolRequestBusyId(id);
     try {
@@ -420,6 +447,10 @@ export default function AdminPage() {
   useEffect(() => {
     if (isAdmin) loadSubAdmins();
   }, [isAdmin]);
+
+  useEffect(() => {
+    if (canExportData) loadApprovedSchools();
+  }, [canExportData]);
 
   const [exportBusy, setExportBusy] = useState(false);
   const [exportError, setExportError] = useState("");
@@ -558,6 +589,62 @@ export default function AdminPage() {
       showToast("Export failed. Please try again. / निर्यात असफल भयो।");
     } finally {
       setExportBusy(false);
+    }
+  }
+
+  // Approved-schools-only export -- same column set as the Schools sheet
+  // in the full export above (our own stored fields; deliberately not
+  // trying to replicate the government per-grade/gender headcount
+  // columns, which this system doesn't track), but scoped to just the
+  // already-loaded approvedSchools list and its own single-sheet file.
+  async function downloadApprovedSchoolsExcel() {
+    setApprovedSchoolsExportBusy(true);
+    try {
+      const workbook = new ExcelJS.Workbook();
+      workbook.creator = "EDCU Kaski Teacher Portal";
+      workbook.created = new Date();
+
+      const sheet = workbook.addWorksheet("Approved Schools");
+      sheet.columns = [
+        { header: "S.N", key: "sn", width: 6 },
+        { header: "School Name", key: "school_name", width: 26 },
+        { header: "EMIS Code", key: "emis_code", width: 16 },
+        { header: "District", key: "district", width: 14 },
+        { header: "Municipality", key: "municipality", width: 26 },
+        { header: "Ward No.", key: "ward_no", width: 10 },
+        { header: "Address", key: "address", width: 26 },
+        { header: "Contact", key: "contact", width: 16 },
+        { header: "Email", key: "email", width: 24 },
+        { header: "Established (BS)", key: "established_bs", width: 16 },
+        { header: "Permission Date (BS)", key: "permission_date_bs", width: 18 },
+        { header: "Building Count", key: "building_count", width: 14 },
+        { header: "Classroom Count", key: "classroom_count", width: 14 },
+        { header: "Female Toilets", key: "female_toilets", width: 14 },
+        { header: "Male Toilets", key: "male_toilets", width: 14 },
+        { header: "Principal", key: "principalName", width: 20 },
+        { header: "Reviewed By", key: "reviewedByName", width: 18 },
+        { header: "Reviewed At", key: "reviewed_at", width: 20 },
+      ];
+      sheet.getRow(1).font = { bold: true };
+      approvedSchools.forEach((s, i) => {
+        sheet.addRow({ sn: i + 1, ...s });
+      });
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `approved_schools_export_${new Date().toISOString().slice(0, 10)}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(err);
+      showToast("Export failed. Please try again. / निर्यात असफल भयो।");
+    } finally {
+      setApprovedSchoolsExportBusy(false);
     }
   }
 
@@ -842,6 +929,19 @@ export default function AdminPage() {
                 </span>
               )}
             </button>
+
+            {canExportData && (
+              <button
+                onClick={() => setActiveTab("approved-schools")}
+                className={`w-full text-left px-4 py-3 rounded-xl transition ${
+                  activeTab === "approved-schools"
+                    ? "bg-white text-[#0f2044] font-semibold"
+                    : "hover:bg-blue-900"
+                }`}
+              >
+                Approved Schools
+              </button>
+            )}
 
             {isAdmin && (
               <button
@@ -1404,6 +1504,80 @@ export default function AdminPage() {
                     </div>
                   );
                 })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Approved Schools Tab */}
+        {activeTab === "approved-schools" && canExportData && (
+          <div className="bg-white rounded-2xl shadow p-6">
+            <div className="mb-6 flex justify-between items-start gap-4 flex-wrap">
+              <div>
+                <h2 className="text-2xl font-bold text-[#0f2044]">
+                  Approved Schools
+                </h2>
+                <p className="text-sm text-gray-500">
+                  {approvedSchools.length} school
+                  {approvedSchools.length === 1 ? "" : "s"} currently approved.
+                </p>
+              </div>
+              <button
+                onClick={downloadApprovedSchoolsExcel}
+                disabled={approvedSchoolsExportBusy || approvedSchools.length === 0}
+                className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-5 py-3 rounded-xl transition text-sm font-semibold shadow-sm disabled:opacity-60"
+              >
+                <Download size={16} />
+                {approvedSchoolsExportBusy ? "Exporting..." : "Export Approved Schools (Excel)"}
+              </button>
+            </div>
+
+            {approvedSchoolsError && (
+              <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-lg px-4 py-3 mb-4">
+                {approvedSchoolsError}
+              </div>
+            )}
+
+            {approvedSchools.length === 0 ? (
+              <p className="text-gray-500 py-4">No approved schools yet.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-gray-400 border-b">
+                      <th className="py-2 pr-4">School Name</th>
+                      <th className="py-2 pr-4">EMIS Code</th>
+                      <th className="py-2 pr-4">District / Municipality</th>
+                      <th className="py-2 pr-4">Contact</th>
+                      <th className="py-2 pr-4">Principal</th>
+                      <th className="py-2 pr-4">Reviewed At</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {approvedSchools.map((s) => (
+                      <tr key={s.id} className="border-b border-gray-50 hover:bg-gray-50">
+                        <td className="py-2.5 pr-4 font-medium text-[#0f2044]">{s.school_name}</td>
+                        <td className="py-2.5 pr-4 text-gray-600">{s.emis_code}</td>
+                        <td className="py-2.5 pr-4 text-gray-600">
+                          {s.municipality || "—"}
+                          {s.ward_no ? `-${s.ward_no}` : ""}
+                          {s.district ? `, ${s.district}` : ""}
+                        </td>
+                        <td className="py-2.5 pr-4 text-gray-600">{s.contact || "—"}</td>
+                        <td className="py-2.5 pr-4 text-gray-600">{s.principalName || "—"}</td>
+                        <td className="py-2.5 pr-4 text-gray-600">
+                          {s.reviewed_at
+                            ? new Date(s.reviewed_at).toLocaleDateString("en-US", {
+                                year: "numeric",
+                                month: "short",
+                                day: "numeric",
+                              })
+                            : "—"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>

@@ -127,3 +127,32 @@ class School(models.Model):
 
     def __str__(self):
         return self.school_name
+
+
+class PublicSchoolReference(models.Model):
+    """Read-only reference list of government-registered *Public* schools,
+    imported from the official Kaski school-list export (SchoolType ==
+    'Public' rows only -- Private/Religious schools are out of scope here).
+
+    Not linked to School by FK: a School row only exists once someone
+    actually registers on the portal, while this table is the full
+    government list regardless of portal registration status. Purely a
+    lookup/autocomplete + soft-validation aid for the EMIS Code field on
+    the school (principal) and teacher registration forms -- see
+    schools/views.py's public_school_reference view.
+
+    Populated by the data migration schools/migrations/0004_..., not
+    user-editable. Re-import by re-running that data (or a future mgmt
+    command) if the government list is updated.
+    """
+    emis_code = models.CharField(max_length=50, unique=True, db_index=True)
+    school_name = models.CharField(max_length=255)
+    district = models.CharField(max_length=100, blank=True, default="")
+    municipality = models.CharField(max_length=100, blank=True, default="")
+    ward_no = models.CharField(max_length=10, blank=True, default="")
+
+    class Meta:
+        ordering = ["school_name"]
+
+    def __str__(self):
+        return f"{self.school_name} ({self.emis_code})"

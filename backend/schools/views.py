@@ -1,11 +1,12 @@
+from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.http import FileResponse
 from django.utils import timezone
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
-from .models import School
-from .serializers import SchoolSerializer
+from .models import School, PublicSchoolReference
+from .serializers import SchoolSerializer, PublicSchoolReferenceSerializer
 from .report_export import build_school_report
 from accounts.permissions import IsAdminOrSubAdmin
 from teachers.models import Teacher
@@ -114,6 +115,39 @@ def school_list_create(request):
             return Response(serializer.data, status=201)
 
         return Response(serializer.errors, status=400)
+
+
+# =========================
+# EMIS CODE REFERENCE / AUTOCOMPLETE
+# =========================
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def public_school_reference(request):
+    """Lookup against the government-registered Public-school list (Kaski
+    district, see schools/migrations/0005_seed_public_school_reference.py)
+    for the EMIS Code autocomplete on the school (principal) and teacher
+    registration forms.
+
+    AllowAny -- teacher registration (app/register/page.tsx) is itself an
+    unauthenticated public sign-up flow, so this lookup has to be reachable
+    the same way. Only exposes non-sensitive, already-public government
+    data (school name/EMIS/address), same as the source spreadsheet.
+
+    ?q= matches against school name or EMIS code (case-insensitive,
+    partial). No query -> empty list, to avoid shipping the full 348-row
+    table on page load. Results capped at 15, which is a suggestions list
+    hint, not a validation gate -- an unmatched code is not an error, since
+    Private/Religious schools and schools outside Kaski legitimately won't
+    appear here.
+    """
+    q = (request.GET.get('q') or '').strip()
+    if not q:
+        return Response([])
+
+    matches = PublicSchoolReference.objects.filter(
+        Q(school_name__icontains=q) | Q(emis_code__icontains=q)
+    )[:15]
+    return Response(PublicSchoolReferenceSerializer(matches, many=True).data)
 
 
 # =========================

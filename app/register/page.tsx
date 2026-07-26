@@ -1,6 +1,7 @@
 "use client";
 import NepaliInput from "@/components/NepaliInput";
 import NepaliNumberInput, { nepaliToAscii, toNepaliDigits } from "@/components/NepaliNumberInput";
+import EmisAutocomplete, { PublicSchoolMatch } from "@/components/EmisAutocomplete";
 import { useState } from "react";
 import { Check } from "lucide-react";
 import { API_BASE_URL } from "@/lib/api";
@@ -768,9 +769,18 @@ function Step2({
         <label className="block text-sm font-medium text-gray-700 mb-1">
           School EMIS Code <span className="text-gray-400 font-normal">/ विद्यालय ईमिस कोड</span>
         </label>
-        <input
+        <EmisAutocomplete
           value={data.schoolEmisCode}
-          onChange={(e) => { onChange("schoolEmisCode", e.target.value); setErrors((p) => ({ ...p, schoolEmisCode: "" })); }}
+          onChange={(val) => { onChange("schoolEmisCode", val); setErrors((p) => ({ ...p, schoolEmisCode: "" })); }}
+          onSelectMatch={(m) => {
+            // Autofill district/municipality/ward from the matched Public
+            // school -- but NOT school name, which is Nepali-only here
+            // (see EmisAutocomplete's docstring for why).
+            onChange("district", m.district);
+            onChange("municipality", m.municipality);
+            onChange("wardNo", toNepaliDigits(m.ward_no));
+            setErrors((p) => ({ ...p, district: "", municipality: "", wardNo: "" }));
+          }}
           placeholder="e.g. 27401001"
           className={ic(errors, "schoolEmisCode")}
         />

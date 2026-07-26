@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import School
+from .models import School, PublicSchoolReference
 
 
 class SchoolSerializer(serializers.ModelSerializer):
@@ -18,3 +18,9 @@ class SchoolSerializer(serializers.ModelSerializer):
         # status/reviewer are set by approve/reject), never trusted from
         # client input -- same reasoning as DocumentChangeRequestSerializer.
         read_only_fields = ['principal', 'status', 'reviewed_by', 'reviewed_at']
+
+
+class PublicSchoolReferenceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PublicSchoolReference
+        fields = ['emis_code', 'school_name', 'district', 'municipality', 'ward_no']
