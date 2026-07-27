@@ -192,7 +192,7 @@ export default function DashboardPage() {
             ["Token No. / टोकन नं.", teacher?.tokenNo],
             ["Subject / विषय", formatTeacherField(SUBJECT_LABELS, teacher?.subject)],
             ["Level / तह", formatTeacherField(LEVEL_LABELS, teacher?.level)],
-            ["Grade / कक्षा", formatTeacherField(GRADE_LABELS, teacher?.grade)],
+            ["Grade / श्रेणी", formatTeacherField(GRADE_LABELS, teacher?.grade)],
             ["Teacher Type / शिक्षक प्रकार", formatTeacherField(TEACHER_TYPE_LABELS, teacher?.teacherType)],
             ["Minimum Qualification / न्यूनतम योग्यता", formatTeacherField(QUALIFICATION_LABELS, teacher?.minQualification)],
             ["Highest Qualification / उच्चतम योग्यता", formatTeacherField(QUALIFICATION_LABELS, teacher?.highestQualification)],
