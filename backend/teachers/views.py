@@ -5,6 +5,7 @@ from django.shortcuts import get_object_or_404
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.views import APIView
 from .models import Teacher
 from .serializers import TeacherSerializer
 from schools.models import School
@@ -19,31 +20,40 @@ MAX_TRANSFER_DOCUMENTS = 10
 # =========================
 # REGISTER + GET ALL TEACHERS
 # =========================
-@api_view(['GET', 'POST'])
-@permission_classes([AllowAny])
-def teacher_list_create(request):
-    # POST is a public application form -- a new teacher submitting their
-    # application has no account yet, so this must stay open (matches
-    # app/register/page.tsx, which sends no Authorization header).
-    #
-    # GET returns every teacher's full PII (phone, email, documents), so it
-    # is restricted to admin/principal despite the view itself being AllowAny.
+class TeacherListCreateView(APIView):
+    """
+    GET  -- list every teacher (full PII: phone, email, documents).
+            Restricted to an authenticated Admin or Principal via
+            get_permissions() below -- declarative, not a manual in-body
+            check, so this can't be silently bypassed by a future edit to
+            this view the way a hand-rolled `if` could be.
+    POST -- public teacher application form (matches app/register/page.tsx,
+            which sends no Authorization header -- a new applicant has no
+            account yet, so this must stay open).
+    """
+
+    def get_permissions(self):
+        if self.request.method == 'POST':
+            return [AllowAny()]
+        return [IsAuthenticated(), IsAdminOrPrincipal()]
 
     # =========================
     # GET ALL TEACHERS
     # =========================
-    if request.method == 'GET':
-        if not (request.user and request.user.is_authenticated
-                and IsAdminOrPrincipal().has_permission(request, None)):
-            return Response({"error": "Authentication required."}, status=401)
-        teachers = Teacher.objects.all()
+    def get(self, request):
+        # select_related('school') avoids one extra query per row from
+        # TeacherSerializer.school_detail accessing obj.school.* --
+        # without it, this was N+1 (invisible at a handful of rows, but
+        # would visibly slow down every dashboard load and export as the
+        # teacher count grows).
+        teachers = Teacher.objects.select_related('school').all()
         serializer = TeacherSerializer(teachers, many=True)
         return Response(serializer.data)
 
     # =========================
     # CREATE TEACHER
     # =========================
-    if request.method == 'POST':
+    def post(self, request):
         email = (request.data.get("email") or "").strip()
         phone = (request.data.get("phone") or "").strip()
 
@@ -247,7 +257,7 @@ def request_changes(request, teacher_id):
 # TEACHER DETAIL API
 # =========================
 # Returns a teacher's full PII (DOB, phone, address, document file paths,
-# etc.) -- this is reviewer-only, same as teacher_list_create's GET.
+# etc.) -- this is reviewer-only, same as TeacherListCreateView's GET.
 # Teachers view their OWN data via teacher_me, not this endpoint.
 @api_view(['GET'])
 @permission_classes([IsAuthenticated, IsAdminOrPrincipal])
