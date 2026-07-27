@@ -57,7 +57,7 @@ type LeaveApplication = {
 const MIN_LEAVE_DATE = "2026-03-15"; // 1 Chaitra 2082 BS
 const MAX_LEAVE_DATE = "2032-03-15"; // MIN_LEAVE_DATE + 6 years
 const MIN_LEAVE_DATE_BS = adToBs(MIN_LEAVE_DATE)!; // २०८२/१२/०१
-const MAX_LEAVE_DATE_BS = adToBs(MAX_LEAVE_DATE)!; // २०८८/१२/०२
+const MAX_LEAVE_DATE_BS = adToBs(MAX_LEAVE_DATE)!; // २०८८/१२/०१
 
 // Displays an AD ISO date (as returned by the backend) as a BS date in
 // Nepali digits -- the only date format shown anywhere on this page.

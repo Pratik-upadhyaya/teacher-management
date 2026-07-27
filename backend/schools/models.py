@@ -65,6 +65,48 @@ class School(models.Model):
     female_toilets = models.IntegerField(default=0)
     male_toilets = models.IntegerField(default=0)
 
+    # ── Step 4: Teacher Count (दरबन्दी) ────────────────────────────
+    # Mirrors the frontend's TEACHER_LEVELS x quota-type grid
+    # (app/(portal)/principal/page.tsx Step4). Previously this Step 4 data
+    # was collected in the wizard but had no backing field anywhere --
+    # every submission silently discarded it. Field names match the
+    # frontend's `${level.key}_${type}` keys exactly so _map_school_payload
+    # can pass them straight through.
+    pre_primary_permanent = models.IntegerField(default=0)
+    pre_primary_contract = models.IntegerField(default=0)
+    pre_primary_grant = models.IntegerField(default=0)
+    pre_primary_shi_anudan = models.IntegerField(default=0)
+    pre_primary_private = models.IntegerField(default=0)
+    pre_primary_relief = models.IntegerField(default=0)
+
+    primary_permanent = models.IntegerField(default=0)
+    primary_contract = models.IntegerField(default=0)
+    primary_grant = models.IntegerField(default=0)
+    primary_shi_anudan = models.IntegerField(default=0)
+    primary_private = models.IntegerField(default=0)
+    primary_relief = models.IntegerField(default=0)
+
+    lower_sec_permanent = models.IntegerField(default=0)
+    lower_sec_contract = models.IntegerField(default=0)
+    lower_sec_grant = models.IntegerField(default=0)
+    lower_sec_shi_anudan = models.IntegerField(default=0)
+    lower_sec_private = models.IntegerField(default=0)
+    lower_sec_relief = models.IntegerField(default=0)
+
+    secondary_9_10_permanent = models.IntegerField(default=0)
+    secondary_9_10_contract = models.IntegerField(default=0)
+    secondary_9_10_grant = models.IntegerField(default=0)
+    secondary_9_10_shi_anudan = models.IntegerField(default=0)
+    secondary_9_10_private = models.IntegerField(default=0)
+    secondary_9_10_relief = models.IntegerField(default=0)
+
+    secondary_11_12_permanent = models.IntegerField(default=0)
+    secondary_11_12_contract = models.IntegerField(default=0)
+    secondary_11_12_grant = models.IntegerField(default=0)
+    secondary_11_12_shi_anudan = models.IntegerField(default=0)
+    secondary_11_12_private = models.IntegerField(default=0)
+    secondary_11_12_relief = models.IntegerField(default=0)
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     # =========================

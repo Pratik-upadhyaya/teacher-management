@@ -79,6 +79,42 @@ def _map_school_payload(data):
         "classroom_count": data.get("num_classrooms") or 0,
         "female_toilets": data.get("toilet_female") or 0,
         "male_toilets": data.get("toilet_male") or 0,
+
+        # Step 4: Teacher Count (दरबन्दी) -- see School model comment.
+        "pre_primary_permanent": data.get("pre_primary_permanent") or 0,
+        "pre_primary_contract": data.get("pre_primary_contract") or 0,
+        "pre_primary_grant": data.get("pre_primary_grant") or 0,
+        "pre_primary_shi_anudan": data.get("pre_primary_shi_anudan") or 0,
+        "pre_primary_private": data.get("pre_primary_private") or 0,
+        "pre_primary_relief": data.get("pre_primary_relief") or 0,
+
+        "primary_permanent": data.get("primary_permanent") or 0,
+        "primary_contract": data.get("primary_contract") or 0,
+        "primary_grant": data.get("primary_grant") or 0,
+        "primary_shi_anudan": data.get("primary_shi_anudan") or 0,
+        "primary_private": data.get("primary_private") or 0,
+        "primary_relief": data.get("primary_relief") or 0,
+
+        "lower_sec_permanent": data.get("lower_sec_permanent") or 0,
+        "lower_sec_contract": data.get("lower_sec_contract") or 0,
+        "lower_sec_grant": data.get("lower_sec_grant") or 0,
+        "lower_sec_shi_anudan": data.get("lower_sec_shi_anudan") or 0,
+        "lower_sec_private": data.get("lower_sec_private") or 0,
+        "lower_sec_relief": data.get("lower_sec_relief") or 0,
+
+        "secondary_9_10_permanent": data.get("secondary_9_10_permanent") or 0,
+        "secondary_9_10_contract": data.get("secondary_9_10_contract") or 0,
+        "secondary_9_10_grant": data.get("secondary_9_10_grant") or 0,
+        "secondary_9_10_shi_anudan": data.get("secondary_9_10_shi_anudan") or 0,
+        "secondary_9_10_private": data.get("secondary_9_10_private") or 0,
+        "secondary_9_10_relief": data.get("secondary_9_10_relief") or 0,
+
+        "secondary_11_12_permanent": data.get("secondary_11_12_permanent") or 0,
+        "secondary_11_12_contract": data.get("secondary_11_12_contract") or 0,
+        "secondary_11_12_grant": data.get("secondary_11_12_grant") or 0,
+        "secondary_11_12_shi_anudan": data.get("secondary_11_12_shi_anudan") or 0,
+        "secondary_11_12_private": data.get("secondary_11_12_private") or 0,
+        "secondary_11_12_relief": data.get("secondary_11_12_relief") or 0,
     }
 
 

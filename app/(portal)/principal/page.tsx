@@ -1017,6 +1017,41 @@ function schoolToFormData(school: any) {
     num_classrooms: school.classroom_count ? String(school.classroom_count) : "",
     toilet_female: school.female_toilets ? String(school.female_toilets) : "",
     toilet_male: school.male_toilets ? String(school.male_toilets) : "",
+
+    pre_primary_permanent: school.pre_primary_permanent ? String(school.pre_primary_permanent) : "",
+    pre_primary_contract: school.pre_primary_contract ? String(school.pre_primary_contract) : "",
+    pre_primary_grant: school.pre_primary_grant ? String(school.pre_primary_grant) : "",
+    pre_primary_shi_anudan: school.pre_primary_shi_anudan ? String(school.pre_primary_shi_anudan) : "",
+    pre_primary_private: school.pre_primary_private ? String(school.pre_primary_private) : "",
+    pre_primary_relief: school.pre_primary_relief ? String(school.pre_primary_relief) : "",
+
+    primary_permanent: school.primary_permanent ? String(school.primary_permanent) : "",
+    primary_contract: school.primary_contract ? String(school.primary_contract) : "",
+    primary_grant: school.primary_grant ? String(school.primary_grant) : "",
+    primary_shi_anudan: school.primary_shi_anudan ? String(school.primary_shi_anudan) : "",
+    primary_private: school.primary_private ? String(school.primary_private) : "",
+    primary_relief: school.primary_relief ? String(school.primary_relief) : "",
+
+    lower_sec_permanent: school.lower_sec_permanent ? String(school.lower_sec_permanent) : "",
+    lower_sec_contract: school.lower_sec_contract ? String(school.lower_sec_contract) : "",
+    lower_sec_grant: school.lower_sec_grant ? String(school.lower_sec_grant) : "",
+    lower_sec_shi_anudan: school.lower_sec_shi_anudan ? String(school.lower_sec_shi_anudan) : "",
+    lower_sec_private: school.lower_sec_private ? String(school.lower_sec_private) : "",
+    lower_sec_relief: school.lower_sec_relief ? String(school.lower_sec_relief) : "",
+
+    secondary_9_10_permanent: school.secondary_9_10_permanent ? String(school.secondary_9_10_permanent) : "",
+    secondary_9_10_contract: school.secondary_9_10_contract ? String(school.secondary_9_10_contract) : "",
+    secondary_9_10_grant: school.secondary_9_10_grant ? String(school.secondary_9_10_grant) : "",
+    secondary_9_10_shi_anudan: school.secondary_9_10_shi_anudan ? String(school.secondary_9_10_shi_anudan) : "",
+    secondary_9_10_private: school.secondary_9_10_private ? String(school.secondary_9_10_private) : "",
+    secondary_9_10_relief: school.secondary_9_10_relief ? String(school.secondary_9_10_relief) : "",
+
+    secondary_11_12_permanent: school.secondary_11_12_permanent ? String(school.secondary_11_12_permanent) : "",
+    secondary_11_12_contract: school.secondary_11_12_contract ? String(school.secondary_11_12_contract) : "",
+    secondary_11_12_grant: school.secondary_11_12_grant ? String(school.secondary_11_12_grant) : "",
+    secondary_11_12_shi_anudan: school.secondary_11_12_shi_anudan ? String(school.secondary_11_12_shi_anudan) : "",
+    secondary_11_12_private: school.secondary_11_12_private ? String(school.secondary_11_12_private) : "",
+    secondary_11_12_relief: school.secondary_11_12_relief ? String(school.secondary_11_12_relief) : "",
   };
 }
 
