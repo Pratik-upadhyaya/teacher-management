@@ -243,13 +243,6 @@ export default function LoginPage() {
             >
               {loading ? "Signing in…" : "Sign In / प्रवेश गर्नुहोस्"}
             </button>
-
-            <p className="text-center text-sm text-gray-400">
-              Need to submit your school's information?{" "}
-              <a href="/principal" className="text-[#2563eb] hover:underline font-medium">
-                Fill School Information →
-              </a>
-            </p>
             <p className="text-center text-sm text-gray-400 mt-2">
               No account?{" "}
               <a href="/register" className="text-[#2563eb] hover:underline font-medium">
