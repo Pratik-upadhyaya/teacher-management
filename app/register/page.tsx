@@ -934,9 +934,9 @@ function Step3({
       if (!data.extraordinaryLeave.trim()) {
         errs.extraordinaryLeave = "लिइसकेको असाधारण बिदा उल्लेख गर्नुहोस्";
       }
-    } else if (data.promotionDate.trim()) {
-      validateNepaliDate(data.promotionDate, errs, "promotionDate", "बढुवा मिति");
     }
+    // Promotion Date only applies to Permanent teachers -- non-Permanent
+    // applicants never see the field, so there is nothing to validate here.
 
     if (data.ageSixtyYear.trim()) {
       validateNepaliDate(data.ageSixtyYear, errs, "ageSixtyYear", "६० वर्ष पुग्ने मिति");
@@ -977,22 +977,6 @@ function Step3({
           <FieldError msg={errors.appointmentDate} />
         </div>
 
-        {!isPermanent && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Promotion Date <span className="text-gray-400 font-normal">/ बढुवा मिति</span>
-              <span className="text-gray-400 font-normal text-xs ml-1">(optional)</span>
-            </label>
-            <NepaliNumberInput
-              value={data.promotionDate}
-              onChange={(val: string) => { onChange("promotionDate", val); setErrors((p) => ({ ...p, promotionDate: "" })); }}
-              placeholder="२०८२/०१/०१"
-              className={ic(errors, "promotionDate")}
-              mode="date"
-            />
-            <FieldError msg={errors.promotionDate} />
-          </div>
-        )}
       </div>
 
       {isPermanent && (
@@ -1481,7 +1465,7 @@ function Step5({
                 ? ([["Promotion Date (Second → First) / बढुवा मिति (द्वितीय → प्रथम)", data.promotionDate2 || "—"]] as [string, string][])
                 : []),
             ] as [string, string][])
-          : ([["Promotion Date / बढुवा मिति", data.promotionDate || "—"]] as [string, string][])),
+          : []),
         ["Minimum Qualification / न्यूनतम योग्यता", QUALIFICATION_LABELS[data.minQualification] || data.minQualification],
         ["Highest Qualification / उच्चतम योग्यता", QUALIFICATION_LABELS[data.highestQualification] || data.highestQualification],
         ...(data.highestQualification && data.highestQualification !== data.minQualification

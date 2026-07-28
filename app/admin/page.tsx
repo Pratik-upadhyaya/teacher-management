@@ -950,6 +950,10 @@ export default function AdminPage() {
     router.push(`/admin/teacher/${teacher.id}`);
   }
 
+  function viewSchool(schoolId: number) {
+    router.push(`/admin/school/${schoolId}`);
+  }
+
   return (
     <div className="min-h-screen bg-[#eef3fb] flex">
       {/* Toast — replaces alert() */}
@@ -1634,6 +1638,12 @@ export default function AdminPage() {
                           >
                             Reject
                           </button>
+                          <button
+                            onClick={() => viewSchool(s.id)}
+                            className="px-4 py-2 bg-[#0f2044] text-white rounded-lg hover:bg-[#1a3260] text-sm font-semibold"
+                          >
+                            View
+                          </button>
                         </div>
                       </div>
 
@@ -1757,6 +1767,13 @@ export default function AdminPage() {
                           </td>
                           <td className="py-2.5 pr-2 text-right">
                             <div className="flex items-center justify-end gap-3">
+                              <button
+                                onClick={() => viewSchool(s.id)}
+                                title="View Full Details"
+                                className="flex items-center gap-1 text-xs font-semibold text-[#0f2044] hover:underline whitespace-nowrap"
+                              >
+                                View
+                              </button>
                               <button
                                 onClick={() => downloadSchoolReport(s)}
                                 disabled={downloadingSchoolReportId === s.id}

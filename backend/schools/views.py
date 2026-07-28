@@ -118,6 +118,22 @@ def _map_school_payload(data):
     }
 
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def school_detail(request, school_id):
+    """Single school's full submitted data (all School model fields, via
+    SchoolSerializer's fields = '__all__') -- used by the admin school
+    review detail page (app/admin/school/[id]/page.tsx), mirroring
+    teachers.views.teacher_detail's role for the teacher review page.
+
+    Same GET openness as school_list_create below (any authenticated
+    user) -- this endpoint doesn't expose anything school_list_create
+    doesn't already return in list form, just one record instead of all.
+    """
+    school = get_object_or_404(School, id=school_id)
+    return Response(SchoolSerializer(school).data)
+
+
 @api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
 def school_list_create(request):

@@ -1,6 +1,7 @@
 from django.urls import path
 from .views import (
     school_list_create,
+    school_detail,
     my_school,
     approve_school,
     reject_school,
@@ -17,4 +18,5 @@ urlpatterns = [
     path('<int:school_id>/approve/', approve_school),
     path('<int:school_id>/reject/', reject_school),
     path('<int:school_id>/export/', export_school_report),
+    path('<int:school_id>/', school_detail),
 ]
