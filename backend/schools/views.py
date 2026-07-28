@@ -7,7 +7,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from .models import School, PublicSchoolReference
 from .serializers import SchoolSerializer, PublicSchoolReferenceSerializer
-from .report_export import build_school_report, build_all_schools_report
+from .report_export import build_school_report, build_all_schools_flat_report
 from accounts.permissions import IsAdminOrSubAdmin
 from teachers.models import Teacher
 
@@ -364,7 +364,7 @@ def export_all_schools_report(request):
         for school in schools
     ]
 
-    buffer = build_all_schools_report(schools_with_teachers)
+    buffer = build_all_schools_flat_report(schools_with_teachers)
 
     filename = f"all_schools_report_{timezone.now().strftime('%Y-%m-%d')}.xlsx"
     response = FileResponse(
