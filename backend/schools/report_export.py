@@ -50,18 +50,18 @@ def _copy_cell_style(src_cell, dst_cell):
     dst_cell.number_format = src_cell.number_format
 
 
+ALL_TEACHER_TYPES = ["permanent", "temporary", "grant", "shi_anudan", "relief", "private"]
+ALL_LEVELS = ["pre_primary", "primary", "lower_secondary", "secondary", "higher_secondary"]
+
+
 def _quota_counts(teachers):
-    """Aggregate approved teachers into the दरबन्दी grid's level x type
-    columns. Only the type columns the template actually tracks per level
-    are counted individually; 'जम्मा' (total) sums just those tracked
-    columns, matching what the template's own header row implies rather
-    than every possible teacherType."""
-    counts = {
-        "primary": {"permanent": 0, "temporary": 0, "grant": 0},
-        "lower_secondary": {"permanent": 0, "temporary": 0, "grant": 0, "shi_anudan": 0},
-        "secondary": {"permanent": 0, "temporary": 0, "grant": 0, "shi_anudan": 0},
-        "higher_secondary": {"temporary": 0, "grant": 0},
-    }
+    """Aggregate approved teachers into level x type counts, across every
+    level and every teacher type -- not just the subset of columns the
+    individual per-school template's paper form happens to have (that
+    template only reads the specific level/type combinations it has actual
+    columns for; see _fill_school_sheet below, which is unaffected by the
+    extra keys here since it just never looks at them)."""
+    counts = {level: {t: 0 for t in ALL_TEACHER_TYPES} for level in ALL_LEVELS}
     for t in teachers:
         level_bucket = counts.get(t.level)
         if level_bucket is not None and t.teacherType in level_bucket:
@@ -208,42 +208,170 @@ def build_school_report(school, teachers):
     return buffer
 
 
-def _unique_sheet_title(wb, desired):
-    # Excel sheet titles: max 31 chars, no : \ / ? * [ ]
-    clean = "".join(c for c in desired if c not in ':\\/?*[]')[:31]
-    if not clean:
-        clean = "School"
-    title = clean
-    n = 2
-    while title in wb.sheetnames:
-        suffix = f" ({n})"
-        title = clean[: 31 - len(suffix)] + suffix
-        n += 1
-    return title
+
+# ── Bulk "all approved schools" export ───────────────────────────────────
+#
+# Unlike build_school_report (one school, government per-school template),
+# this produces a single flat sheet -- one row per school -- matching the
+# shape of the client-supplied district-wide "Students Level Report"
+# sample (two header rows: grouped level headers on top, column labels
+# below; one data row per school). Same shape, but teacher दरबन्दी counts
+# in place of student enrollment, since there's no per-student data for
+# teacher rosters to report here.
+
+from openpyxl.styles import Alignment, Font
+from openpyxl.utils import get_column_letter
+
+# (bucket key, header label, Nepali sub-label, ordered type keys for that
+# bucket) -- every level x every teacher type, unlike the individual
+# per-school template (which is constrained to whatever columns the
+# official paper form actually has).
+_FLAT_LEVEL_GROUPS = [
+    ("pre_primary", "Pre-Primary", "पूर्व-प्राथमिक", ALL_TEACHER_TYPES),
+    ("primary", "Primary", "प्राथमिक (१-५)", ALL_TEACHER_TYPES),
+    ("lower_secondary", "Lower Secondary", "नि.मा.वि (६-८)", ALL_TEACHER_TYPES),
+    ("secondary", "Secondary", "मा.वि (९-१०)", ALL_TEACHER_TYPES),
+    ("higher_secondary", "Higher Secondary", "मा.वि (११-१२)", ALL_TEACHER_TYPES),
+]
+_TYPE_SHORT_LABEL = {
+    # "Temporary" (Teacher.teacherType's own name) and "Contract" (the name
+    # School's separately-entered quota fields use for the same category,
+    # e.g. primary_contract) are the same employment category under two
+    # different names elsewhere in this codebase -- one column, dual-labeled,
+    # not two.
+    "permanent": "Permanent",
+    "temporary": "Temporary / Contract",
+    "grant": "Grant",
+    "shi_anudan": "Shi Anudan",
+    "relief": "Relief",
+    "private": "Private",
+}
+
+_SCHOOL_INFO_HEADERS = [
+    "S.N", "District", "Local Level", "Ward", "School Name", "EMIS Code",
+    "Contact Number", "Email",
+]
+
+# Same facilities the individual per-school report shows in its row 9 --
+# this was missing from the bulk export entirely; each school's row here
+# now carries the same infrastructure picture as its own individual report.
+_INFRA_HEADERS = [
+    "Established (BS)", "Computer Lab", "Science Lab", "Library",
+    "Book Corner", "Playground", "Land Area", "Buildings", "Classrooms",
+    "Female Toilets", "Male Toilets",
+]
 
 
-def build_all_schools_report(schools_with_teachers):
+def _flat_header_layout():
+    """Column index (1-based) -> (group_key or None, sub-label). group_key
+    is None for the ungrouped school-info/Grand Total columns, "infra" for
+    the infrastructure block, or a level key for a teacher-count block.
+    Order: school-info columns, infrastructure block, one block per level
+    (types + level subtotal), then a grand-total column."""
+    layout = [(None, h) for h in _SCHOOL_INFO_HEADERS]
+    layout += [("infra", h) for h in _INFRA_HEADERS]
+    for level_key, _label, _sub, type_keys in _FLAT_LEVEL_GROUPS:
+        for type_key in type_keys:
+            layout.append((level_key, _TYPE_SHORT_LABEL[type_key]))
+        layout.append((level_key, "Total"))
+    layout.append((None, "Grand Total"))
+    return layout
+
+
+def build_all_schools_flat_report(schools_with_teachers):
     """schools_with_teachers: iterable of (school, teachers) pairs, each
     teachers being that school's approved Teacher rows. Produces one
-    workbook with one sheet per school, in the same layout as
-    build_school_report, so a single download covers every school."""
-    wb = openpyxl.load_workbook(TEMPLATE_PATH)
-    if "Sheet9" in wb.sheetnames:
-        del wb["Sheet9"]
+    workbook, one sheet, one row per school -- teacher दरबन्दी counts by
+    level and type, not a copy of each school's individual report."""
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Approved Schools"
 
-    template_ws = wb[SHEET_NAME]
+    layout = _flat_header_layout()
+    n_cols = len(layout)
+    bold = Font(bold=True)
+    center = Alignment(horizontal="center", vertical="center", wrap_text=True)
 
-    for school, teachers in schools_with_teachers:
-        new_ws = wb.copy_worksheet(template_ws)
-        new_ws.title = _unique_sheet_title(wb, f"{school.school_name}_{school.emis_code}")
-        _fill_school_sheet(new_ws, school, teachers)
+    # Row 1: grouped headers (Infrastructure, then each level), merged
+    # across their columns; ungrouped school-info/Grand Total columns
+    # merge vertically with row 2 instead, since they have nothing to
+    # group under.
+    col = len(_SCHOOL_INFO_HEADERS) + 1
+    infra_span = len(_INFRA_HEADERS)
+    ws.merge_cells(start_row=1, start_column=col, end_row=1, end_column=col + infra_span - 1)
+    infra_cell = ws.cell(row=1, column=col, value="Infrastructure")
+    infra_cell.font = bold
+    infra_cell.alignment = center
+    col += infra_span
 
-    # The original template sheet was only ever a copy source -- remove it
-    # so the delivered workbook contains real school sheets only. If there
-    # were no schools at all, leave it in place rather than deliver an
-    # empty workbook with zero sheets (openpyxl requires at least one).
-    if wb.sheetnames and wb.sheetnames[0] == SHEET_NAME and len(wb.sheetnames) > 1:
-        del wb[SHEET_NAME]
+    for level_key, label, sub_label, type_keys in _FLAT_LEVEL_GROUPS:
+        span = len(type_keys) + 1  # + the level's own Total column
+        start, end = col, col + span - 1
+        ws.merge_cells(start_row=1, start_column=start, end_row=1, end_column=end)
+        cell = ws.cell(row=1, column=start, value=f"{label} / {sub_label}")
+        cell.font = bold
+        cell.alignment = center
+        col += span
+
+    for idx, (level_key, sub_label) in enumerate(layout, start=1):
+        if level_key is None:
+            ws.merge_cells(start_row=1, start_column=idx, end_row=2, end_column=idx)
+            cell = ws.cell(row=1, column=idx, value=sub_label)
+        else:
+            cell = ws.cell(row=2, column=idx, value=sub_label)
+        cell.font = bold
+        cell.alignment = center
+
+    ws.row_dimensions[1].height = 22
+    ws.row_dimensions[2].height = 32
+    ws.freeze_panes = "A3"
+
+    # Data rows
+    row = 3
+    for sn, (school, teachers) in enumerate(schools_with_teachers, start=1):
+        q = _quota_counts(list(teachers))
+        values = [
+            sn,
+            school.district or "",
+            school.municipality or "",
+            school.ward_no or "",
+            school.school_name,
+            school.emis_code,
+            school.contact or "",
+            school.email or "",
+            school.established_bs or "",
+            "✓" if school.computer_lab else "✗",
+            "✓" if school.science_lab else "✗",
+            "✓" if school.library else "✗",
+            "✓" if school.book_corner else "✗",
+            "✓" if school.playground else "✗",
+            school.land_area_display(),
+            school.building_count or "",
+            school.classroom_count or "",
+            school.female_toilets or "",
+            school.male_toilets or "",
+        ]
+        grand_total = 0
+        for level_key, _label, _sub, type_keys in _FLAT_LEVEL_GROUPS:
+            bucket = q[level_key]
+            level_total = 0
+            for type_key in type_keys:
+                count = bucket[type_key]
+                values.append(count)
+                level_total += count
+            values.append(level_total)
+            grand_total += level_total
+        values.append(grand_total)
+
+        for col_idx, value in enumerate(values, start=1):
+            ws.cell(row=row, column=col_idx, value=value)
+        row += 1
+
+    for col_idx in range(1, n_cols + 1):
+        letter = get_column_letter(col_idx)
+        header_len = len(str(layout[col_idx - 1][1]))
+        ws.column_dimensions[letter].width = max(10, min(header_len + 4, 28))
+    ws.column_dimensions["E"].width = 30  # School Name
 
     buffer = io.BytesIO()
     wb.save(buffer)

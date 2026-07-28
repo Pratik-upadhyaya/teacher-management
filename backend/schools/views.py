@@ -279,6 +279,24 @@ def reject_school(request, school_id):
     return Response(SchoolSerializer(school).data)
 
 
+def _approved_teachers_for_school(school):
+    """Approved teachers belonging to a school, matched by EMIS code as well
+    as by the `school` FK.
+
+    `Teacher.school` is only resolved once, at registration time, and only
+    if a matching `School.emis_code` already existed at that instant -- it
+    is never retried afterward. That leaves legitimately-matching teachers
+    (registered before their school was approved, or before the school
+    existed at all) permanently unlinked and invisible to every report that
+    trusts the FK alone. Matching on `schoolEmisCode == school.emis_code` in
+    addition to the FK closes that gap without requiring a backfill.
+    """
+    return Teacher.objects.filter(
+        Q(school=school) | Q(schoolEmisCode=school.emis_code),
+        status='approved',
+    ).distinct().order_by('id')
+
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def export_school_report(request, school_id):
@@ -301,7 +319,7 @@ def export_school_report(request, school_id):
             status=403,
         )
 
-    teachers = Teacher.objects.filter(school=school, status='approved').order_by('id')
+    teachers = _approved_teachers_for_school(school)
 
     buffer = build_school_report(school, teachers)
 
@@ -326,7 +344,7 @@ def export_all_schools_report(request):
     export_school_report above)."""
     schools = School.objects.filter(status='approved').order_by('school_name')
     schools_with_teachers = [
-        (school, Teacher.objects.filter(school=school, status='approved').order_by('id'))
+        (school, _approved_teachers_for_school(school))
         for school in schools
     ]
 
