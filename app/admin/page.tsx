@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { authFetch, fetchDocumentBlobUrl, logout } from "@/lib/api";
 import { SUBJECT_LABELS, formatTeacherField } from "@/lib/teacherLabels";
-import { Download, UserPlus, Trash2, X, Check, FileText } from "lucide-react";
+import { Download, UserPlus, Trash2, X, Check, FileText, ChevronDown, ChevronUp } from "lucide-react";
 import ExcelJS from "exceljs";
+import TeacherQuotaSummary from "@/components/TeacherQuotaSummary";
 
 type Teacher = {
   id: number;
@@ -44,6 +45,7 @@ export default function AdminPage() {
   const [transferRejectReasonError, setTransferRejectReasonError] = useState("");
 
   const [schoolRequests, setSchoolRequests] = useState<any[]>([]);
+  const [expandedSchoolRequestId, setExpandedSchoolRequestId] = useState<number | null>(null);
   const [schoolRequestError, setSchoolRequestError] = useState("");
   const [schoolRequestBusyId, setSchoolRequestBusyId] = useState<number | null>(null);
   const [schoolRejectModalOpen, setSchoolRejectModalOpen] = useState(false);
@@ -55,6 +57,8 @@ export default function AdminPage() {
   // the pending review queue). Admin/Sub-Admin only, same as the full
   // data export -- see canExportData.
   const [approvedSchools, setApprovedSchools] = useState<any[]>([]);
+  const [expandedApprovedSchoolId, setExpandedApprovedSchoolId] = useState<number | null>(null);
+  const [downloadingSchoolReportId, setDownloadingSchoolReportId] = useState<number | null>(null);
   const [approvedSchoolsError, setApprovedSchoolsError] = useState("");
   const [approvedSchoolsExportBusy, setApprovedSchoolsExportBusy] = useState(false);
 
@@ -750,45 +754,42 @@ export default function AdminPage() {
   // trying to replicate the government per-grade/gender headcount
   // columns, which this system doesn't track), but scoped to just the
   // already-loaded approvedSchools list and its own single-sheet file.
-  async function downloadApprovedSchoolsExcel() {
-    setApprovedSchoolsExportBusy(true);
+  async function downloadSchoolReport(school: any) {
+    setDownloadingSchoolReportId(school.id);
     try {
-      const workbook = new ExcelJS.Workbook();
-      workbook.creator = "EDCU Kaski Teacher Portal";
-      workbook.created = new Date();
-
-      const sheet = workbook.addWorksheet("Approved Schools");
-      sheet.columns = [
-        { header: "S.N", key: "sn", width: 6 },
-        { header: "School Name", key: "school_name", width: 26 },
-        { header: "EMIS Code", key: "emis_code", width: 16 },
-        { header: "District", key: "district", width: 14 },
-        { header: "Municipality", key: "municipality", width: 26 },
-        { header: "Ward No.", key: "ward_no", width: 10 },
-        { header: "Address", key: "address", width: 26 },
-        { header: "Contact", key: "contact", width: 16 },
-        { header: "Email", key: "email", width: 24 },
-        { header: "Established (BS)", key: "established_bs", width: 16 },
-        { header: "Permission Date (BS)", key: "permission_date_bs", width: 18 },
-        { header: "Building Count", key: "building_count", width: 14 },
-        { header: "Classroom Count", key: "classroom_count", width: 14 },
-        { header: "Female Toilets", key: "female_toilets", width: 14 },
-        { header: "Male Toilets", key: "male_toilets", width: 14 },
-        { header: "Principal", key: "principalName", width: 20 },
-        { header: "Reviewed By", key: "reviewedByName", width: 18 },
-        { header: "Reviewed At", key: "reviewed_at", width: 20 },
-      ];
-      sheet.getRow(1).font = { bold: true };
-      approvedSchools.forEach((s, i) => {
-        sheet.addRow({ sn: i + 1, ...s });
-      });
-
-      const buffer = await workbook.xlsx.writeBuffer();
-      const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      const res = await authFetch(`/api/schools/${school.id}/export/`);
+      if (!res.ok) {
+        throw new Error("Export failed.");
+      }
+      const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.setAttribute("href", url);
-      link.setAttribute("download", `approved_schools_export_${new Date().toISOString().slice(0, 10)}.xlsx`);
+      link.setAttribute("download", `${school.school_name || "school"}_${school.emis_code || ""}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(err);
+      showToast("Export failed. Please try again. / निर्यात असफल भयो।");
+    } finally {
+      setDownloadingSchoolReportId(null);
+    }
+  }
+
+  async function downloadApprovedSchoolsExcel() {
+    setApprovedSchoolsExportBusy(true);
+    try {
+      const res = await authFetch("/api/schools/export-all/");
+      if (!res.ok) {
+        throw new Error("Export failed.");
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `all_schools_report_${new Date().toISOString().slice(0, 10)}.xlsx`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -1654,6 +1655,31 @@ export default function AdminPage() {
                           <div className="text-gray-700 font-medium">{s.established_bs || "—"}</div>
                         </div>
                       </div>
+
+                      <button
+                        onClick={() =>
+                          setExpandedSchoolRequestId(
+                            expandedSchoolRequestId === s.id ? null : s.id
+                          )
+                        }
+                        className="mt-3 flex items-center gap-1 text-xs font-semibold text-[#0f2044] hover:underline"
+                      >
+                        {expandedSchoolRequestId === s.id ? (
+                          <>
+                            <ChevronUp size={14} /> Hide Teacher Quota
+                          </>
+                        ) : (
+                          <>
+                            <ChevronDown size={14} /> View Teacher Quota / दरबन्दी
+                          </>
+                        )}
+                      </button>
+
+                      {expandedSchoolRequestId === s.id && (
+                        <div className="mt-3 border-t border-gray-100 pt-3">
+                          <TeacherQuotaSummary data={s} />
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -1704,30 +1730,71 @@ export default function AdminPage() {
                       <th className="py-2 pr-4">Contact</th>
                       <th className="py-2 pr-4">Principal</th>
                       <th className="py-2 pr-4">Reviewed At</th>
+                      <th className="py-2 pr-4"></th>
                     </tr>
                   </thead>
                   <tbody>
                     {approvedSchools.map((s) => (
-                      <tr key={s.id} className="border-b border-gray-50 hover:bg-gray-50">
-                        <td className="py-2.5 pr-4 font-medium text-[#0f2044]">{s.school_name}</td>
-                        <td className="py-2.5 pr-4 text-gray-600">{s.emis_code}</td>
-                        <td className="py-2.5 pr-4 text-gray-600">
-                          {s.municipality || "—"}
-                          {s.ward_no ? `-${s.ward_no}` : ""}
-                          {s.district ? `, ${s.district}` : ""}
-                        </td>
-                        <td className="py-2.5 pr-4 text-gray-600">{s.contact || "—"}</td>
-                        <td className="py-2.5 pr-4 text-gray-600">{s.principalName || "—"}</td>
-                        <td className="py-2.5 pr-4 text-gray-600">
-                          {s.reviewed_at
-                            ? new Date(s.reviewed_at).toLocaleDateString("en-US", {
-                                year: "numeric",
-                                month: "short",
-                                day: "numeric",
-                              })
-                            : "—"}
-                        </td>
-                      </tr>
+                      <Fragment key={s.id}>
+                        <tr className="border-b border-gray-50 hover:bg-gray-50">
+                          <td className="py-2.5 pr-4 font-medium text-[#0f2044]">{s.school_name}</td>
+                          <td className="py-2.5 pr-4 text-gray-600">{s.emis_code}</td>
+                          <td className="py-2.5 pr-4 text-gray-600">
+                            {s.municipality || "—"}
+                            {s.ward_no ? `-${s.ward_no}` : ""}
+                            {s.district ? `, ${s.district}` : ""}
+                          </td>
+                          <td className="py-2.5 pr-4 text-gray-600">{s.contact || "—"}</td>
+                          <td className="py-2.5 pr-4 text-gray-600">{s.principalName || "—"}</td>
+                          <td className="py-2.5 pr-4 text-gray-600">
+                            {s.reviewed_at
+                              ? new Date(s.reviewed_at).toLocaleDateString("en-US", {
+                                  year: "numeric",
+                                  month: "short",
+                                  day: "numeric",
+                                })
+                              : "—"}
+                          </td>
+                          <td className="py-2.5 pr-2 text-right">
+                            <div className="flex items-center justify-end gap-3">
+                              <button
+                                onClick={() => downloadSchoolReport(s)}
+                                disabled={downloadingSchoolReportId === s.id}
+                                title="Download School Report"
+                                className="flex items-center gap-1 text-xs font-semibold text-[#0f2044] hover:underline whitespace-nowrap disabled:opacity-50"
+                              >
+                                <Download size={14} />
+                                {downloadingSchoolReportId === s.id ? "…" : "Report"}
+                              </button>
+                              <button
+                                onClick={() =>
+                                  setExpandedApprovedSchoolId(
+                                    expandedApprovedSchoolId === s.id ? null : s.id
+                                  )
+                                }
+                                className="flex items-center gap-1 text-xs font-semibold text-[#0f2044] hover:underline whitespace-nowrap"
+                              >
+                                {expandedApprovedSchoolId === s.id ? (
+                                  <>
+                                    Hide <ChevronUp size={14} />
+                                  </>
+                                ) : (
+                                  <>
+                                    दरबन्दी <ChevronDown size={14} />
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                        {expandedApprovedSchoolId === s.id && (
+                          <tr className="border-b border-gray-50">
+                            <td colSpan={7} className="py-3 px-2 bg-gray-50/50">
+                              <TeacherQuotaSummary data={s} />
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
                     ))}
                   </tbody>
                 </table>

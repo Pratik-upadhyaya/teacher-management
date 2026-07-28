@@ -69,18 +69,7 @@ def _quota_counts(teachers):
     return counts
 
 
-def build_school_report(school, teachers):
-    """teachers: iterable of approved Teacher rows linked to this school."""
-    wb = openpyxl.load_workbook(TEMPLATE_PATH)
-
-    # The template ships with a second, redundant scratch sheet ("Sheet9")
-    # from the sample it was extracted from -- drop it so each school's
-    # export is just the one clean report sheet.
-    if "Sheet9" in wb.sheetnames:
-        del wb["Sheet9"]
-
-    ws = wb[SHEET_NAME]
-
+def _fill_school_sheet(ws, school, teachers):
     # ── Header ──────────────────────────────────────────────────────
     ws["A2"] = school.school_name
     ws["A3"] = school.address or ""
@@ -99,11 +88,12 @@ def build_school_report(school, teachers):
     # module docstring) -- recorded in the remarks column instead of
     # dropping the data.
     ws["I9"] = f"अनुमति मितिः {school.permission_date_bs}" if school.permission_date_bs else ""
-    ws["J9"] = "छ" if school.computer_lab else "छैन"
-    ws["K9"] = "छ" if school.science_lab else "छैन"
-    ws["L9"] = "छ" if school.library else "छैन"
-    ws["M9"] = "छ" if school.book_corner else "छैन"
-    ws["N9"] = "छ" if school.playground else "छैन"
+    # Tick/cross for present/absent, per explicit request -- was छ/छैन text.
+    ws["J9"] = "✓" if school.computer_lab else "✗"
+    ws["K9"] = "✓" if school.science_lab else "✗"
+    ws["L9"] = "✓" if school.library else "✗"
+    ws["M9"] = "✓" if school.book_corner else "✗"
+    ws["N9"] = "✓" if school.playground else "✗"
     ws["O9"] = school.land_area_display()
     ws["P9"] = school.building_count or ""
     ws["Q9"] = school.classroom_count or ""
@@ -161,7 +151,14 @@ def build_school_report(school, teachers):
 
         # नियुक्ती मिति lives in one of K/L/M depending on employment
         # category (see module docstring) -- K for non-permanent,
-        # non-relief types, L for Permanent, M for Relief.
+        # non-relief types, L for Permanent, M for Relief. The template's
+        # pre-styled rows 17-20 ship with real sample data baked into
+        # every cell (not just formatting), so the two columns NOT
+        # applicable to this teacher must be explicitly blanked here --
+        # otherwise they silently retain the original sample's values.
+        ws[f"K{row}"] = ""
+        ws[f"L{row}"] = ""
+        ws[f"M{row}"] = ""
         if t.teacherType == "permanent":
             ws[f"L{row}"] = t.appointmentDate or ""
         elif t.teacherType == "relief":
@@ -179,6 +176,74 @@ def build_school_report(school, teachers):
         ws[f"R{row}"] = t.extraordinaryLeaveRemaining
         ws[f"S{row}"] = t.phone
         ws[f"T{row}"] = t.remarks or ""
+
+    # The template's pre-styled rows 17-20 ship with a real sample
+    # school's teacher data baked directly into the cells, not just
+    # formatting. Any of those 4 rows past the actual teacher count must
+    # be explicitly cleared -- otherwise a school with fewer than 4
+    # approved teachers silently leaks the sample's real names,
+    # addresses, and dates of birth into its report.
+    if len(teachers) < TEMPLATE_TEACHER_ROWS:
+        for row in range(FIRST_TEACHER_ROW + len(teachers), FIRST_TEACHER_ROW + TEMPLATE_TEACHER_ROWS):
+            for col in "ABCDEFGHIJKLMNOPQRST":
+                ws[f"{col}{row}"] = None
+
+
+def build_school_report(school, teachers):
+    """teachers: iterable of approved Teacher rows linked to this school."""
+    wb = openpyxl.load_workbook(TEMPLATE_PATH)
+
+    # The template ships with a second, redundant scratch sheet ("Sheet9")
+    # from the sample it was extracted from -- drop it so each school's
+    # export is just the one clean report sheet.
+    if "Sheet9" in wb.sheetnames:
+        del wb["Sheet9"]
+
+    ws = wb[SHEET_NAME]
+    _fill_school_sheet(ws, school, teachers)
+
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    return buffer
+
+
+def _unique_sheet_title(wb, desired):
+    # Excel sheet titles: max 31 chars, no : \ / ? * [ ]
+    clean = "".join(c for c in desired if c not in ':\\/?*[]')[:31]
+    if not clean:
+        clean = "School"
+    title = clean
+    n = 2
+    while title in wb.sheetnames:
+        suffix = f" ({n})"
+        title = clean[: 31 - len(suffix)] + suffix
+        n += 1
+    return title
+
+
+def build_all_schools_report(schools_with_teachers):
+    """schools_with_teachers: iterable of (school, teachers) pairs, each
+    teachers being that school's approved Teacher rows. Produces one
+    workbook with one sheet per school, in the same layout as
+    build_school_report, so a single download covers every school."""
+    wb = openpyxl.load_workbook(TEMPLATE_PATH)
+    if "Sheet9" in wb.sheetnames:
+        del wb["Sheet9"]
+
+    template_ws = wb[SHEET_NAME]
+
+    for school, teachers in schools_with_teachers:
+        new_ws = wb.copy_worksheet(template_ws)
+        new_ws.title = _unique_sheet_title(wb, f"{school.school_name}_{school.emis_code}")
+        _fill_school_sheet(new_ws, school, teachers)
+
+    # The original template sheet was only ever a copy source -- remove it
+    # so the delivered workbook contains real school sheets only. If there
+    # were no schools at all, leave it in place rather than deliver an
+    # empty workbook with zero sheets (openpyxl requires at least one).
+    if wb.sheetnames and wb.sheetnames[0] == SHEET_NAME and len(wb.sheetnames) > 1:
+        del wb[SHEET_NAME]
 
     buffer = io.BytesIO()
     wb.save(buffer)

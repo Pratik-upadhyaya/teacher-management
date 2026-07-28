@@ -7,7 +7,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from .models import School, PublicSchoolReference
 from .serializers import SchoolSerializer, PublicSchoolReferenceSerializer
-from .report_export import build_school_report
+from .report_export import build_school_report, build_all_schools_report
 from accounts.permissions import IsAdminOrSubAdmin
 from teachers.models import Teacher
 
@@ -280,12 +280,27 @@ def reject_school(request, school_id):
 
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated, IsAdminOrSubAdmin])
+@permission_classes([IsAuthenticated])
 def export_school_report(request, school_id):
     """Individual per-school report, filling the official government
     template with this school's info and its approved teacher roster --
-    the same format as the bulk Excel export, but one school per file."""
+    the same format as the bulk Excel export, but one school per file.
+
+    Open to admin/sub-admin (any school) and to the school's own principal
+    (their school only) -- a principal downloading their own staffing
+    report isn't the reviewer conflict-of-interest that approve/reject is,
+    unlike IsAdminOrSubAdmin elsewhere in this file.
+    """
     school = get_object_or_404(School, id=school_id)
+
+    is_admin_staff = getattr(request.user, "role", None) in ("admin", "sub-admin")
+    is_owning_principal = school.principal_id == request.user.id
+    if not (is_admin_staff or is_owning_principal):
+        return Response(
+            {"error": "You don't have permission to view this school's report."},
+            status=403,
+        )
+
     teachers = Teacher.objects.filter(school=school, status='approved').order_by('id')
 
     buffer = build_school_report(school, teachers)
@@ -293,6 +308,31 @@ def export_school_report(request, school_id):
     safe_name = "".join(c if c.isalnum() else "_" for c in school.school_name).strip("_") or "school"
     filename = f"{safe_name}_{school.emis_code}.xlsx"
 
+    response = FileResponse(
+        buffer,
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated, IsAdminOrSubAdmin])
+def export_all_schools_report(request):
+    """Bulk version of export_school_report: one workbook, one sheet per
+    approved school, each sheet in the same government-template layout
+    (school info + दरबन्दी grid + approved teacher roster). Admin/sub-admin
+    only -- a principal only ever needs their own school (see
+    export_school_report above)."""
+    schools = School.objects.filter(status='approved').order_by('school_name')
+    schools_with_teachers = [
+        (school, Teacher.objects.filter(school=school, status='approved').order_by('id'))
+        for school in schools
+    ]
+
+    buffer = build_all_schools_report(schools_with_teachers)
+
+    filename = f"all_schools_report_{timezone.now().strftime('%Y-%m-%d')}.xlsx"
     response = FileResponse(
         buffer,
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

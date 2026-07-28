@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import NepaliInput from "@/components/NepaliInput";
 import NepaliNumberInput, { nepaliToAscii, toNepaliDigits } from "@/components/NepaliNumberInput";
+import TeacherQuotaSummary from "@/components/TeacherQuotaSummary";
 import EmisAutocomplete, { PublicSchoolMatch } from "@/components/EmisAutocomplete";
 import { authFetch } from "@/lib/api";
 import { DISTRICTS } from "@/lib/districts";
@@ -882,6 +883,7 @@ function Step5({
       <ReviewTable title="Class Sections (Established Year)" rows={sectionRows} />
       <ReviewTable title="Facilities" rows={facilityRows} />
       <ReviewTable title="Infrastructure" rows={infraRows} />
+      <TeacherQuotaSummary data={data} />
 
       <div className="flex justify-between pt-2">
         <button type="button" onClick={onBack}
@@ -924,6 +926,37 @@ function SchoolStatusView({
   school: any;
   onEdit: () => void;
 }) {
+  const [downloadingReport, setDownloadingReport] = useState(false);
+  const [downloadError, setDownloadError] = useState("");
+
+  async function downloadReport() {
+    setDownloadError("");
+    setDownloadingReport(true);
+    try {
+      const res = await authFetch(`/api/schools/${school.id}/export/`);
+      if (!res.ok) {
+        throw new Error(
+          res.status === 403
+            ? "You don't have permission to download this report."
+            : "Could not generate the report. Please try again."
+        );
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${school.school_name || "school"}_${school.emis_code || ""}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      setDownloadError(err.message || "Download failed.");
+    } finally {
+      setDownloadingReport(false);
+    }
+  }
+
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
@@ -962,7 +995,20 @@ function SchoolStatusView({
           <div><span className="text-gray-400">Land Area:</span> <span className="text-gray-700">{landAreaDisplay(schoolToFormData(school)) || "—"}</span></div>
         </div>
 
-        <div className="flex justify-end pt-2">
+        <div className="flex justify-end gap-3 pt-2">
+          {downloadError && (
+            <p className="text-sm text-red-600 self-center mr-auto">{downloadError}</p>
+          )}
+          {school.status === "approved" && (
+            <button
+              type="button"
+              onClick={downloadReport}
+              disabled={downloadingReport}
+              className="border border-[#0f2044] text-[#0f2044] px-6 py-2.5 rounded-lg text-sm font-semibold hover:bg-gray-50 transition disabled:opacity-50"
+            >
+              {downloadingReport ? "Preparing…" : "Download School Report / प्रतिवेदन डाउनलोड"}
+            </button>
+          )}
           <button
             type="button"
             onClick={onEdit}
