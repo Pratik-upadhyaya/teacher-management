@@ -679,7 +679,13 @@ function Step2({
       if (!data.grade) errs.grade = "श्रेणी छान्नुहोस्";
     }
 
-    if (!data.subject.trim()) errs.subject = "विषय आवश्यक छ";
+    validateNepaliOnly(data.subject, errs, "subject", "विषय");
+
+    if (!data.subjectEnglish.trim())
+      errs.subjectEnglish = "अंग्रेजीमा विषय आवश्यक छ (Subject in English is required)";
+    else if (!/^[A-Za-z][A-Za-z .'-]*$/.test(data.subjectEnglish.trim()))
+      errs.subjectEnglish = "अंग्रेजी अक्षरमा मात्र लेख्नुहोस् (English letters only)";
+
     if (!data.level) errs.level = "तह छान्नुहोस्";
 
     if (Object.keys(errs).length > 0) { setErrors(errs); return; }
@@ -848,13 +854,14 @@ function Step2({
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Subject <span className="text-gray-400 font-normal">/ विषय</span>
           </label>
-          <input
+          <NepaliInput
             value={data.subject}
-            onChange={(e) => { onChange("subject", e.target.value); setErrors((p) => ({ ...p, subject: "" })); }}
-            placeholder="e.g. Science / विज्ञान"
+            onChange={(val: string) => { onChange("subject", val); setErrors((p) => ({ ...p, subject: "" })); }}
+            onEnglishChange={(val: string) => { onChange("subjectEnglish", val); setErrors((p) => ({ ...p, subjectEnglish: "" })); }}
+            placeholder="विज्ञान"
             className={ic(errors, "subject")}
+            error={errors.subject}
           />
-          <FieldError msg={errors.subject} />
         </div>
 
         <div>
@@ -868,6 +875,7 @@ function Step2({
             className={ic(errors, "level")}
           >
             <option value="">तह छान्नुहोस्</option>
+            <option value="pre_primary">Pre-Primary / पूर्व-प्राथमिक</option>
             <option value="primary">Primary / आधारभूत (१–५)</option>
             <option value="lower_secondary">Lower Secondary / निम्न माध्यमिक (६–८)</option>
             <option value="secondary">Secondary / माध्यमिक (९–१०)</option>
@@ -875,6 +883,23 @@ function Step2({
           </select>
           <FieldError msg={errors.level} />
         </div>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Subject (English) <span className="text-gray-400 font-normal">/ अंग्रेजीमा विषय</span>
+          <span className="text-gray-400 font-normal text-xs ml-2">
+            (auto-filled as you type the subject above — edit here if it needs a fix)
+          </span>
+        </label>
+        <input
+          type="text"
+          value={data.subjectEnglish}
+          onChange={(e) => { onChange("subjectEnglish", e.target.value); setErrors((p) => ({ ...p, subjectEnglish: "" })); }}
+          placeholder="Science"
+          className={ic(errors, "subjectEnglish")}
+        />
+        <FieldError msg={errors.subjectEnglish} />
       </div>
 
       <div className="flex justify-between pt-2">
@@ -1437,6 +1462,7 @@ function Step5({
             ] as [string, string][])
           : []),
         ["Subject / विषय", data.subject],
+        ["Subject (English)", data.subjectEnglish],
         ["Level / तह", LEVEL_LABELS[data.level] || data.level],
       ],
     },
@@ -1500,7 +1526,7 @@ function Step5({
         data.name, data.nameEnglish, data.fatherName, data.gender, data.permanentAddress, data.permanentWardNo,
         data.dob, data.phone, data.email,
         data.district, data.municipality, data.wardNo, data.schoolName,
-        data.subject, data.level, data.teacherType, data.appointmentDate,
+        data.subject, data.subjectEnglish, data.level, data.teacherType, data.appointmentDate,
         data.minQualification, data.highestQualification,
         data.citizenship, data.degree, data.photo, data.teachingLicense, data.appointmentLetter,
         ...(data.teacherType === "permanent"
@@ -1569,7 +1595,7 @@ export default function RegisterPage() {
     emailVerified: false, phoneVerified: false,
     // Step 3: School
     district: "", municipality: "", wardNo: "", schoolName: "", schoolEmisCode: "", tokenNo: "",
-    subject: "", level: "", grade: "", teacherType: "",
+    subject: "", subjectEnglish: "", level: "", grade: "", teacherType: "",
     // Step 4: Service
     appointmentDate: "", promotionDate: "", minQualification: "", highestQualification: "",
     extraordinaryLeave: "", ageSixtyYear: "", remarks: "",
@@ -1622,6 +1648,7 @@ export default function RegisterPage() {
     payload.append("schoolEmisCode", formData.schoolEmisCode);
     payload.append("tokenNo", formData.tokenNo);
     payload.append("subject", formData.subject);
+    payload.append("subjectEnglish", formData.subjectEnglish);
     payload.append("level", formData.level);
     payload.append("grade", formData.grade);
     payload.append("teacherType", formData.teacherType);

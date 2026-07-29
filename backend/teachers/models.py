@@ -69,6 +69,13 @@ class Teacher(models.Model):
     )
     tokenNo = models.CharField(max_length=100, blank=True, null=True)
     subject = models.CharField(max_length=100, blank=True, null=True)
+
+    # English/Latin-script version of `subject`, entered as a plain text
+    # field -- same rationale as nameEnglish above: NepaliInput only ever
+    # commits Devanagari and discards the raw English keystrokes, so this
+    # captures what the teacher actually typed in English.
+    subjectEnglish = models.CharField(max_length=100, blank=True, default="")
+
     level = models.CharField(max_length=100, blank=True, null=True)
 
     # Values/labels must stay in sync with GRADE_LABELS in
