@@ -7,6 +7,15 @@ type AuthFetch = (path: string, init?: RequestInit) => Promise<Response>;
 // School has no file fields, so nothing to exclude there.
 const TEACHER_FILE_FIELDS = ["citizenship", "degree", "photo", "teachingLicense", "appointmentLetter"];
 
+// "Science/विज्ञान" -- English first, then Nepali. Falls back to
+// whichever of the two is present if the other was left blank.
+function formatSubject(subjectEnglish?: string | null, subject?: string | null): string {
+  const english = (subjectEnglish || "").trim();
+  const nepali = (subject || "").trim();
+  if (english && nepali) return `${english}/${nepali}`;
+  return english || nepali;
+}
+
 function triggerBlobDownload(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -95,6 +104,10 @@ async function buildFullExportWorkbook(teachers: any[], schools: any[]): Promise
     for (const col of teacherSheet.columns) {
       const key = col.key as string;
       if (TEACHER_FILE_FIELDS.includes(key)) continue;
+      if (key === "subject") {
+        row[key] = formatSubject(t.subjectEnglish, t.subject);
+        continue;
+      }
       row[key] = t[key];
     }
     teacherSheet.addRow(row);
