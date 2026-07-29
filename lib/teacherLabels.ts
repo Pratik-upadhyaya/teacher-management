@@ -1,4 +1,3 @@
-
 export const SUBJECT_LABELS: Record<string, string> = {
   science: "Science / विज्ञान",
   math: "Mathematics / गणित",
@@ -9,6 +8,7 @@ export const SUBJECT_LABELS: Record<string, string> = {
 };
 
 export const LEVEL_LABELS: Record<string, string> = {
+  pre_primary: "Pre-Primary / पूर्व-प्राथमिक",
   primary: "Primary / आधारभूत (१–५)",
   lower_secondary: "Lower Secondary / निम्न माध्यमिक (६–८)",
   secondary: "Secondary / माध्यमिक (९–१०)",

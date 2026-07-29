@@ -868,6 +868,7 @@ function Step2({
             className={ic(errors, "level")}
           >
             <option value="">तह छान्नुहोस्</option>
+            <option value="pre_primary">Pre-Primary / पूर्व-प्राथमिक</option>
             <option value="primary">Primary / आधारभूत (१–५)</option>
             <option value="lower_secondary">Lower Secondary / निम्न माध्यमिक (६–८)</option>
             <option value="secondary">Secondary / माध्यमिक (९–१०)</option>
