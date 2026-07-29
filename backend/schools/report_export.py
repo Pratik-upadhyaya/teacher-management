@@ -42,6 +42,16 @@ GRADE_NP = {
 }
 
 
+def _format_subject(teacher):
+    """English/Nepali, e.g. 'Science/विज्ञान'. Falls back to whichever
+    of the two is present if the other was left blank."""
+    english = (teacher.subjectEnglish or "").strip()
+    nepali = (teacher.subject or "").strip()
+    if english and nepali:
+        return f"{english}/{nepali}"
+    return english or nepali
+
+
 def _copy_cell_style(src_cell, dst_cell):
     dst_cell.font = copy.copy(src_cell.font)
     dst_cell.border = copy.copy(src_cell.border)
@@ -183,7 +193,7 @@ def _fill_school_sheet(ws, school, teachers):
         ws[f"D{row}"] = t.fatherName
         ws[f"E{row}"] = t.permanentAddress
         ws[f"F{row}"] = t.dob
-        ws[f"G{row}"] = t.subject or ""
+        ws[f"G{row}"] = _format_subject(t)
         ws[f"H{row}"] = LEVEL_NP.get(t.level, t.level or "")
         ws[f"I{row}"] = GRADE_NP.get(t.grade, t.grade or "")
         ws[f"J{row}"] = TEACHER_TYPE_NP.get(t.teacherType, t.teacherType or "")
