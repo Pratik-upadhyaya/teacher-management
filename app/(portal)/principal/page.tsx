@@ -960,8 +960,8 @@ function SchoolStatusView({
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-[#0f2044]">School Information (Principal Should Fill)</h1>
-        <p className="text-gray-400 text-sm mt-0.5">विद्यालयको विवरण (प्रधानाचार्यले भर्नु पर्छ)</p>
+        <h1 className="text-2xl font-bold text-[#0f2044]">School Information</h1>
+        <p className="text-gray-400 text-sm mt-0.5">विद्यालयको विवरण</p>
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-100 p-8 space-y-4">
@@ -1262,9 +1262,9 @@ export default function PrincipalPage() {
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-[#0f2044]">School Information</h1>
+        <h1 className="text-2xl font-bold text-[#0f2044]">School Information (Principal Should fill)</h1>
         <p className="text-gray-400 text-sm mt-0.5">
-          विद्यालयको सम्पूर्ण विवरण भर्नुहोस्
+          विद्यालयको सम्पूर्ण विवरण भर्नुहोस् (प्रधानाचार्यले भर्नु पर्छ)
         </p>
       </div>
 
