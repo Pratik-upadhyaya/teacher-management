@@ -24,7 +24,7 @@ class TeacherAdmin(admin.ModelAdmin):
         )}),
         ('School Info', {'fields': (
             'district', 'municipality', 'wardNo', 'schoolName',
-            'schoolEmisCode', 'school', 'tokenNo', 'subject', 'level',
+            'schoolEmisCode', 'school', 'tokenNo', 'subject', 'subjectEnglish', 'level',
             'grade', 'teacherType',
         )}),
         ('Service Info', {'fields': (
