@@ -434,6 +434,8 @@ const FACILITIES = [
   { key: "library", label: "Library", sub: "पुस्तकालय" },
   { key: "book_corner", label: "Book Corner", sub: "बुक कर्नर" },
   { key: "playground", label: "Playground", sub: "खेलमैदान" },
+  { key: "e_library", label: "E-Library", sub: "ई-पुस्तकालय" },
+  { key: "smart_board", label: "Smart Board", sub: "स्मार्ट बोर्ड" },
 ];
 
 // Nepal's three land measurement systems -- a Ropani isn't a fixed
@@ -1048,6 +1050,8 @@ function schoolToFormData(school: any) {
     library: boolStr(school.library),
     book_corner: boolStr(school.book_corner),
     playground: boolStr(school.playground),
+    e_library: boolStr(school.e_library),
+    smart_board: boolStr(school.smart_board),
 
     land_unit_system: school.land_unit_system || "",
     land_sqm: school.land_sqm ? String(school.land_sqm) : "",
@@ -1151,6 +1155,8 @@ export default function PrincipalPage() {
     library: "false",
     book_corner: "false",
     playground: "false",
+    e_library: "false",
+    smart_board: "false",
     land_unit_system: "",
     land_sqm: "",
     land_ropani: "",

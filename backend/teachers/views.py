@@ -312,6 +312,7 @@ def teacher_detail(request, id):
         "teachingLicense": teacher.teachingLicense.name if teacher.teachingLicense else None,
         "appointmentLetter": teacher.appointmentLetter.name if teacher.appointmentLetter else None,
         "highestQualificationDocument": teacher.highestQualificationDocument.name if teacher.highestQualificationDocument else None,
+        "seeSlcCertificate": teacher.seeSlcCertificate.name if teacher.seeSlcCertificate else None,
         "transferDocuments": [d.file.name for d in teacher.transfer_documents.all()],
 
         # ADMIN

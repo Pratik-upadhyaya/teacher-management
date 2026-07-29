@@ -37,6 +37,8 @@ type SchoolDetail = {
   library: boolean;
   book_corner: boolean;
   playground: boolean;
+  e_library: boolean;
+  smart_board: boolean;
 
   land_unit_system: string | null;
   land_sqm: number;
@@ -82,6 +84,8 @@ const FACILITIES: { key: string; label: string; sub: string }[] = [
   { key: "library", label: "Library", sub: "पुस्तकालय" },
   { key: "book_corner", label: "Book Corner", sub: "बुक कर्नर" },
   { key: "playground", label: "Playground", sub: "खेलमैदान" },
+  { key: "e_library", label: "E-Library", sub: "ई-पुस्तकालय" },
+  { key: "smart_board", label: "Smart Board", sub: "स्मार्ट बोर्ड" },
 ];
 
 // Mirrors School.land_area_display() on the backend / the wizard's own

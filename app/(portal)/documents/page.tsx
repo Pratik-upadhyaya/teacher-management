@@ -14,7 +14,8 @@ type DocKey =
   | "degree"
   | "photo"
   | "teachingLicense"
-  | "appointmentLetter";
+  | "appointmentLetter"
+  | "seeSlcCertificate";
 
 type Teacher = Record<DocKey, string | null> & { [key: string]: any };
 
@@ -33,6 +34,7 @@ const DOC_TYPES: { key: DocKey; label: string }[] = [
   { key: "photo", label: "Passport Size Photo / पासपोर्ट साइजको फोटो" },
   { key: "teachingLicense", label: "Teaching License / शिक्षण अनुमतिपत्र" },
   { key: "appointmentLetter", label: "Appointment Letter / नियुक्तिपत्र" },
+  { key: "seeSlcCertificate", label: "SEE/SLC Certificate / एसईई/एसएलसी प्रमाणपत्र" },
 ];
 
 export default function DocumentsPage() {

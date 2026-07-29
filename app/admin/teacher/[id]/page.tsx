@@ -28,7 +28,8 @@ type DocKey =
   | "photo"
   | "teachingLicense"
   | "appointmentLetter"
-  | "highestQualificationDocument";
+  | "highestQualificationDocument"
+  | "seeSlcCertificate";
 
 type LeaveSummaryRow = {
   leave_type: {
@@ -107,6 +108,7 @@ type TeacherDetail = {
   teachingLicense: string | null;
   appointmentLetter: string | null;
   highestQualificationDocument: string | null;
+  seeSlcCertificate: string | null;
 
   status: string;
   remarks: string | null;
@@ -120,6 +122,7 @@ const DOC_TYPES: { key: DocKey; label: string }[] = [
   { key: "teachingLicense", label: "Teaching License / शिक्षण अनुमतिपत्र" },
   { key: "appointmentLetter", label: "Appointment Letter / नियुक्तिपत्र" },
   { key: "highestQualificationDocument", label: "Highest Qualification Document / उच्चतम योग्यताको प्रमाणपत्र" },
+  { key: "seeSlcCertificate", label: "SEE/SLC Certificate / एसईई/एसएलसी प्रमाणपत्र" },
 ];
 
 function Field({ label, value }: { label: string; value?: string | null }) {

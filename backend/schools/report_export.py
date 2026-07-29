@@ -294,10 +294,13 @@ _SCHOOL_INFO_HEADERS = [
 # Same facilities the individual per-school report shows in its row 9 --
 # this was missing from the bulk export entirely; each school's row here
 # now carries the same infrastructure picture as its own individual report.
+# E-Library/Smart Board have no equivalent column in the per-school
+# government-template report (that template has no spare columns -- see
+# module docstring); they only exist here.
 _INFRA_HEADERS = [
     "Established (BS)", "Computer Lab", "Science Lab", "Library",
-    "Book Corner", "Playground", "Land Area", "Buildings", "Classrooms",
-    "Female Toilets", "Male Toilets",
+    "Book Corner", "Playground", "E-Library", "Smart Board", "Land Area",
+    "Buildings", "Classrooms", "Female Toilets", "Male Toilets",
 ]
 
 
@@ -402,6 +405,8 @@ def build_all_schools_flat_report(schools_with_teachers):
             "✓" if school.library else "✗",
             "✓" if school.book_corner else "✗",
             "✓" if school.playground else "✗",
+            "✓" if school.e_library else "✗",
+            "✓" if school.smart_board else "✗",
             school.land_area_display(),
             school.building_count or "",
             school.classroom_count or "",

@@ -61,6 +61,8 @@ def _map_school_payload(data):
         "library": data.get("library") == "true",
         "book_corner": data.get("book_corner") == "true",
         "playground": data.get("playground") == "true",
+        "e_library": data.get("e_library") == "true",
+        "smart_board": data.get("smart_board") == "true",
 
         # Land area -- one of three Nepal-specific measurement systems,
         # see School.LAND_SYSTEM_CHOICES. Only the fields matching

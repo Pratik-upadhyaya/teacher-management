@@ -37,6 +37,7 @@ type Teacher = {
   photo?: string | null;
   teachingLicense?: string | null;
   appointmentLetter?: string | null;
+  seeSlcCertificate?: string | null;
 };
 
 const DOCUMENT_FIELDS: { key: keyof Teacher; label: string }[] = [
@@ -45,6 +46,7 @@ const DOCUMENT_FIELDS: { key: keyof Teacher; label: string }[] = [
   { key: "photo", label: "Passport Size Photo / पासपोर्ट साइजको फोटो" },
   { key: "teachingLicense", label: "Teaching License / शिक्षण अनुमतिपत्र" },
   { key: "appointmentLetter", label: "Appointment Letter / नियुक्तिपत्र" },
+  { key: "seeSlcCertificate", label: "SEE/SLC Certificate / एसईई/एसएलसी प्रमाणपत्र" },
 ];
 
 export default function DashboardPage() {

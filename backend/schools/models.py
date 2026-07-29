@@ -36,6 +36,8 @@ class School(models.Model):
     library = models.BooleanField(default=False)
     book_corner = models.BooleanField(default=False)
     playground = models.BooleanField(default=False)
+    e_library = models.BooleanField(default=False)
+    smart_board = models.BooleanField(default=False)
 
     # ── Land area: Nepal uses three separate, non-convertible-by-simple-
     # -factor measurement systems depending on region/context (a Ropani

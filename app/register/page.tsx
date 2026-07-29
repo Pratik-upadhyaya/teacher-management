@@ -1231,6 +1231,14 @@ function Step3({
 const DOC_FIELDS = [
   { key: "citizenship", label: "Citizenship", sub: "नागरिकता", accept: "image/*,.pdf" },
   { key: "degree", label: "Degree Certificate", sub: "प्रमाणपत्र", accept: "image/*,.pdf" },
+  // Compulsory for every teacher regardless of minQualification/
+  // highestQualification -- even a teacher whose minimum qualification is
+  // Bachelor's or higher must still submit this. Unlike
+  // highestQualificationDocument (further down, conditional), this is a
+  // plain unconditional entry in DOC_FIELDS, so the existing required-
+  // fields loop in handleNext() below enforces it for everyone with no
+  // extra logic needed.
+  { key: "seeSlcCertificate", label: "SEE/SLC Certificate", sub: "एसईई/एसएलसी प्रमाणपत्र", accept: "image/*,.pdf" },
   { key: "photo", label: "Passport Size Photo", sub: "पासपोर्ट साइजको फोटो", accept: "image/*" },
   { key: "teachingLicense", label: "Teaching License", sub: "शिक्षण अनुमतिपत्र", accept: "image/*,.pdf" },
   { key: "appointmentLetter", label: "Appointment Letter", sub: "नियुक्तिपत्र", accept: "image/*,.pdf" },
@@ -1528,7 +1536,7 @@ function Step5({
         data.district, data.municipality, data.wardNo, data.schoolName,
         data.subject, data.subjectEnglish, data.level, data.teacherType, data.appointmentDate,
         data.minQualification, data.highestQualification,
-        data.citizenship, data.degree, data.photo, data.teachingLicense, data.appointmentLetter,
+        data.citizenship, data.degree, data.seeSlcCertificate, data.photo, data.teachingLicense, data.appointmentLetter,
         ...(data.teacherType === "permanent"
           ? [
               data.tokenNo, data.grade, data.wasDifferentTypeBeforePermanent, data.extraordinaryLeave,
@@ -1602,7 +1610,7 @@ export default function RegisterPage() {
     // Only relevant when teacherType === "permanent"
     wasDifferentTypeBeforePermanent: "", permanentAppointmentDate: "", promotionDate2: "",
     // Step 5: Documents
-    citizenship: "", degree: "", photo: "", teachingLicense: "", appointmentLetter: "",
+    citizenship: "", degree: "", seeSlcCertificate: "", photo: "", teachingLicense: "", appointmentLetter: "",
     // Only required when highestQualification differs from minQualification
     highestQualificationDocument: "",
     transferDocuments: [] as File[],
@@ -1681,6 +1689,9 @@ export default function RegisterPage() {
 
     if (formData.degree)
       payload.append("degree", formData.degree as any);
+
+    if (formData.seeSlcCertificate)
+      payload.append("seeSlcCertificate", formData.seeSlcCertificate as any);
 
     if (formData.photo)
       payload.append("photo", formData.photo as any);

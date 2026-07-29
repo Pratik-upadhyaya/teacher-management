@@ -27,6 +27,9 @@ class DocumentChangeRequest(models.Model):
         # differs from their minQualification (see
         # teachers/models.py's highestQualificationDocument).
         ('highestQualificationDocument', 'Highest Qualification Document'),
+        # SEE/SLC certificate -- compulsory for every teacher, unlike
+        # highestQualificationDocument above (see teachers/models.py).
+        ('seeSlcCertificate', 'SEE/SLC Certificate'),
     )
 
     STATUS_CHOICES = (

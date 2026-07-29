@@ -194,6 +194,21 @@ class Teacher(models.Model):
         null=True
     )
 
+    # SEE/SLC (secondary-level) certificate. Compulsory for every teacher
+    # regardless of minQualification/highestQualification -- unlike
+    # highestQualificationDocument below, this is never conditional: even
+    # a teacher whose minimum qualification is Bachelor's or higher must
+    # still submit their SEE/SLC certificate. Enforced at the application
+    # layer (DOC_FIELDS in app/register/page.tsx, unconditionally in the
+    # required-fields loop) rather than a DB CheckConstraint -- see the
+    # note on Meta.constraints below for why new document fields aren't
+    # constrained there yet.
+    seeSlcCertificate = models.FileField(
+        upload_to='documents/',
+        blank=True,
+        null=True
+    )
+
     # Only collected/required when highestQualification differs from
     # minQualification -- `degree` above already covers the case where
     # they're the same (a single certificate proves both). Also plugged

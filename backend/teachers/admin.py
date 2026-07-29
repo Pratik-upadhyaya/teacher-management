@@ -34,7 +34,7 @@ class TeacherAdmin(admin.ModelAdmin):
         )}),
         ('Documents', {'fields': (
             'citizenship', 'degree', 'photo', 'teachingLicense',
-            'appointmentLetter',
+            'appointmentLetter', 'seeSlcCertificate',
         )}),
         ('Review Status', {'fields': ('status', 'reviewed_by', 'created_at')}),
     )
