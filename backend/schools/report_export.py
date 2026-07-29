@@ -69,6 +69,45 @@ def _quota_counts(teachers):
     return counts
 
 
+# School's own दरबन्दी fields (Step 4 of the principal's school-info form,
+# app/(portal)/principal/page.tsx) use different level-key and type-key
+# spellings than Teacher.level/teacherType and this module's ALL_LEVELS/
+# ALL_TEACHER_TYPES -- e.g. "lower_secondary" here vs. School's
+# "lower_sec_*" fields, and teacherType "temporary" vs. School's "_contract"
+# suffix (see _TYPE_SHORT_LABEL's comment -- same employment category,
+# different name in each place). These two maps translate between them.
+_LEVEL_TO_SCHOOL_PREFIX = {
+    "pre_primary": "pre_primary",
+    "primary": "primary",
+    "lower_secondary": "lower_sec",
+    "secondary": "secondary_9_10",
+    "higher_secondary": "secondary_11_12",
+}
+_TYPE_TO_SCHOOL_SUFFIX = {
+    "permanent": "permanent",
+    "temporary": "contract",
+    "grant": "grant",
+    "shi_anudan": "shi_anudan",
+    "relief": "relief",
+    "private": "private",
+}
+
+
+def _declared_dabandi_counts(school):
+    """The principal's own entered दरबन्दी (teacher quota) figures for this
+    school, read straight off the School row -- kept as a separate figure
+    from _quota_counts (which counts actual approved Teacher records), not
+    merged with or overridden by it. Missing/never-submitted fields default
+    to 0 via the model's own field defaults."""
+    counts = {level: {} for level in ALL_LEVELS}
+    for level in ALL_LEVELS:
+        prefix = _LEVEL_TO_SCHOOL_PREFIX[level]
+        for t in ALL_TEACHER_TYPES:
+            suffix = _TYPE_TO_SCHOOL_SUFFIX[t]
+            counts[level][t] = getattr(school, f"{prefix}_{suffix}", 0) or 0
+    return counts
+
+
 def _fill_school_sheet(ws, school, teachers):
     # ── Header ──────────────────────────────────────────────────────
     ws["A2"] = school.school_name
@@ -262,19 +301,35 @@ _INFRA_HEADERS = [
 ]
 
 
+_QUOTA_BLOCKS = ["registered", "declared"]
+_BLOCK_LABEL = {
+    "registered": "Registered Teachers",
+    "declared": "Declared दरबन्दी (Principal-entered)",
+}
+
+
 def _flat_header_layout():
     """Column index (1-based) -> (group_key or None, sub-label). group_key
     is None for the ungrouped school-info/Grand Total columns, "infra" for
-    the infrastructure block, or a level key for a teacher-count block.
-    Order: school-info columns, infrastructure block, one block per level
-    (types + level subtotal), then a grand-total column."""
+    the infrastructure block, or "{level}:{block}" for a teacher-count
+    block, where block is "registered" (live count of actually-approved
+    Teacher records) or "declared" (the principal's own दरबन्दी entry from
+    the school-info form) -- kept as two separate figures, side by side,
+    rather than one replacing or being merged into the other; they can
+    legitimately disagree (declared = sanctioned positions, registered =
+    who has actually been approved into the system so far).
+    Order: school-info columns, infrastructure block, one registered+
+    declared pair of blocks per level (types + level subtotal each), then
+    a grand-total column for each of registered/declared."""
     layout = [(None, h) for h in _SCHOOL_INFO_HEADERS]
     layout += [("infra", h) for h in _INFRA_HEADERS]
     for level_key, _label, _sub, type_keys in _FLAT_LEVEL_GROUPS:
-        for type_key in type_keys:
-            layout.append((level_key, _TYPE_SHORT_LABEL[type_key]))
-        layout.append((level_key, "Total"))
-    layout.append((None, "Grand Total"))
+        for block in _QUOTA_BLOCKS:
+            for type_key in type_keys:
+                layout.append((f"{level_key}:{block}", _TYPE_SHORT_LABEL[type_key]))
+            layout.append((f"{level_key}:{block}", "Total"))
+    layout.append((None, "Registered Grand Total"))
+    layout.append((None, "Declared Grand Total"))
     return layout
 
 
@@ -305,13 +360,14 @@ def build_all_schools_flat_report(schools_with_teachers):
     col += infra_span
 
     for level_key, label, sub_label, type_keys in _FLAT_LEVEL_GROUPS:
-        span = len(type_keys) + 1  # + the level's own Total column
-        start, end = col, col + span - 1
-        ws.merge_cells(start_row=1, start_column=start, end_row=1, end_column=end)
-        cell = ws.cell(row=1, column=start, value=f"{label} / {sub_label}")
-        cell.font = bold
-        cell.alignment = center
-        col += span
+        for block in _QUOTA_BLOCKS:
+            span = len(type_keys) + 1  # + the block's own Total column
+            start, end = col, col + span - 1
+            ws.merge_cells(start_row=1, start_column=start, end_row=1, end_column=end)
+            cell = ws.cell(row=1, column=start, value=f"{label} / {sub_label} — {_BLOCK_LABEL[block]}")
+            cell.font = bold
+            cell.alignment = center
+            col += span
 
     for idx, (level_key, sub_label) in enumerate(layout, start=1):
         if level_key is None:
@@ -330,6 +386,7 @@ def build_all_schools_flat_report(schools_with_teachers):
     row = 3
     for sn, (school, teachers) in enumerate(schools_with_teachers, start=1):
         q = _quota_counts(list(teachers))
+        d = _declared_dabandi_counts(school)
         values = [
             sn,
             school.district or "",
@@ -351,17 +408,28 @@ def build_all_schools_flat_report(schools_with_teachers):
             school.female_toilets or "",
             school.male_toilets or "",
         ]
-        grand_total = 0
+        registered_grand_total = 0
+        declared_grand_total = 0
         for level_key, _label, _sub, type_keys in _FLAT_LEVEL_GROUPS:
-            bucket = q[level_key]
-            level_total = 0
+            reg_bucket = q[level_key]
+            reg_total = 0
             for type_key in type_keys:
-                count = bucket[type_key]
+                count = reg_bucket[type_key]
                 values.append(count)
-                level_total += count
-            values.append(level_total)
-            grand_total += level_total
-        values.append(grand_total)
+                reg_total += count
+            values.append(reg_total)
+            registered_grand_total += reg_total
+
+            dec_bucket = d[level_key]
+            dec_total = 0
+            for type_key in type_keys:
+                count = dec_bucket[type_key]
+                values.append(count)
+                dec_total += count
+            values.append(dec_total)
+            declared_grand_total += dec_total
+        values.append(registered_grand_total)
+        values.append(declared_grand_total)
 
         for col_idx, value in enumerate(values, start=1):
             ws.cell(row=row, column=col_idx, value=value)
