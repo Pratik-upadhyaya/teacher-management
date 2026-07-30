@@ -20,11 +20,17 @@ class DocumentTests(TestCase):
             phone="9800000004",
             teacherType="permanent",
             tokenNo="TSC-104",
+            appointmentDate="2080/01/01",
+            extraordinaryLeave="0",
+            citizenship="citizenship.pdf",
+            degree="degree.pdf",
+            teachingLicense="license.pdf",
+            appointmentLetter="appointment.pdf",
             status="approved",
         )
 
     def test_my_document_requests_empty(self):
         self.client.force_authenticate(user=self.teacher_user)
-        response = self.client.get("/api/documents/requests/mine/")
+        response = self.client.get("/api/documents/change-requests/mine/")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data, [])

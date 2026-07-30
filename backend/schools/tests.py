@@ -29,7 +29,13 @@ class SchoolTests(TestCase):
         )
 
     def test_public_school_reference_search(self):
-        response = self.client.get("/api/schools/public-reference/?q=Shree")
+        # Query by the fixture's own EMIS code rather than a generic name
+        # fragment like "Shree" -- schools/migrations/0005_seed_public_
+        # school_reference.py seeds ~350 real Kaski schools into this same
+        # table, several of which also contain "Shree" in their name, so a
+        # name-based query can no longer assume it only matches this
+        # fixture. The EMIS code is unique and won't collide.
+        response = self.client.get("/api/schools/public-reference/?q=99988877")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 1)
         self.assertEqual(response.data[0]["emis_code"], "99988877")
@@ -42,7 +48,9 @@ class SchoolTests(TestCase):
             "district": "Kaski",
             "municipality": "Pokhara",
             "ward_no": "1",
+            "contact": "9800000000",
+            "established_date": "2050",
         }
-        response = self.client.post("/api/schools/my-school/", payload, format="json")
+        response = self.client.post("/api/schools/me/", payload, format="json")
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data["status"], "pending")

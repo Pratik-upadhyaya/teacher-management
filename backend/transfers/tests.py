@@ -20,6 +20,12 @@ class TransferTests(TestCase):
             phone="9800000003",
             teacherType="permanent",
             tokenNo="TSC-103",
+            appointmentDate="2080/01/01",
+            extraordinaryLeave="0",
+            citizenship="citizenship.pdf",
+            degree="degree.pdf",
+            teachingLicense="license.pdf",
+            appointmentLetter="appointment.pdf",
             status="approved",
         )
 
