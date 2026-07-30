@@ -52,3 +52,4 @@ backend/staticfiles/
 
 # Data exports (should not be committed)
 *.xlsx
+!backend/schools/templates/school_report_template.xlsx
