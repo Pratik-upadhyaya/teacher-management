@@ -191,8 +191,9 @@ MEDIA_ROOT = BASE_DIR / 'media'
 # Only the frontend's own origin(s) may call this API.
 # Set DJANGO_CORS_ALLOWED_ORIGINS in .env, comma-separated, e.g.
 # "https://portal.edcukaski.gov.np,http://localhost:3000"
-CORS_ALLOWED_ORIGINS = [
-    o.strip() for o in os.environ.get('DJANGO_CORS_ALLOWED_ORIGINS', '').split(',') if o.strip()
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^https://teacher-management-.*-wearehero\.vercel\.app$",
+    r"^https://teacher-management-seven\.vercel\.app$",
 ]
 CORS_ALLOW_ALL_ORIGINS = False
 
