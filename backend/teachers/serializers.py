@@ -9,6 +9,16 @@ class TeacherSerializer(serializers.ModelSerializer):
     # schoolName/schoolEmisCode, which stay as whatever the applicant typed.
     school_detail = serializers.SerializerMethodField()
 
+    # "own" / "submitted_by_other" / "not_submitted" -- tells the frontend
+    # whether the School Information form still needs to be shown for this
+    # account. Deliberately does a *live* lookup by schoolEmisCode rather
+    # than trusting the `school` FK (which is only resolved once, at
+    # registration time -- see teachers/views.py -- so it stays null
+    # forever for a teacher who registered before their school's
+    # submission existed). School.emis_code is unique, so at most one
+    # School row can ever match.
+    school_info_status = serializers.SerializerMethodField()
+
     class Meta:
         model = Teacher
         fields = '__all__'
@@ -36,6 +46,28 @@ class TeacherSerializer(serializers.ModelSerializer):
                 "emis_code": obj.school.emis_code,
             }
         return None
+
+    def get_school_info_status(self, obj):
+        # Import here (rather than top-level) to avoid a circular import
+        # between the teachers and schools apps at module load time.
+        from schools.models import School
+
+        emis = (obj.schoolEmisCode or "").strip()
+        if not emis:
+            return "not_submitted"
+
+        school = School.objects.filter(emis_code=emis).first()
+        # A School row can exist with no principal yet -- e.g. an admin's
+        # manual entry from the government list (schools/views.py's
+        # school_list_create) -- which doesn't count as "submitted".
+        if not school or not school.principal_id:
+            return "not_submitted"
+
+        request = self.context.get("request")
+        user = getattr(request, "user", None) if request else None
+        if user is not None and school.principal_id == user.id:
+            return "own"
+        return "submitted_by_other"
 
     # Model fields stay blank=True/null=True (so old rows and partial
     # profile-edit PATCHes -- see teachers/views.py's teacher_me, which

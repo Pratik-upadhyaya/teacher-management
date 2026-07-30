@@ -180,9 +180,9 @@ def teacher_me(request):
                 return Response(serializer.errors, status=400)
             serializer.save()
 
-        return Response(TeacherSerializer(teacher).data)
+        return Response(TeacherSerializer(teacher, context={"request": request}).data)
 
-    serializer = TeacherSerializer(teacher)
+    serializer = TeacherSerializer(teacher, context={"request": request})
     return Response(serializer.data)
 
 

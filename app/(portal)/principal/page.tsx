@@ -1122,7 +1122,11 @@ export default function PrincipalPage() {
   // "loading": checking whether this principal already has a school on file
   // "status": read-only view of their existing submission
   // "form": the wizard, either for a first-time submission or an edit
-  const [view, setView] = useState<"loading" | "status" | "form">("loading");
+  // "already_submitted": another teacher at this school (matched by EMIS)
+  // already has a submission on file -- only one is needed per school.
+  const [view, setView] = useState<
+    "loading" | "status" | "form" | "already_submitted"
+  >("loading");
   const [mode, setMode] = useState<"create" | "edit">("create");
   const [existingSchool, setExistingSchool] = useState<any>(null);
 
@@ -1180,6 +1184,19 @@ export default function PrincipalPage() {
       try {
         const res = await authFetch("/api/schools/me/");
         if (res.status === 404) {
+          // No submission under this account yet -- but another teacher
+          // at the same school (matched by EMIS code) may have already
+          // filled this out. Only one submission is needed per school.
+          try {
+            const meRes = await authFetch("/api/teachers/me/");
+            const me = meRes.ok ? await meRes.json() : null;
+            if (me?.school_info_status === "submitted_by_other") {
+              if (!cancelled) setView("already_submitted");
+              return;
+            }
+          } catch {
+            // Non-fatal -- fall through to the normal create form below.
+          }
           if (!cancelled) { setMode("create"); setView("form"); }
           return;
         }
@@ -1240,6 +1257,28 @@ export default function PrincipalPage() {
 
   if (view === "status" && existingSchool) {
     return <SchoolStatusView school={existingSchool} onEdit={startEdit} />;
+  }
+
+  if (view === "already_submitted") {
+    return (
+      <div className="max-w-lg mx-auto mt-16 text-center space-y-4">
+        <div className="text-5xl">🏫</div>
+        <h2 className="text-2xl font-bold text-[#0f2044]">
+          Already Submitted / पहिले नै पेश गरिएको
+        </h2>
+        <p className="text-gray-500 text-sm">
+          Another teacher at your school has already submitted this
+          school&apos;s information. Only one submission is needed per
+          school, so there&apos;s nothing further for you to fill in here.
+        </p>
+        <a
+          href="/dashboard"
+          className="inline-block bg-[#0f2044] text-white px-6 py-2.5 rounded-lg text-sm font-semibold hover:bg-[#1a3260] transition mt-4"
+        >
+          Back to Dashboard
+        </a>
+      </div>
+    );
   }
 
   if (success) {

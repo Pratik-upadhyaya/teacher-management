@@ -13,9 +13,9 @@ import {
   CalendarDays,
   ArrowRightLeft,
 } from "lucide-react";
-import { getAccessToken, logout } from "@/lib/api";
+import { getAccessToken, logout, authFetch } from "@/lib/api";
 
-const NAV = [
+const BASE_NAV = [
   { href: "/dashboard", label: "Dashboard", labelNp: "ड्यासबोर्ड", icon: LayoutDashboard },
   { href: "/documents", label: "Documents", labelNp: "कागजातहरू", icon: FileText },
   { href: "/leaves", label: "Holidays", labelNp: "बिदा", icon: CalendarDays },
@@ -35,6 +35,11 @@ export default function PortalLayout({
   const [initials, setInitials] = useState("T");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [authorized, setAuthorized] = useState(false);
+  // Another teacher at the same school (matched by EMIS code) has already
+  // submitted School Information -- only one submission per school is
+  // needed, so hide the nav item for everyone else. Defaults to shown
+  // (undetermined) so the nav doesn't flash empty before this resolves.
+  const [hideSchoolInfoNav, setHideSchoolInfoNav] = useState(false);
 
   useEffect(() => {
     const token = getAccessToken();
@@ -49,6 +54,17 @@ export default function PortalLayout({
       parts.length >= 2 ? parts[0][0] + parts[1][0] : parts[0][0]
     );
     setAuthorized(true);
+
+    authFetch("/api/teachers/me/")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.school_info_status === "submitted_by_other") {
+          setHideSchoolInfoNav(true);
+        }
+      })
+      .catch(() => {
+        // Non-fatal -- worst case the nav item just stays visible.
+      });
   }, [router]);
 
   async function handleLogout() {
@@ -56,6 +72,10 @@ export default function PortalLayout({
     localStorage.removeItem("teacher_name");
     router.push("/login");
   }
+
+  const NAV = BASE_NAV.filter(
+    ({ href }) => href !== "/principal" || !hideSchoolInfoNav
+  );
 
   if (!authorized) {
     return (
