@@ -97,6 +97,12 @@ export default function Sidebar({
               onClick={() => setActiveTab("sub-admins")}
             />
           )}
+
+          <NavButton
+            label="Settings"
+            isActive={activeTab === "settings"}
+            onClick={() => setActiveTab("settings")}
+          />
         </div>
       </div>
 

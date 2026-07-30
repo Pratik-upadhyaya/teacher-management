@@ -21,6 +21,7 @@ import TransferRequestsTab from "./components/TransferRequestsTab";
 import SchoolRequestsTab from "./components/SchoolRequestsTab";
 import ApprovedSchoolsTab from "./components/ApprovedSchoolsTab";
 import SubAdminsTab from "./components/SubAdminsTab";
+import SettingsTab from "./components/SettingsTab";
 
 import DocumentPreviewModal from "./components/modals/DocumentPreviewModal";
 import RejectReasonModal from "./components/modals/RejectReasonModal";
@@ -790,6 +791,8 @@ export default function AdminPage() {
             onRemove={openRemoveSubAdminModal}
           />
         )}
+
+        {activeTab === "settings" && <SettingsTab />}
       </div>
 
       <AddSubAdminModal
