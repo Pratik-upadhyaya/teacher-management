@@ -99,14 +99,9 @@ export function bsToAd(bsValue: string): string | null {
  * string ("YYYY-MM-DD"). Returns null if the input is incomplete/invalid
  * or falls outside the library's supported range.
  */
-export function bsToAd(bsValue: string): string | null {
-  const ascii = nepaliToAscii(bsValue);
-  const parts = ascii.split("/").map(Number);
-  if (parts.length !== 3 || parts.some((p) => !p && p !== 0)) return null;
-  const [y, m, d] = parts;
-  if (m < 1 || m > 12 || d < 1 || d > 32) return null;
+export function adToBs(adIso: string): string | null {
   try {
-    return bsObjToAdIso(y, m, d);
+    return formatBsDate(adToBsObj(adIso));
   } catch {
     return null;
   }
