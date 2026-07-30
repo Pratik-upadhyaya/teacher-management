@@ -80,9 +80,15 @@ export function formatBsDateLong(d: BsDate | null | undefined): string {
  * ("YYYY/MM/DD"). Returns null if the input can't be parsed or falls
  * outside the library's supported range.
  */
-export function adToBs(adIso: string): string | null {
+export function bsToAd(bsValue: string): string | null {
+  const ascii = nepaliToAscii(bsValue.trim());
+  const parts = ascii.split("/").map(Number);
+  if (parts.length !== 3 || parts.some((p) => Number.isNaN(p))) return null;
+  const [y, m, d] = parts;
+  if (m < 1 || m > 12) return null;
   try {
-    return formatBsDate(adToBsObj(adIso));
+    if (d < 1 || d > daysInBsMonth(y, m)) return null;
+    return bsObjToAdIso(y, m, d);
   } catch {
     return null;
   }
