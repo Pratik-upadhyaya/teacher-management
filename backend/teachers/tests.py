@@ -42,6 +42,10 @@ class TeacherTests(TestCase):
             subject="Science",
             appointmentDate="2080/01/01",
             extraordinaryLeave="0",
+            citizenship="citizenship.pdf",
+            degree="degree.pdf",
+            teachingLicense="license.pdf",
+            appointmentLetter="appointment.pdf",
             status="pending",
         )
 
