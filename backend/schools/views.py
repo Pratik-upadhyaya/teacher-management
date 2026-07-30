@@ -203,10 +203,25 @@ def public_school_reference(request):
     )[:15]
     return Response(PublicSchoolReferenceSerializer(matches, many=True).data)
 
-
 # =========================
 # PRINCIPAL-FACING: view / submit / edit own school
 # =========================
+def _teacher_school_emis_for(user):
+    """The EMIS code this account's own Teacher application (Step 3 --
+    School Info) was registered under, or None if there's no matching
+    Teacher record for this account's email, or that record never had an
+    EMIS code recorded.
+
+    User (auth) and Teacher (profile) are linked by matching email, not a
+    foreign key -- see accounts/models.py and teachers/models.py -- so this
+    is a lookup by email, same as the rest of the codebase does.
+    """
+    teacher = Teacher.objects.filter(email=user.email).order_by('-id').first()
+    if not teacher:
+        return None
+    return (teacher.schoolEmisCode or '').strip() or None
+
+
 @api_view(['GET', 'POST', 'PATCH'])
 @permission_classes([IsAuthenticated])
 def my_school(request):
@@ -221,6 +236,17 @@ def my_school(request):
     either way (see IsAdminOrSubAdmin below). Admin/sub-admin accounts are
     excluded since they aren't attached to a single school and already have
     the separate manual-add path in school_list_create.
+
+    SECURITY: the EMIS code being submitted must match the EMIS code this
+    account's own Teacher application was registered under, whenever that
+    account has one on file. Without this check, any logged-in teacher
+    could submit (and, once approved, become the recorded principal
+    contact of) a completely different school's record -- the district
+    office would then have no way to tell a legitimate submission from an
+    impersonated one just by looking at the approval queue. A teacher who
+    registered before their school existed in the system (no EMIS code on
+    file yet) is still allowed through unchecked -- that's the intended
+    "brand-new school" path, not a gap being reopened.
     """
     if getattr(request.user, "role", None) not in ("teacher", "principal"):
         return Response(
@@ -236,6 +262,20 @@ def my_school(request):
         return Response(SchoolSerializer(school).data)
 
     mapped_data = _map_school_payload(request.data)
+
+    own_emis = _teacher_school_emis_for(request.user)
+    submitted_emis = (mapped_data.get('emis_code') or '').strip()
+    if own_emis and submitted_emis and own_emis != submitted_emis:
+        return Response(
+            {
+                "error": (
+                    "The EMIS code entered doesn't match the school you registered "
+                    "under. Please enter your own school's EMIS code, or contact the "
+                    "District Education Office if you believe this is incorrect."
+                )
+            },
+            status=403,
+        )
 
     if request.method == 'POST':
         if school:
