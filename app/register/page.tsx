@@ -818,7 +818,7 @@ function Step2({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Code / Token No. <span className="text-gray-400 font-normal">/ संकेत नं</span>
+              Token No. <span className="text-gray-400 font-normal">/ संकेत नं</span>
             </label>
             <input
               value={data.tokenNo}
@@ -1008,9 +1008,9 @@ function Step3({
         <div className="space-y-4 bg-gray-50 border border-gray-100 rounded-lg p-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Were you appointed under a different type before becoming Permanent?
+              Were you appointed under Temporary appointment before becoming Permanent?
               <span className="text-gray-400 font-normal block text-xs mt-0.5">
-                स्थायी हुनुअघि फरक प्रकारमा नियुक्त हुनुभएको थियो?
+                यदि तपाईं स्थायी हुनु अघि अस्थायी नियुक्ति अन्तर्गत नियुक्त हुनुभयो भने
               </span>
             </label>
             <select
@@ -1359,7 +1359,7 @@ function Step4({
       {isPermanent && (
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Old School Transfer Documents <span className="text-gray-400 font-normal">/ पुरानो विद्यालय सरुवा कागजातहरू</span>
+            Old School Transfer Documents and promotion documents <span className="text-gray-400 font-normal">/ पुरानो विद्यालय सरुवा कागजातहरू र बढुवा कागजातहरू</span>
             <span className="text-gray-400 font-normal text-xs ml-1">
               (up to {MAX_TRANSFER_DOCUMENTS}, optional — Permanent teachers only)
             </span>
