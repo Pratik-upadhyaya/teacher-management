@@ -805,6 +805,7 @@ function Step2({
           <option value="">प्रकार छान्नुहोस्</option>
           <option value="permanent">Permanent / स्थायी</option>
           <option value="temporary">Temporary / अस्थायी</option>
+          <option value="contract">Contract / करार</option>
           <option value="grant">Grant / अनुदान</option>
           <option value="shi_anudan">Shi Anudan / शि अनुदान</option>
           <option value="relief">Rahat / राहत</option>
