@@ -18,8 +18,16 @@ from django.conf import settings
 TEMPLATE_PATH = settings.BASE_DIR / "schools" / "templates" / "school_report_template.xlsx"
 SHEET_NAME = "विद्यालय विवरण"
 
-FIRST_TEACHER_ROW = 17
-TEMPLATE_TEACHER_ROWS = 4  # rows 17-20 exist pre-styled in the template
+FIRST_TEACHER_ROW = 20
+TEMPLATE_TEACHER_ROWS = 4  # rows 20-23 exist pre-styled in the template
+
+# Every cell/column reference below matches the rebuilt template (2026-07):
+# the दरबन्दी grid now gives every level the full 7-type breakdown (previously
+# some levels, e.g. Higher Secondary, were missing columns for types that do
+# occur in practice) but no longer fits on one row -- it wraps into two
+# row-groups (13 and 16). नियुक्ती मिति similarly grew from 3 columns to one
+# per teacher type, pushing every column after it right by 4, and the whole
+# teacher roster starts 3 rows lower (20, was 17) to make room.
 
 TEACHER_TYPE_NP = {
     "permanent": "स्थायी",
@@ -47,6 +55,23 @@ GRADE_NP = {
     "first": "प्र.",
     "second": "द्धि.",
     "third": "तृ.",
+}
+
+# Full teacher-roster column span, A-X (was A-T before the template's
+# नियुक्ती मिति block grew from 3 to 7 columns).
+COLUMN_RANGE = "ABCDEFGHIJKLMNOPQRSTUVWX"
+
+# नियुक्ती मिति (appointment date) column for each teacher type, matching
+# row 19's sub-labels left to right: अस्थायी, स्थायी, करार, अनुदान,
+# शि अनुदान, राहत, निजी.
+APPOINTMENT_DATE_COL = {
+    "temporary": "K",
+    "permanent": "L",
+    "contract": "M",
+    "grant": "N",
+    "shi_anudan": "O",
+    "relief": "P",
+    "private": "Q",
 }
 
 
@@ -136,60 +161,75 @@ def _fill_school_sheet(ws, school, teachers):
     ws["A2"] = school.school_name
     ws["A3"] = school.address or ""
     ws["A4"] = f"ईमिस कोडः {school.emis_code}"
-    ws["M5"] = f"विद्यालयको सम्पर्कः {school.contact or ''}"
-    ws["R5"] = f"ईमेल ठेगानाः {school.email or ''}"
+    ws["O5"] = f"विद्यालयको सम्पर्कः {school.contact or ''}"
+    ws["V5"] = f"ईमेल ठेगानाः {school.email or ''}"
 
     # ── Row 9: establishment / sections / infrastructure ────────────
+    # क्र स (A9) is static "1" on a single-school sheet -- baked into the
+    # old template but dropped when this one was rebuilt, so set it here
+    # instead of relying on the template shipping it pre-filled.
+    ws["A9"] = 1
+    # C9 is merged C9:D9 in the rebuilt template (openpyxl: write the
+    # top-left anchor only, see xlsx skill notes on merged cells).
     ws["C9"] = school.established_bs or ""
-    ws["D9"] = school.bal_kaksha or ""
-    ws["E9"] = school.primary_1_5 or ""
-    ws["F9"] = school.lower_secondary_6_8 or ""
-    ws["G9"] = school.secondary_9_10 or ""
-    ws["H9"] = school.secondary_11_12 or ""
+    ws["E9"] = school.bal_kaksha or ""
+    ws["F9"] = school.primary_1_5 or ""
+    ws["G9"] = school.lower_secondary_6_8 or ""
+    ws["H9"] = school.secondary_9_10 or ""
+    ws["I9"] = school.secondary_11_12 or ""
     # No dedicated column for permission_date_bs in this layout (see
     # module docstring) -- recorded in the remarks column instead of
     # dropping the data.
-    ws["I9"] = f"अनुमति मितिः {school.permission_date_bs}" if school.permission_date_bs else ""
+    ws["J9"] = f"अनुमति मितिः {school.permission_date_bs}" if school.permission_date_bs else ""
     # Tick/cross for present/absent, per explicit request -- was छ/छैन text.
-    ws["J9"] = "✓" if school.computer_lab else "✗"
-    ws["K9"] = "✓" if school.science_lab else "✗"
-    ws["L9"] = "✓" if school.library else "✗"
-    ws["M9"] = "✓" if school.book_corner else "✗"
-    ws["N9"] = "✓" if school.playground else "✗"
-    ws["O9"] = school.land_area_display()
-    ws["P9"] = school.building_count or ""
-    ws["Q9"] = school.classroom_count or ""
-    ws["R9"] = school.female_toilets or ""
-    ws["S9"] = school.male_toilets or ""
+    ws["K9"] = "✓" if school.computer_lab else "✗"
+    ws["L9"] = "✓" if school.science_lab else "✗"
+    ws["M9"] = "✓" if school.library else "✗"
+    ws["N9"] = "✓" if school.book_corner else "✗"
+    ws["O9"] = "✓" if school.playground else "✗"
+    # New in the rebuilt template -- previously only the bulk flat export
+    # (build_all_schools_flat_report) had these two.
+    ws["P9"] = "✓" if school.e_library else "✗"
+    ws["Q9"] = "✓" if school.smart_board else "✗"
+    ws["R9"] = school.land_area_display()
+    # New "एकाई" (unit) column -- land_area_display() already embeds the
+    # unit name in its string, so this is the short standalone label from
+    # the model's own choices, not a re-derivation of it.
+    ws["S9"] = school.get_land_unit_system_display() if school.land_unit_system else ""
+    ws["T9"] = school.building_count or ""
+    ws["U9"] = school.classroom_count or ""
+    ws["V9"] = school.female_toilets or ""
+    ws["W9"] = school.male_toilets or ""
 
-    # ── Row 13: दरबन्दी (teacher quota) counts, computed live from the
-    # school's actual approved teacher roster rather than any
+    # ── Rows 13 & 16: दरबन्दी (teacher quota) counts, computed live from
+    # the school's actual approved teacher roster rather than any
     # separately-entered quota figure ─────────────────────────────────
     #
-    # The template's row 11/12 header grid gives every level in
-    # ALL_LEVELS a full block of one column per ALL_TEACHER_TYPES plus a
-    # trailing जम्मा (total) column, in that exact order, starting at
-    # column B (see backend/schools/templates/school_report_template.xlsx
-    # -- rebuilt to have complete type coverage per level; previously
-    # several levels were missing columns for types that do occur in
-    # practice, e.g. Higher Secondary had no स्थायी/शि अनुदान/राहत/निजी
-    # columns at all). Each level's block is therefore
-    # len(ALL_TEACHER_TYPES) + 1 columns wide, laid out consecutively --
-    # computed here rather than hardcoded, so the two stay in sync as
-    # long as the template's column order matches ALL_LEVELS/
-    # ALL_TEACHER_TYPES.
+    # The rebuilt template gives every level in ALL_LEVELS the full
+    # len(ALL_TEACHER_TYPES) + 1 (types + जम्मा total) columns, but that no
+    # longer fits on one row -- it wraps into two row-groups:
+    #   Row 13: pre_primary (B-I), primary (J-Q), lower_secondary (R-X --
+    #           types only, its जम्मा didn't fit and wraps to row 16 col B)
+    #   Row 16: lower_secondary's जम्मा (B), secondary (C-J),
+    #           higher_secondary (K-R)
+    # (level, data_row, first_type_col, total_row, total_col) -- column
+    # numbers are 1-based (B=2, J=10, R=18, C=3, K=11).
     q = _quota_counts(teachers)
-    BLOCK_WIDTH = len(ALL_TEACHER_TYPES) + 1  # +1 for the level's जम्मा column
-    FIRST_GRID_COL = 2  # column B
-    for level_idx, level in enumerate(ALL_LEVELS):
+    GRID_LAYOUT = [
+        ("pre_primary", 13, 2, 13, 9),
+        ("primary", 13, 10, 13, 17),
+        ("lower_secondary", 13, 18, 16, 2),
+        ("secondary", 16, 3, 16, 10),
+        ("higher_secondary", 16, 11, 16, 18),
+    ]
+    for level, data_row, start_col, total_row, total_col in GRID_LAYOUT:
         level_counts = q[level]
-        start_col = FIRST_GRID_COL + level_idx * BLOCK_WIDTH
         level_total = 0
         for type_idx, t_type in enumerate(ALL_TEACHER_TYPES):
             count = level_counts[t_type]
-            ws.cell(row=13, column=start_col + type_idx, value=count)
+            ws.cell(row=data_row, column=start_col + type_idx, value=count)
             level_total += count
-        ws.cell(row=13, column=start_col + len(ALL_TEACHER_TYPES), value=level_total)
+        ws.cell(row=total_row, column=total_col, value=level_total)
 
     # ── Rows 17+: teacher roster ──────────────────────────────────────
     teachers = list(teachers)
@@ -197,11 +237,11 @@ def _fill_school_sheet(ws, school, teachers):
     if n_needed > 0:
         insert_at = FIRST_TEACHER_ROW + TEMPLATE_TEACHER_ROWS
         ws.insert_rows(insert_at, amount=n_needed)
-        style_row = FIRST_TEACHER_ROW + TEMPLATE_TEACHER_ROWS - 1  # row 20, pre-insert styling
+        style_row = FIRST_TEACHER_ROW + TEMPLATE_TEACHER_ROWS - 1  # row 23, pre-insert styling
         for offset in range(n_needed):
             new_row = insert_at + offset
             ws.row_dimensions[new_row].height = ws.row_dimensions[style_row].height
-            for col in "ABCDEFGHIJKLMNOPQRST":
+            for col in COLUMN_RANGE:
                 _copy_cell_style(ws[f"{col}{style_row}"], ws[f"{col}{new_row}"])
 
     for i, t in enumerate(teachers):
@@ -217,33 +257,32 @@ def _fill_school_sheet(ws, school, teachers):
         ws[f"I{row}"] = GRADE_NP.get(t.grade, t.grade or "")
         ws[f"J{row}"] = TEACHER_TYPE_NP.get(t.teacherType, t.teacherType or "")
 
-        # नियुक्ती मिति lives in one of K/L/M depending on employment
-        # category (see module docstring) -- K for non-permanent,
-        # non-relief types, L for Permanent, M for Relief. The template's
-        # pre-styled rows 17-20 ship with real sample data baked into
-        # every cell (not just formatting), so the two columns NOT
+        # नियुक्ती मिति now has one dedicated column per teacher type
+        # (K-Q) instead of the old 3-column K/L/M layout -- the rebuilt
+        # template's row 19 sub-labels are, in column order: अस्थायी,
+        # स्थायी, करार, अनुदान, शि अनुदान, राहत, निजी. The template's
+        # pre-styled rows 20-23 ship with real sample data baked into
+        # every cell (not just formatting), so every column NOT
         # applicable to this teacher must be explicitly blanked here --
-        # otherwise they silently retain the original sample's values.
-        ws[f"K{row}"] = ""
-        ws[f"L{row}"] = ""
-        ws[f"M{row}"] = ""
-        if t.teacherType == "permanent":
-            ws[f"L{row}"] = t.appointmentDate or ""
-        elif t.teacherType == "relief":
-            ws[f"M{row}"] = t.appointmentDate or ""
-        else:
-            ws[f"K{row}"] = t.appointmentDate or ""
+        # otherwise it silently retains the original sample's values.
+        for col in "KLMNOPQ":
+            ws[f"{col}{row}"] = ""
+        appointment_col = APPOINTMENT_DATE_COL.get(t.teacherType)
+        if appointment_col:
+            ws[f"{appointment_col}{row}"] = t.appointmentDate or ""
 
         # Government roster template only has one qualification column --
         # highest completed is the more informative credential to show
         # there, falling back to minimum if only that was recorded.
-        ws[f"N{row}"] = t.highestQualification or t.minQualification or ""
-        ws[f"O{row}"] = t.promotionDate or ""
-        ws[f"P{row}"] = t.extraordinaryLeave or ""
-        ws[f"Q{row}"] = t.ageSixtyYear or ""
-        ws[f"R{row}"] = t.extraordinaryLeaveRemaining
-        ws[f"S{row}"] = t.phone
-        ws[f"T{row}"] = t.remarks or ""
+        # (Shifted right by 4 columns vs. the old template, to make room
+        # for नियुक्ती मिति's 4 new columns above.)
+        ws[f"R{row}"] = t.highestQualification or t.minQualification or ""
+        ws[f"S{row}"] = t.promotionDate or ""
+        ws[f"T{row}"] = t.extraordinaryLeave or ""
+        ws[f"U{row}"] = t.ageSixtyYear or ""
+        ws[f"V{row}"] = t.extraordinaryLeaveRemaining
+        ws[f"W{row}"] = t.phone
+        ws[f"X{row}"] = t.remarks or ""
 
     # The template's pre-styled rows 17-20 ship with a real sample
     # school's teacher data baked directly into the cells, not just
@@ -253,7 +292,7 @@ def _fill_school_sheet(ws, school, teachers):
     # addresses, and dates of birth into its report.
     if len(teachers) < TEMPLATE_TEACHER_ROWS:
         for row in range(FIRST_TEACHER_ROW + len(teachers), FIRST_TEACHER_ROW + TEMPLATE_TEACHER_ROWS):
-            for col in "ABCDEFGHIJKLMNOPQRST":
+            for col in COLUMN_RANGE:
                 ws[f"{col}{row}"] = None
 
 
