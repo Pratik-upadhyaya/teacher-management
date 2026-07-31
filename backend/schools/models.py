@@ -75,6 +75,12 @@ class School(models.Model):
     # frontend's `${level.key}_${type}` keys exactly so _map_school_payload
     # can pass them straight through.
     pre_primary_permanent = models.IntegerField(default=0)
+    # "temporary" (अस्थायी) and "contract" (करार) are two distinct
+    # employment categories, not two names for the same one -- see
+    # Teacher.teacherType, which has always kept "temporary" (अस्थायी)
+    # separate from this level's "contract" (करार) field. Added here so
+    # this school-quota grid can finally record both instead of only करार.
+    pre_primary_temporary = models.IntegerField(default=0)
     pre_primary_contract = models.IntegerField(default=0)
     pre_primary_grant = models.IntegerField(default=0)
     pre_primary_shi_anudan = models.IntegerField(default=0)
@@ -82,6 +88,7 @@ class School(models.Model):
     pre_primary_relief = models.IntegerField(default=0)
 
     primary_permanent = models.IntegerField(default=0)
+    primary_temporary = models.IntegerField(default=0)
     primary_contract = models.IntegerField(default=0)
     primary_grant = models.IntegerField(default=0)
     primary_shi_anudan = models.IntegerField(default=0)
@@ -89,6 +96,7 @@ class School(models.Model):
     primary_relief = models.IntegerField(default=0)
 
     lower_sec_permanent = models.IntegerField(default=0)
+    lower_sec_temporary = models.IntegerField(default=0)
     lower_sec_contract = models.IntegerField(default=0)
     lower_sec_grant = models.IntegerField(default=0)
     lower_sec_shi_anudan = models.IntegerField(default=0)
@@ -96,6 +104,7 @@ class School(models.Model):
     lower_sec_relief = models.IntegerField(default=0)
 
     secondary_9_10_permanent = models.IntegerField(default=0)
+    secondary_9_10_temporary = models.IntegerField(default=0)
     secondary_9_10_contract = models.IntegerField(default=0)
     secondary_9_10_grant = models.IntegerField(default=0)
     secondary_9_10_shi_anudan = models.IntegerField(default=0)
@@ -103,6 +112,7 @@ class School(models.Model):
     secondary_9_10_relief = models.IntegerField(default=0)
 
     secondary_11_12_permanent = models.IntegerField(default=0)
+    secondary_11_12_temporary = models.IntegerField(default=0)
     secondary_11_12_contract = models.IntegerField(default=0)
     secondary_11_12_grant = models.IntegerField(default=0)
     secondary_11_12_shi_anudan = models.IntegerField(default=0)

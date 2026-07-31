@@ -11,7 +11,6 @@ import {
   TEACHER_TYPE_LABELS,
   LEVEL_LABELS,
   GENDER_LABELS,
-  SUBJECT_LABELS, // still exported from teacherLabels for use elsewhere in the app; unused directly here since Subject is now free text
   GRADE_LABELS,
 } from "@/lib/teacherLabels";
 

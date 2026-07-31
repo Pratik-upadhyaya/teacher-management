@@ -731,6 +731,7 @@ function Step4({
             <tr className="bg-[#0f2044] text-white">
               <th className="px-3 py-2.5 text-left rounded-tl-lg">Level</th>
               <th className="px-3 py-2.5 text-center">Permanent<br/><span className="text-white/60 text-xs">स्थायी</span></th>
+              <th className="px-3 py-2.5 text-center">Temporary<br/><span className="text-white/60 text-xs">अस्थायी</span></th>
               <th className="px-3 py-2.5 text-center">Contract<br/><span className="text-white/60 text-xs">करार</span></th>
               <th className="px-3 py-2.5 text-center">Grant<br/><span className="text-white/60 text-xs">अनुदान</span></th>
               <th className="px-3 py-2.5 text-center">Shi Anudan<br/><span className="text-white/60 text-xs">शि अनुदान</span></th>
@@ -743,12 +744,13 @@ function Step4({
             {TEACHER_LEVELS.map((level, i) => {
               // Values are stored as Devanagari-digit strings; convert to ascii before summing.
               const p  = Number(nepaliToAscii(data[`${level.key}_permanent`])  || 0);
+              const tm = Number(nepaliToAscii(data[`${level.key}_temporary`])  || 0);
               const c  = Number(nepaliToAscii(data[`${level.key}_contract`])   || 0);
               const g  = Number(nepaliToAscii(data[`${level.key}_grant`])      || 0);
               const s  = Number(nepaliToAscii(data[`${level.key}_shi_anudan`]) || 0);
               const pr = Number(nepaliToAscii(data[`${level.key}_private`])    || 0);
               const r  = Number(nepaliToAscii(data[`${level.key}_relief`])     || 0);
-              const total = p + c + g + s + pr + r;
+              const total = p + tm + c + g + s + pr + r;
 
               return (
                 <tr key={level.key} className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}>
@@ -756,7 +758,7 @@ function Step4({
                     {level.label}
                     <p className="text-xs text-gray-400">{level.sub}</p>
                   </td>
-                  {["permanent", "contract", "grant", "shi_anudan", "private", "relief"].map((type) => (
+                  {["permanent", "temporary", "contract", "grant", "shi_anudan", "private", "relief"].map((type) => (
                     <td key={type} className="px-2 py-2">
                       <NepaliNumberInput
                         value={data[`${level.key}_${type}`] || ""}
@@ -1106,15 +1108,15 @@ function schoolToFormData(school: any) {
 }
 
 const EMPTY_TEACHER_QUOTA_FIELDS = {
-  pre_primary_permanent: "",   pre_primary_contract: "",   pre_primary_grant: "",
+  pre_primary_permanent: "",   pre_primary_temporary: "",  pre_primary_contract: "",   pre_primary_grant: "",
   pre_primary_shi_anudan: "",  pre_primary_private: "",    pre_primary_relief: "",
-  primary_permanent: "",       primary_contract: "",       primary_grant: "",
+  primary_permanent: "",       primary_temporary: "",      primary_contract: "",       primary_grant: "",
   primary_shi_anudan: "",      primary_private: "",        primary_relief: "",
-  lower_sec_permanent: "",     lower_sec_contract: "",     lower_sec_grant: "",
+  lower_sec_permanent: "",     lower_sec_temporary: "",    lower_sec_contract: "",     lower_sec_grant: "",
   lower_sec_shi_anudan: "",    lower_sec_private: "",      lower_sec_relief: "",
-  secondary_9_10_permanent: "", secondary_9_10_contract: "", secondary_9_10_grant: "",
+  secondary_9_10_permanent: "", secondary_9_10_temporary: "", secondary_9_10_contract: "", secondary_9_10_grant: "",
   secondary_9_10_shi_anudan: "", secondary_9_10_private: "", secondary_9_10_relief: "",
-  secondary_11_12_permanent: "", secondary_11_12_contract: "", secondary_11_12_grant: "",
+  secondary_11_12_permanent: "", secondary_11_12_temporary: "", secondary_11_12_contract: "", secondary_11_12_grant: "",
   secondary_11_12_shi_anudan: "", secondary_11_12_private: "", secondary_11_12_relief: "",
 };
 
@@ -1174,7 +1176,7 @@ export default function PrincipalPage() {
     num_classrooms: "",
     toilet_female: "",
     toilet_male: "",
-    // Step 4 — all 5 levels × 6 types
+    // Step 4 — all 5 levels × 7 types
     ...EMPTY_TEACHER_QUOTA_FIELDS,
   });
 

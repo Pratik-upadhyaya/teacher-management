@@ -83,7 +83,10 @@ def _map_school_payload(data):
         "male_toilets": data.get("toilet_male") or 0,
 
         # Step 4: Teacher Count (दरबन्दी) -- see School model comment.
+        # "temporary" (अस्थायी) and "contract" (करार) are distinct fields,
+        # not two names for the same category -- both must be mapped.
         "pre_primary_permanent": data.get("pre_primary_permanent") or 0,
+        "pre_primary_temporary": data.get("pre_primary_temporary") or 0,
         "pre_primary_contract": data.get("pre_primary_contract") or 0,
         "pre_primary_grant": data.get("pre_primary_grant") or 0,
         "pre_primary_shi_anudan": data.get("pre_primary_shi_anudan") or 0,
@@ -91,6 +94,7 @@ def _map_school_payload(data):
         "pre_primary_relief": data.get("pre_primary_relief") or 0,
 
         "primary_permanent": data.get("primary_permanent") or 0,
+        "primary_temporary": data.get("primary_temporary") or 0,
         "primary_contract": data.get("primary_contract") or 0,
         "primary_grant": data.get("primary_grant") or 0,
         "primary_shi_anudan": data.get("primary_shi_anudan") or 0,
@@ -98,6 +102,7 @@ def _map_school_payload(data):
         "primary_relief": data.get("primary_relief") or 0,
 
         "lower_sec_permanent": data.get("lower_sec_permanent") or 0,
+        "lower_sec_temporary": data.get("lower_sec_temporary") or 0,
         "lower_sec_contract": data.get("lower_sec_contract") or 0,
         "lower_sec_grant": data.get("lower_sec_grant") or 0,
         "lower_sec_shi_anudan": data.get("lower_sec_shi_anudan") or 0,
@@ -105,6 +110,7 @@ def _map_school_payload(data):
         "lower_sec_relief": data.get("lower_sec_relief") or 0,
 
         "secondary_9_10_permanent": data.get("secondary_9_10_permanent") or 0,
+        "secondary_9_10_temporary": data.get("secondary_9_10_temporary") or 0,
         "secondary_9_10_contract": data.get("secondary_9_10_contract") or 0,
         "secondary_9_10_grant": data.get("secondary_9_10_grant") or 0,
         "secondary_9_10_shi_anudan": data.get("secondary_9_10_shi_anudan") or 0,
@@ -112,6 +118,7 @@ def _map_school_payload(data):
         "secondary_9_10_relief": data.get("secondary_9_10_relief") or 0,
 
         "secondary_11_12_permanent": data.get("secondary_11_12_permanent") or 0,
+        "secondary_11_12_temporary": data.get("secondary_11_12_temporary") or 0,
         "secondary_11_12_contract": data.get("secondary_11_12_contract") or 0,
         "secondary_11_12_grant": data.get("secondary_11_12_grant") or 0,
         "secondary_11_12_shi_anudan": data.get("secondary_11_12_shi_anudan") or 0,
@@ -202,6 +209,7 @@ def public_school_reference(request):
         Q(school_name__icontains=q) | Q(emis_code__icontains=q)
     )[:15]
     return Response(PublicSchoolReferenceSerializer(matches, many=True).data)
+
 
 # =========================
 # PRINCIPAL-FACING: view / submit / edit own school

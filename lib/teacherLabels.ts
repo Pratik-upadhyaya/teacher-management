@@ -24,6 +24,7 @@ export const GRADE_LABELS: Record<string, string> = {
 export const TEACHER_TYPE_LABELS: Record<string, string> = {
   permanent: "Permanent / स्थायी",
   temporary: "Temporary / अस्थायी",
+  contract: "Contract / करार",
   grant: "Grant / अनुदान",
   shi_anudan: "Shi Anudan / शि अनुदान",
   relief: "Relief / राहत",

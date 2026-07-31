@@ -10,6 +10,7 @@ export const QUOTA_LEVELS = [
 
 export const QUOTA_TYPES = [
   { key: "permanent", label: "Permanent", sub: "स्थायी" },
+  { key: "temporary", label: "Temporary", sub: "अस्थायी" },
   { key: "contract", label: "Contract", sub: "करार" },
   { key: "grant", label: "Grant", sub: "अनुदान" },
   { key: "shi_anudan", label: "Shi Anudan", sub: "शि अनुदान" },

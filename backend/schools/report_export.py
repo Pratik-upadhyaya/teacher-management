@@ -23,7 +23,15 @@ TEMPLATE_TEACHER_ROWS = 4  # rows 17-20 exist pre-styled in the template
 
 TEACHER_TYPE_NP = {
     "permanent": "स्थायी",
-    "temporary": "करार",
+    # "temporary" (अस्थायी) and "contract" (करार) are distinct employment
+    # categories, not two names for the same one -- this was previously
+    # mislabeled "करार" here, silently mismatching the "Temporary /
+    # अस्थायी" label teachers actually see at registration
+    # (app/register/page.tsx). "contract" is now its own separate
+    # teacherType value, matching the School model's own long-standing
+    # (separate) _contract quota fields.
+    "temporary": "अस्थायी",
+    "contract": "करार",
     "grant": "अनुदान",
     "shi_anudan": "शि अनुदान",
     "relief": "राहत",
@@ -60,7 +68,7 @@ def _copy_cell_style(src_cell, dst_cell):
     dst_cell.number_format = src_cell.number_format
 
 
-ALL_TEACHER_TYPES = ["permanent", "temporary", "grant", "shi_anudan", "relief", "private"]
+ALL_TEACHER_TYPES = ["permanent", "temporary", "contract", "grant", "shi_anudan", "relief", "private"]
 ALL_LEVELS = ["pre_primary", "primary", "lower_secondary", "secondary", "higher_secondary"]
 
 
@@ -95,7 +103,12 @@ _LEVEL_TO_SCHOOL_PREFIX = {
 }
 _TYPE_TO_SCHOOL_SUFFIX = {
     "permanent": "permanent",
-    "temporary": "contract",
+    # Previously "temporary" incorrectly pointed at the School model's
+    # "_contract" field, conflating अस्थायी and करार as if they were the
+    # same category. Each now has its own field/suffix, matching the two
+    # separate values Teacher.teacherType can hold.
+    "temporary": "temporary",
+    "contract": "contract",
     "grant": "grant",
     "shi_anudan": "shi_anudan",
     "relief": "relief",
@@ -152,25 +165,31 @@ def _fill_school_sheet(ws, school, teachers):
     # ── Row 13: दरबन्दी (teacher quota) counts, computed live from the
     # school's actual approved teacher roster rather than any
     # separately-entered quota figure ─────────────────────────────────
+    #
+    # The template's row 11/12 header grid gives every level in
+    # ALL_LEVELS a full block of one column per ALL_TEACHER_TYPES plus a
+    # trailing जम्मा (total) column, in that exact order, starting at
+    # column B (see backend/schools/templates/school_report_template.xlsx
+    # -- rebuilt to have complete type coverage per level; previously
+    # several levels were missing columns for types that do occur in
+    # practice, e.g. Higher Secondary had no स्थायी/शि अनुदान/राहत/निजी
+    # columns at all). Each level's block is therefore
+    # len(ALL_TEACHER_TYPES) + 1 columns wide, laid out consecutively --
+    # computed here rather than hardcoded, so the two stay in sync as
+    # long as the template's column order matches ALL_LEVELS/
+    # ALL_TEACHER_TYPES.
     q = _quota_counts(teachers)
-    p = q["primary"]; ls = q["lower_secondary"]; s = q["secondary"]; hs = q["higher_secondary"]
-    ws["C13"] = p["permanent"]
-    ws["D13"] = p["temporary"]
-    ws["E13"] = p["grant"]
-    ws["F13"] = p["permanent"] + p["temporary"] + p["grant"]
-    ws["G13"] = ls["permanent"]
-    ws["H13"] = ls["temporary"]
-    ws["I13"] = ls["grant"]
-    ws["J13"] = ls["shi_anudan"]
-    ws["K13"] = ls["permanent"] + ls["temporary"] + ls["grant"] + ls["shi_anudan"]
-    ws["L13"] = s["permanent"]
-    ws["M13"] = s["temporary"]
-    ws["N13"] = s["grant"]
-    ws["O13"] = s["shi_anudan"]
-    ws["P13"] = s["permanent"] + s["temporary"] + s["grant"] + s["shi_anudan"]
-    ws["Q13"] = hs["temporary"]
-    ws["R13"] = hs["grant"]
-    ws["S13"] = hs["temporary"] + hs["grant"]
+    BLOCK_WIDTH = len(ALL_TEACHER_TYPES) + 1  # +1 for the level's जम्मा column
+    FIRST_GRID_COL = 2  # column B
+    for level_idx, level in enumerate(ALL_LEVELS):
+        level_counts = q[level]
+        start_col = FIRST_GRID_COL + level_idx * BLOCK_WIDTH
+        level_total = 0
+        for type_idx, t_type in enumerate(ALL_TEACHER_TYPES):
+            count = level_counts[t_type]
+            ws.cell(row=13, column=start_col + type_idx, value=count)
+            level_total += count
+        ws.cell(row=13, column=start_col + len(ALL_TEACHER_TYPES), value=level_total)
 
     # ── Rows 17+: teacher roster ──────────────────────────────────────
     teachers = list(teachers)
