@@ -53,17 +53,25 @@ export default function PortalLayout({
     setInitials(
       parts.length >= 2 ? parts[0][0] + parts[1][0] : parts[0][0]
     );
-    setAuthorized(true);
-
     authFetch("/api/teachers/me/")
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
+        // A teacher whose application isn't approved yet has no
+        // dashboard/documents/etc access -- bounce them to the
+        // status/edit page instead of letting the portal render for
+        // them (e.g. from a bookmarked link or a stale tab).
+        if (data && data.status !== "approved") {
+          router.replace("/pending-approval");
+          return;
+        }
+        setAuthorized(true);
         if (data?.school_info_status === "submitted_by_other") {
           setHideSchoolInfoNav(true);
         }
       })
       .catch(() => {
         // Non-fatal -- worst case the nav item just stays visible.
+        setAuthorized(true);
       });
   }, [router]);
 

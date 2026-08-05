@@ -77,6 +77,11 @@ export default function LoginPage() {
       setTokens(data.access, data.refresh);
       localStorage.setItem("user_role", data.role || "teacher");
 
+      if (data.role === "admin" || data.role === "sub-admin") {
+        window.location.href = "/admin";
+        return;
+      }
+
       const meRes = await fetch(
         `${API_BASE_URL}/api/teachers/me/`,
         { headers: { Authorization: `Bearer ${data.access}` } }
@@ -84,13 +89,15 @@ export default function LoginPage() {
       if (meRes.ok) {
         const me = await meRes.json();
         localStorage.setItem("teacher_name", me.name);
+        // A teacher whose application hasn't been approved yet has no
+        // dashboard access -- send them to the status/edit page instead.
+        if (me.status !== "approved") {
+          window.location.href = "/pending-approval";
+          return;
+        }
       }
 
-      if (data.role === "admin" || data.role === "sub-admin") {
-        window.location.href = "/admin";
-      } else {
-        window.location.href = "/dashboard";
-      }
+      window.location.href = "/dashboard";
     } catch (err: any) {
       setApiError(err.message);
     } finally {

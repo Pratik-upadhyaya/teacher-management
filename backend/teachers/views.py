@@ -18,6 +18,33 @@ MAX_TRANSFER_DOCUMENTS = 10
 
 
 # =========================
+# LOGIN ACCOUNT CREATION (shared)
+# =========================
+# Creates the teacher's login `User` row from the plaintext password they
+# set on the application form, then scrubs that plaintext copy so it
+# doesn't linger in the database. Called at registration time (so a
+# pending/rejected applicant can log in and see their status -- see
+# teacher_application below) and, as a fallback, at approval time for any
+# legacy row that predates that (e.g. a teacher who registered before this
+# change shipped and has no account yet).
+def _create_login_account_for_teacher(teacher):
+    from accounts.models import User
+
+    account_created = False
+    if not User.objects.filter(email=teacher.email).exists() and teacher.password:
+        user = User(username=teacher.email, email=teacher.email, role='teacher', phone=teacher.phone)
+        user.set_password(teacher.password)
+        user.save()
+        account_created = True
+
+    if teacher.password:
+        teacher.password = ""  # scrub plaintext regardless of whether we used it
+        teacher.save(update_fields=["password"])
+
+    return account_created
+
+
+# =========================
 # REGISTER + GET ALL TEACHERS
 # =========================
 class TeacherListCreateView(APIView):
@@ -129,6 +156,14 @@ class TeacherListCreateView(APIView):
             teacher.extraordinaryLeaveRemaining = max(EXTRAORDINARY_LEAVE_CAP_DAYS - taken, 0)
             teacher.save(update_fields=["extraordinaryLeaveRemaining"])
 
+            # Create the teacher's login account immediately, rather than
+            # waiting for approval -- a pending/rejected applicant still
+            # needs to log in to see their status, view a rejection
+            # reason, and edit/resubmit their application (see
+            # teacher_application below). This scrubs the plaintext
+            # password from the Teacher row as a side effect.
+            _create_login_account_for_teacher(teacher)
+
             # Consume the verification so it can't be reused for a second
             # application with the same email/phone.
             clear_verified("email", email)
@@ -187,31 +222,121 @@ def teacher_me(request):
 
 
 # =========================
-# APPROVE TEACHER
+# TEACHER'S OWN APPLICATION (pending/rejected teachers only)
 # =========================
+# Fields a teacher may edit on their own application while it's still
+# under review or has been rejected. Deliberately excludes: email/password
+# (login credentials -- see teacher_me's comment on why email can't move
+# here), status/remarks/reviewed_by (workflow fields only an
+# admin/principal should set -- see reject_teacher/request_changes/
+# approve_teacher), school/extraordinaryLeaveRemaining (server-resolved,
+# already read-only on TeacherSerializer).
+APPLICATION_EDITABLE_FIELDS = (
+    "name", "nameEnglish", "fatherName", "gender", "permanentAddress", "permanentWardNo", "dob",
+    "phone",
+    "district", "municipality", "wardNo", "schoolName", "schoolEmisCode",
+    "tokenNo", "subject", "subjectEnglish", "level", "grade", "teacherType",
+    "appointmentDate", "wasDifferentTypeBeforePermanent", "permanentAppointmentDate",
+    "promotionDate", "promotionDate2", "minQualification", "highestQualification",
+    "extraordinaryLeave", "ageSixtyYear",
+    "citizenship", "degree", "photo", "teachingLicense", "appointmentLetter",
+    "seeSlcCertificate", "highestQualificationDocument",
+)
+
+
+@api_view(['GET', 'PATCH'])
+@permission_classes([IsAuthenticated])
+def teacher_application(request):
+    teacher = Teacher.objects.filter(email=request.user.email).first()
+    if not teacher:
+        return Response({"error": "No teacher profile linked to this account."}, status=404)
+
+    if request.method == 'PATCH':
+        # Once approved, this is a live application no longer -- further
+        # edits go through the existing field_requests/documents
+        # change-request flows instead, which route through an
+        # admin/principal for approval. Editing directly here would let
+        # an approved teacher rewrite already-approved records unreviewed.
+        if teacher.status == "approved":
+            return Response(
+                {"error": "This application has already been approved and can no longer be edited here."},
+                status=400,
+            )
+
+        transfer_files = request.FILES.getlist("transferDocuments")
+        if transfer_files and (request.data.get("teacherType") or teacher.teacherType) != "permanent":
+            return Response(
+                {"error": "Old-school transfer documents are only applicable to Permanent teachers."},
+                status=400,
+            )
+        existing_transfer_count = teacher.transfer_documents.count()
+        if existing_transfer_count + len(transfer_files) > MAX_TRANSFER_DOCUMENTS:
+            return Response(
+                {"error": f"You can upload at most {MAX_TRANSFER_DOCUMENTS} transfer documents in total."},
+                status=400,
+            )
+        try:
+            processed_transfer_files = [process_document_upload(f) for f in transfer_files]
+        except DocumentValidationError as e:
+            return Response({"error": str(e)}, status=400)
+
+        application_data = {k: v for k, v in request.data.items() if k in APPLICATION_EDITABLE_FIELDS}
+        serializer = TeacherSerializer(teacher, data=application_data, partial=True)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=400)
+        serializer.save()
+
+        for processed_file in processed_transfer_files:
+            TeacherTransferDocument.objects.create(teacher=teacher, file=processed_file)
+
+        # Re-resolve the soft link to School if the EMIS code changed --
+        # same best-effort matching as initial registration (see
+        # TeacherListCreateView.post).
+        if "schoolEmisCode" in application_data:
+            emis = (application_data.get("schoolEmisCode") or "").strip()
+            matched_school = School.objects.filter(emis_code=emis).first() if emis else None
+            teacher.school = matched_school
+            teacher.save(update_fields=["school"])
+
+        # Recompute the extraordinary-leave balance if it changed -- same
+        # server-side computation as registration, never trusting a
+        # client-sent value (extraordinaryLeaveRemaining stays read-only
+        # on the serializer).
+        if "extraordinaryLeave" in application_data:
+            EXTRAORDINARY_LEAVE_CAP_DAYS = 1095
+            try:
+                taken = int((application_data.get("extraordinaryLeave") or "0").strip() or 0)
+            except (TypeError, ValueError):
+                taken = 0
+            teacher.extraordinaryLeaveRemaining = max(EXTRAORDINARY_LEAVE_CAP_DAYS - taken, 0)
+            teacher.save(update_fields=["extraordinaryLeaveRemaining"])
+
+        # Editing counts as a resubmission -- send it back into the
+        # review queue and clear whatever remarks (rejection reason or
+        # "please fix X" request) prompted the edit, so admins see a
+        # clean pending application rather than a stale rejection.
+        teacher.status = "pending"
+        teacher.remarks = ""
+        teacher.reviewed_by = None
+        teacher.save(update_fields=["status", "remarks", "reviewed_by"])
+
+        return Response(TeacherSerializer(teacher, context={"request": request}).data)
+
+    serializer = TeacherSerializer(teacher, context={"request": request})
+    return Response(serializer.data)
 @api_view(['PATCH'])
 @permission_classes([IsAuthenticated, IsAdminOrPrincipal])
 def approve_teacher(request, teacher_id):
-    from accounts.models import User
-
     teacher = get_object_or_404(Teacher, id=teacher_id)
     teacher.status = "approved"
     teacher.reviewed_by = request.user
-
-    # Create the teacher's login account now, using the password they set
-    # on the application form -- previously this was stored in plaintext
-    # and never actually connected to a real login (see comment that used
-    # to be in app/register/page.tsx). We hash it into a proper User here,
-    # then scrub the plaintext copy so it doesn't linger in the database.
-    account_created = False
-    if not User.objects.filter(email=teacher.email).exists() and teacher.password:
-        user = User(username=teacher.email, email=teacher.email, role='teacher', phone=teacher.phone)
-        user.set_password(teacher.password)
-        user.save()
-        account_created = True
-
-    teacher.password = ""  # scrub plaintext regardless of whether we used it
     teacher.save()
+
+    # Normally a no-op now that the account is created at registration
+    # time (see TeacherListCreateView.post) -- this fallback only fires
+    # for a legacy row that predates that change and still has no User
+    # account, so approving it doesn't leave the teacher locked out.
+    account_created = _create_login_account_for_teacher(teacher)
 
     return Response({
         "message": "Teacher approved",
