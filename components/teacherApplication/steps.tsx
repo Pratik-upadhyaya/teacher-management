@@ -1253,6 +1253,32 @@ export const DOC_FIELDS = [
 
 export const MAX_TRANSFER_DOCUMENTS = 10;
 
+// A document field's value is either a freshly-picked File (fresh
+// registration, or a re-upload during editing) or an existing file's
+// URL string (editing a pending/rejected application that already has
+// this document -- see app/pending-approval/page.tsx's toFormData).
+// Dumping that URL as-is reads as a wall of text, so this shows a
+// friendly "Already uploaded" label with a link to view it instead.
+function DocStatus({ value }: { value: File | string }) {
+  if (typeof value === "object") {
+    return <>✓ {value.name}</>;
+  }
+  return (
+    <>
+      {"✓ Already uploaded — "}
+      <a
+        href={value}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={(e) => e.stopPropagation()}
+        className="underline"
+      >
+        view
+      </a>
+    </>
+  );
+}
+
 export function Step4({
   data,
   onChange,
@@ -1318,11 +1344,9 @@ export function Step4({
               />
               {data[doc.key] ? (
                 <p className="text-sm text-[#0f2044] font-medium text-center">
-    ✓ {typeof data[doc.key] === "object"
-        ? data[doc.key].name
-        : data[doc.key]}
-  </p>
-) : (
+                  <DocStatus value={data[doc.key]} />
+                </p>
+              ) : (
                 <>
                   <div className="text-xl mb-1 text-gray-400">↑</div>
                   <p className="text-xs text-gray-400">Click to upload</p>
@@ -1347,9 +1371,7 @@ export function Step4({
               />
               {data.highestQualificationDocument ? (
                 <p className="text-sm text-[#0f2044] font-medium text-center">
-                  ✓ {typeof data.highestQualificationDocument === "object"
-                    ? data.highestQualificationDocument.name
-                    : data.highestQualificationDocument}
+                  <DocStatus value={data.highestQualificationDocument} />
                 </p>
               ) : (
                 <>
