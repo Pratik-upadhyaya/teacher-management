@@ -132,6 +132,18 @@ class Teacher(models.Model):
     promotionDate = models.CharField(max_length=20, blank=True, null=True)
     promotionDate2 = models.CharField(max_length=20, blank=True, null=True)
 
+    # Special Promotion -- distinct from the grade-based promotionDate /
+    # promotionDate2 above (those track the standard Third -> Second ->
+    # First ladder; this tracks an out-of-cycle/special promotion).
+    # Permanent-only, same as wasDifferentTypeBeforePermanent above.
+    # Tri-state (None/True/False) for the same reason: an unanswered
+    # wizard step must stay distinguishable from an explicit "No" --
+    # required for Permanent applicants, see teachers/validation.py.
+    isSpeciallyPromoted = models.BooleanField(null=True, blank=True)
+
+    # Only collected/required when isSpeciallyPromoted is True.
+    specialPromotionDate = models.CharField(max_length=20, blank=True, null=True)
+
     # Split into two so a teacher whose entry qualification (e.g. SLC/SEE)
     # differs from what they've since completed (e.g. Master's) can record
     # both -- the two are commonly, but not always, the same value, so the
@@ -322,6 +334,16 @@ class Teacher(models.Model):
                 | ~Q(wasDifferentTypeBeforePermanent=True)
                 | (Q(permanentAppointmentDate__isnull=False) & ~Q(permanentAppointmentDate="")),
                 name="teacher_permanentAppointmentDate_required_if_was_different",
+            ),
+            # specialPromotionDate required only when isSpeciallyPromoted
+            # is True. Safe to constrain at the DB level immediately (unlike
+            # isSpeciallyPromoted itself being required, which existing rows
+            # would violate) -- every existing row has isSpeciallyPromoted
+            # unset/NULL, so this condition holds for all of them.
+            models.CheckConstraint(
+                condition=~Q(isSpeciallyPromoted=True)
+                | (Q(specialPromotionDate__isnull=False) & ~Q(specialPromotionDate="")),
+                name="teacher_specialPromotionDate_required_if_specially_promoted",
             ),
         ]
 

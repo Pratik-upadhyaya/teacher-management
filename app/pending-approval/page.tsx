@@ -28,6 +28,7 @@ function emptyFormData(): ApplicationData {
     appointmentDate: "", promotionDate: "", minQualification: "", highestQualification: "",
     extraordinaryLeave: "", ageSixtyYear: "", remarks: "",
     wasDifferentTypeBeforePermanent: "", permanentAppointmentDate: "", promotionDate2: "",
+    isSpeciallyPromoted: "", specialPromotionDate: "",
     citizenship: "", degree: "", seeSlcCertificate: "", photo: "", teachingLicense: "", appointmentLetter: "",
     highestQualificationDocument: "",
     transferDocuments: [] as File[],
@@ -46,6 +47,12 @@ function toFormData(api: any): ApplicationData {
       api.wasDifferentTypeBeforePermanent === true
         ? "true"
         : api.wasDifferentTypeBeforePermanent === false
+        ? "false"
+        : "",
+    isSpeciallyPromoted:
+      api.isSpeciallyPromoted === true
+        ? "true"
+        : api.isSpeciallyPromoted === false
         ? "false"
         : "",
     transferDocuments: [],
@@ -120,6 +127,10 @@ export default function PendingApprovalPage() {
       dateFields.forEach((f) => payload.append(f, nepaliToAscii(formData[f] ?? "")));
 
       if (formData.teacherType === "permanent") {
+        payload.append("isSpeciallyPromoted", formData.isSpeciallyPromoted);
+        if (formData.isSpeciallyPromoted === "true") {
+          payload.append("specialPromotionDate", nepaliToAscii(formData.specialPromotionDate || ""));
+        }
         payload.append("wasDifferentTypeBeforePermanent", formData.wasDifferentTypeBeforePermanent);
         if (formData.wasDifferentTypeBeforePermanent === "true") {
           payload.append("permanentAppointmentDate", nepaliToAscii(formData.permanentAppointmentDate || ""));

@@ -80,4 +80,17 @@ def get_teacher_required_field_errors(get_field: Callable[[str], object]) -> dic
             require("promotionDate", "Promotion Date (Third → Second) is required for Grade First.")
             require("promotionDate2", "Promotion Date (Second → First) is required for Grade First.")
 
+        # Special Promotion -- Permanent-only, like the fields above (not
+        # related to the grade-based promotionDate/promotionDate2 ladder).
+        specially_promoted = get_field("isSpeciallyPromoted")
+        if specially_promoted is None:
+            errors["isSpeciallyPromoted"] = (
+                "Please specify whether you have been specially promoted."
+            )
+        elif specially_promoted:
+            require(
+                "specialPromotionDate",
+                "Special Promotion Date is required when you have been specially promoted.",
+            )
+
     return errors

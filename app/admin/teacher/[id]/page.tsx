@@ -92,6 +92,8 @@ type TeacherDetail = {
   permanentAppointmentDate: string | null;
   promotionDate: string | null;
   promotionDate2: string | null;
+  isSpeciallyPromoted: boolean | null;
+  specialPromotionDate: string | null;
   minQualification: string | null;
   highestQualification: string | null;
   extraordinaryLeave: string | null;
@@ -493,6 +495,21 @@ export default function TeacherDetailPage() {
               }
               value={teacher.appointmentDate}
             />
+            {teacher.teacherType === "permanent" && (
+              <Field
+                label="Specially Promoted?"
+                value={
+                  teacher.isSpeciallyPromoted === null
+                    ? null
+                    : teacher.isSpeciallyPromoted
+                    ? "Yes"
+                    : "No"
+                }
+              />
+            )}
+            {teacher.teacherType === "permanent" && teacher.isSpeciallyPromoted && (
+              <Field label="Special Promotion Date" value={teacher.specialPromotionDate} />
+            )}
             {teacher.teacherType === "permanent" && (
               <Field
                 label="Different Type Before Permanent?"

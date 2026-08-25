@@ -33,6 +33,8 @@ export default function RegisterPage() {
     extraordinaryLeave: "", ageSixtyYear: "", remarks: "",
     // Only relevant when teacherType === "permanent"
     wasDifferentTypeBeforePermanent: "", permanentAppointmentDate: "", promotionDate2: "",
+    // Special Promotion -- asked of every applicant regardless of teacherType
+    isSpeciallyPromoted: "", specialPromotionDate: "",
     // Step 5: Documents
     citizenship: "", degree: "", seeSlcCertificate: "", photo: "", teachingLicense: "", appointmentLetter: "",
     // Only required when highestQualification differs from minQualification
@@ -98,6 +100,10 @@ export default function RegisterPage() {
     // so the backend's tri-state (unanswered vs. explicit No) isn't
     // muddied by an empty string from a non-Permanent applicant.
     if (formData.teacherType === "permanent") {
+      payload.append("isSpeciallyPromoted", formData.isSpeciallyPromoted);
+      if (formData.isSpeciallyPromoted === "true") {
+        payload.append("specialPromotionDate", nepaliToAscii(formData.specialPromotionDate));
+      }
       payload.append("wasDifferentTypeBeforePermanent", formData.wasDifferentTypeBeforePermanent);
       if (formData.wasDifferentTypeBeforePermanent === "true") {
         payload.append("permanentAppointmentDate", nepaliToAscii(formData.permanentAppointmentDate));

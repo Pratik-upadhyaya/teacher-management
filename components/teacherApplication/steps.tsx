@@ -942,6 +942,7 @@ export function Step3({
   const wasDifferent = data.wasDifferentTypeBeforePermanent === "true";
   const needsPromotion1 = isPermanent && (data.grade === "second" || data.grade === "first");
   const needsPromotion2 = isPermanent && data.grade === "first";
+  const isSpeciallyPromoted = data.isSpeciallyPromoted === "true";
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -950,6 +951,12 @@ export function Step3({
     validateNepaliDate(data.appointmentDate, errs, "appointmentDate", "नियुक्ती मिति");
 
     if (isPermanent) {
+      if (!data.isSpeciallyPromoted) {
+        errs.isSpeciallyPromoted = "यो प्रश्नको जवाफ दिनुहोस्";
+      } else if (isSpeciallyPromoted) {
+        validateNepaliDate(data.specialPromotionDate, errs, "specialPromotionDate", "विशेष बढुवा मिति");
+      }
+
       if (!data.wasDifferentTypeBeforePermanent) {
         errs.wasDifferentTypeBeforePermanent = "यो प्रश्नको जवाफ दिनुहोस्";
       } else if (wasDifferent) {
@@ -1009,6 +1016,51 @@ export function Step3({
           <FieldError msg={errors.appointmentDate} />
         </div>
 
+      </div>
+
+      <div className="space-y-4 bg-gray-50 border border-gray-100 rounded-lg p-4">
+        {isPermanent && (
+          <>
+          <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Have you been specially promoted?
+            <span className="text-gray-400 font-normal block text-xs mt-0.5">
+              के तपाईं विशेष बढुवा भएको छ?
+            </span>
+          </label>
+          <select
+            title="Special Promotion"
+            value={data.isSpeciallyPromoted}
+            onChange={(e) => {
+              onChange("isSpeciallyPromoted", e.target.value);
+              setErrors((p) => ({ ...p, isSpeciallyPromoted: "", specialPromotionDate: "" }));
+            }}
+            className={ic(errors, "isSpeciallyPromoted")}
+          >
+            <option value="">छान्नुहोस्</option>
+            <option value="true">Yes / हो</option>
+            <option value="false">No / होइन</option>
+          </select>
+          <FieldError msg={errors.isSpeciallyPromoted} />
+        </div>
+
+        {isSpeciallyPromoted && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Special Promotion Date <span className="text-gray-400 font-normal">/ विशेष बढुवा मिति</span>
+            </label>
+            <NepaliNumberInput
+              value={data.specialPromotionDate}
+              onChange={(val: string) => { onChange("specialPromotionDate", val); setErrors((p) => ({ ...p, specialPromotionDate: "" })); }}
+              placeholder="२०८२/०१/०१"
+              className={ic(errors, "specialPromotionDate")}
+              mode="date"
+            />
+            <FieldError msg={errors.specialPromotionDate} />
+          </div>
+        )}
+          </>
+        )}
       </div>
 
       {isPermanent && (
@@ -1515,6 +1567,17 @@ export function Step5({
         ...(data.teacherType === "permanent"
           ? ([
               [
+                "Specially Promoted? / विशेष बढुवा भएको?",
+                data.isSpeciallyPromoted === "true" ? "Yes / हो" : data.isSpeciallyPromoted === "false" ? "No / होइन" : "—",
+              ],
+              ...(data.isSpeciallyPromoted === "true"
+                ? ([["Special Promotion Date / विशेष बढुवा मिति", data.specialPromotionDate || "—"]] as [string, string][])
+                : []),
+            ] as [string, string][])
+          : []),
+        ...(data.teacherType === "permanent"
+          ? ([
+              [
                 "Different type before Permanent? / स्थायी हुनुअघि फरक प्रकार?",
                 data.wasDifferentTypeBeforePermanent === "true" ? "Yes / हो" : data.wasDifferentTypeBeforePermanent === "false" ? "No / होइन" : "—",
               ],
@@ -1569,6 +1632,8 @@ export function Step5({
         ...(data.teacherType === "permanent"
           ? [
               data.tokenNo, data.grade, data.wasDifferentTypeBeforePermanent, data.extraordinaryLeave,
+              data.isSpeciallyPromoted,
+              ...(data.isSpeciallyPromoted === "true" ? [data.specialPromotionDate] : []),
               ...(data.wasDifferentTypeBeforePermanent === "true" ? [data.permanentAppointmentDate] : []),
               ...((data.grade === "second" || data.grade === "first") ? [data.promotionDate] : []),
               ...(data.grade === "first" ? [data.promotionDate2] : []),
