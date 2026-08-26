@@ -112,7 +112,7 @@ def _quota_counts(teachers):
     return counts
 
 
-# School's own दरबन्दी fields (Step 4 of the principal's school-info form,
+# Each School's own दरबन्दी fields (Step 4 of the principal's school-info form,
 # app/(portal)/principal/page.tsx) use different level-key and type-key
 # spellings than Teacher.level/teacherType and this module's ALL_LEVELS/
 # ALL_TEACHER_TYPES -- e.g. "lower_secondary" here vs. School's
